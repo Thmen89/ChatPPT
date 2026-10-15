@@ -10,6 +10,7 @@ from utils.get_env import get_app_data_directory_env, get_can_change_keys_env
 from utils.model_availability import (
     check_llm_and_image_provider_api_or_model_availability,
 )
+from chatppt.settings import apply_to_environ, get_settings
 from utils.user_config import update_env_with_user_config
 from utils.simple_auth import (
     clear_stored_credentials,
@@ -91,7 +92,12 @@ async def app_lifespan(_: FastAPI):
     availability.
     """
     _configure_application_logging()
-    os.makedirs(get_app_data_directory_env(), exist_ok=True)
+    # chatppt.toml / CHATPPT_* are exported as the legacy env names so upstream readers see them.
+    settings = get_settings()
+    exported = apply_to_environ(settings)
+    if settings.source_path:
+        logger.info("Loaded %s (%d keys exported to the environment)", settings.source_path, len(exported))
+    os.makedirs(get_app_data_directory_env() or str(settings.data_dir), exist_ok=True)
     await migrate_database_on_startup()
     await create_db_and_tables()
     _bootstrap_auth_from_env()

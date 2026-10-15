@@ -1,13 +1,11 @@
 from typing import Optional
 
-from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
-from utils.llm_config import get_llm_config
+from chatppt.providers import llm_for_step
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import generate_structured_with_schema_retries
-from utils.llm_provider import get_model
 from utils.get_dynamic_models import get_presentation_structure_model_with_n_slides
 from utils.schema_utils import prepare_schema_for_validation
 from models.presentation_structure_model import PresentationStructureModel
@@ -138,8 +136,7 @@ async def generate_presentation_structure(
     instructions: Optional[str] = None,
     using_slides_markdown: bool = False,
 ) -> PresentationStructureModel:
-    client = get_client(config=get_llm_config())
-    model = get_model()
+    client, model = llm_for_step("structure")
     response_model = get_presentation_structure_model_with_n_slides(
         len(presentation_outline.slides)
     )

@@ -44,9 +44,9 @@ def test_generate_ppt_outline_streams_json_chunks_and_keeps_schema_shape():
         yield content_event('{"content": "## Intro\\nBullet"}')
         yield content_event("]}")
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(
+        outline_module, "llm_for_step", return_value=(object(), "fake-model")
+    ), patch.object(
         outline_module,
         "get_generate_kwargs",
         side_effect=lambda **kwargs: kwargs,
@@ -72,12 +72,8 @@ def test_generate_ppt_outline_returns_http_exception_chunk_on_failure():
         raise TimeoutError("provider timed out")
         yield  # pragma: no cover
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(
-        outline_module,
-        "get_llm_config",
-        return_value={},
+    with patch.object(
+        outline_module, "llm_for_step", return_value=(object(), "fake-model")
     ), patch.object(
         outline_module,
         "get_generate_kwargs",
