@@ -1,12 +1,10 @@
 import asyncio
 from typing import Optional
 from fastapi import HTTPException
-from llmai import get_client
 from llmai.shared import SystemMessage, UserMessage
-from utils.llm_config import get_llm_config
+from chatppt.providers import llm_for_step
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import extract_text, get_generate_kwargs
-from utils.llm_provider import get_model
 
 system_prompt = """
     You are an expert HTML slide editor. Your task is to modify slide HTML content based on user prompts while maintaining proper structure, styling, and functionality.
@@ -61,9 +59,8 @@ def get_user_prompt(prompt: str, html: str, memory_context: Optional[str] = None
 async def get_edited_slide_html(
     prompt: str, html: str, memory_context: Optional[str] = None
 ):
-    model = get_model()
+    client, model = llm_for_step("edit")
 
-    client = get_client(config=get_llm_config())
     try:
         response = await asyncio.to_thread(
             client.generate,

@@ -3,6 +3,7 @@ import path from "path";
 
 import { compileTemplateSchema } from "@/lib/compile-template-schema";
 import { getFastApiAuthHeaders, getFastApiBaseUrl } from "@/lib/fastapi-internal";
+import { listLayoutFiles, readTemplateManifest, resolveTemplateDir } from "@/lib/template-dirs";
 
 export type BuiltinLayoutSlide = {
   id: string;
@@ -28,10 +29,6 @@ function normalizeIconWeight(value: unknown): string {
   return ALLOWED_ICON_WEIGHTS.has(normalized) ? normalized : DEFAULT_ICON_WEIGHT;
 }
 
-function getIconWeightFromSettings(settings: Record<string, unknown>): string {
-  return normalizeIconWeight(settings.icon_weight);
-}
-
 /**
  * Build layout + JSON schemas for a built-in template directory without importing
  * `presentation-templates/index.tsx` (that pulls Recharts/client bundles into RSC).
@@ -48,48 +45,17 @@ export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<
   icon_weight: string;
   slides: BuiltinLayoutSlide[];
 } | null> {
-  const dir = path.join(
-    process.cwd(),
-    "app",
-    "presentation-templates",
-    group,
-  );
-
-  try {
-    await fs.access(dir);
-  } catch {
+  const resolved = await resolveTemplateDir(group);
+  if (!resolved) {
     return null;
   }
-
-  let ordered = false;
-  let icon_weight = DEFAULT_ICON_WEIGHT;
-  try {
-    const raw = await fs.readFile(path.join(dir, "settings.json"), "utf8");
-    const s = JSON.parse(raw) as Record<string, unknown> & { ordered?: boolean };
-    if (typeof s.ordered === "boolean") {
-      ordered = s.ordered;
-    }
-    icon_weight = getIconWeightFromSettings(s);
-  } catch {
-    // settings.json optional
-  }
-
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const tsxFiles = entries
-    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
-    .map((e) => e.name)
-    .filter(
-      (n) =>
-        !n.includes(".test.") &&
-        !n.includes(".spec.") &&
-        n !== "ExampleSlideLayoutTemplate.tsx",
-    )
-    .sort();
+  const manifest = await readTemplateManifest(resolved.dir);
+  const tsxFiles = await listLayoutFiles(resolved.dir, manifest);
 
   const slides: BuiltinLayoutSlide[] = [];
 
   for (const file of tsxFiles) {
-    const full = path.join(dir, file);
+    const full = path.join(resolved.dir, file);
     const code = await fs.readFile(full, "utf8");
     const compiled = compileTemplateSchema(code);
     if (!compiled) {
@@ -110,7 +76,12 @@ export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<
     return null;
   }
 
-  return { name: group, ordered, icon_weight, slides };
+  return {
+    name: group,
+    ordered: manifest.ordered,
+    icon_weight: normalizeIconWeight(manifest.icon_weight),
+    slides,
+  };
 }
 
 export type CustomLayoutCompileInput = {

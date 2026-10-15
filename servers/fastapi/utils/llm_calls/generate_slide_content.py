@@ -2,69 +2,19 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 
 from models.presentation_layout import SlideLayoutModel
 from models.presentation_outline_model import SlideOutlineModel
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_config import get_llm_config
-from utils.llm_provider import get_model
+from chatppt.prompts import render_prompt
+from chatppt.providers import llm_for_step
 from utils.llm_utils import generate_structured_with_schema_retries
 from utils.schema_utils import (
     add_field_in_schema,
     ensure_array_schemas_have_items,
     remove_fields_from_schema,
 )
-
-SLIDE_CONTENT_SYSTEM_PROMPT = """
-You will be given slide content and response schema.
-You need to generate structured content json based on the schema.
-
-# Steps
-1. Analyze the content.
-2. Analyze the response schema.
-3. Generate structured content json based on the schema.
-4. Generate speaker note if required.
-5. Provide structured content json as output.
-
-# General Rules
-- Follow language guidelines.
-- Speaker notes must be plain text (no markdown).
-- Never exceed max character limits; do not clip mid-sentence to fit—rephrase instead.
-- Do not use emojis or $schema fields.
-- Follow user instructions literally; do not reinterpret, generalize, or expand them.
-- Apply slide-specific instructions only to the exact slide mentioned (first/second/last/named) and only once.
-- Do not apply patterns across multiple slides unless explicitly requested.
-- If instructions are ambiguous, use the most direct interpretation without extending scope.
-
-{markdown_emphasis_rules}
-
-{user_instructions}
-
-{tone_instructions}
-
-{verbosity_instructions}
-
-{output_fields_instructions}
-"""
-
-
-SLIDE_CONTENT_USER_PROMPT = """
-# Current Date and Time:
-{current_date_time}
-
-# Icon Query And Image Prompt Language:
-English
-
-# Slide Language:
-{language}
-
-# SLIDE CONTENT: START
-{content}
-# SLIDE CONTENT: END
-"""
-
 
 def _resolve_prompt_language(language: Optional[str]) -> str:
     if language is None:
@@ -117,7 +67,8 @@ def get_system_prompt(
         response_schema
     )
 
-    return SLIDE_CONTENT_SYSTEM_PROMPT.format(
+    return render_prompt(
+        "slide_content.system",
         markdown_emphasis_rules=markdown_emphasis_rules,
         user_instructions=user_instructions,
         tone_instructions=tone_instructions,
@@ -127,7 +78,8 @@ def get_system_prompt(
 
 
 def get_user_prompt(outline: str, language: Optional[str]):
-    return SLIDE_CONTENT_USER_PROMPT.format(
+    return render_prompt(
+        "slide_content.user",
         current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         language=_resolve_prompt_language(language),
         content=outline,
@@ -166,8 +118,7 @@ async def get_slide_content_from_type_and_outline(
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
 ):
-    client = get_client(config=get_llm_config())
-    model = get_model()
+    client, model = llm_for_step("content")
 
     response_schema = remove_fields_from_schema(
         slide_layout.json_schema, ["__image_url__", "__icon_url__"]
