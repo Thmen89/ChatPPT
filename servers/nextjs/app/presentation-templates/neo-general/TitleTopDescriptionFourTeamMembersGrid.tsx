@@ -18,7 +18,7 @@ export const Schema = z.object({
             name: 'Hannah Morales',
             designation: 'Founder & CEO',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female executive',
             },
             bio: 'Focus on companies with 500+ employees.',
@@ -27,7 +27,7 @@ export const Schema = z.object({
             name: 'James Wilson',
             designation: 'Head of Sales',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a male executive',
             },
             bio: 'Focus on companies with 500+ employees.',
@@ -36,7 +36,7 @@ export const Schema = z.object({
             name: 'Helene Paquet',
             designation: 'Chief Tech Officer',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female technology leader',
             },
             bio: 'Focus on companies with 500+ employees.',
@@ -45,7 +45,7 @@ export const Schema = z.object({
             name: 'Marcus Chen',
             designation: 'Creative Director',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a male creative professional',
             },
             bio: 'Focus on companies with 500+ employees.',

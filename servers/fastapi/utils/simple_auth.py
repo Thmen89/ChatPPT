@@ -12,7 +12,10 @@ from starlette.responses import Response
 from utils.get_env import get_user_config_path_env, is_disable_auth_enabled
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
-SESSION_COOKIE_NAME = "presenton_session"
+SESSION_COOKIE_NAME = "chatppt_session"
+# Deprecated: cookie name used before the ChatPPT rename. Still read (and cleared on
+# logout) for one release so existing sessions survive the upgrade.
+LEGACY_SESSION_COOKIE_NAME = "presenton_session"
 PBKDF2_ITERATIONS = 200_000
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 AUTH_CONFIG_FIELDS = ("AUTH_USERNAME", "AUTH_PASSWORD_HASH", "AUTH_SECRET_KEY")
@@ -250,7 +253,9 @@ def validate_session_token(token: Optional[str]) -> Optional[str]:
 
 
 def get_session_token_from_request(request: Request) -> Optional[str]:
-    cookie_token = request.cookies.get(SESSION_COOKIE_NAME)
+    cookie_token = request.cookies.get(SESSION_COOKIE_NAME) or request.cookies.get(
+        LEGACY_SESSION_COOKIE_NAME
+    )
     if cookie_token:
         return cookie_token
 
@@ -335,10 +340,11 @@ def set_session_cookie(response: Response, token: str, request: Request) -> None
 
 
 def clear_session_cookie(response: Response, request: Request) -> None:
-    response.delete_cookie(
-        key=SESSION_COOKIE_NAME,
-        httponly=True,
-        secure=_is_secure_request(request),
-        samesite="lax",
-        path="/",
-    )
+    for key in (SESSION_COOKIE_NAME, LEGACY_SESSION_COOKIE_NAME):
+        response.delete_cookie(
+            key=key,
+            httponly=True,
+            secure=_is_secure_request(request),
+            samesite="lax",
+            path="/",
+        )

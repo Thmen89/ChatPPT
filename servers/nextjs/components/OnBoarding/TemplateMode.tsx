@@ -24,7 +24,7 @@ import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageField
 
 const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
 
-const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep: (step: number) => void }) => {
+const TemplateMode = ({ currentStep, setStep }: { currentStep: number, setStep: (step: number) => void }) => {
     const pathname = usePathname();
     const [openProviderSelect, setOpenProviderSelect] = useState(false);
     const [openImageProviderSelect, setOpenImageProviderSelect] = useState(false);
@@ -497,7 +497,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
 
     return (
         <div className='w-full max-w-[660px] font-syne pb-10'>
-            <p className='px-2.5 py-0.5 w-fit text-[#7A5AF8] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>PRESENTON</p>
+            <p className='px-2.5 py-0.5 w-fit text-[#7A5AF8] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>TEMPLATE MODE</p>
             <div className=''>
 
                 <h2 className='mb-4 text-black text-[26px] font-normal font-unbounded '>Choose your content providers</h2>
@@ -1324,4 +1324,4 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
     )
 }
 
-export default PresentonMode
+export default TemplateMode

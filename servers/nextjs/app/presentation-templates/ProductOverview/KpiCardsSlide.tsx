@@ -21,11 +21,11 @@ export const Schema = z.object({
     description: "Main title shown in the top-left corner.",
   }),
   kpiIcon: z.object({
-    __icon_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg"),
+    __icon_url__: z.string().default("/placeholder.svg"),
     __icon_query__: z.string().min(3).max(30).default("pulse icon"),
   }).default({
     __icon_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+      "/placeholder.svg",
     __icon_query__: "pulse icon",
   }).meta({
     description: "Icon shown in each KPI card badge.",

@@ -14,25 +14,25 @@ export const Schema = z.object({
         subText: z.string().max(12).describe('Additional detail or challenge related to the metric'),
     })).max(4).describe('A list of up to 4 metric items').default([
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg', __icon_query__: 'search' },
+            icon: { __icon_url__: '/placeholder.svg', __icon_query__: 'search' },
             label: 'Research',
             value: '8,450',
             subText: 'Main Challenge: Delayed Client'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg', __icon_query__: 'search' },
+            icon: { __icon_url__: '/placeholder.svg', __icon_query__: 'search' },
             label: 'Research',
             value: '8,450',
             subText: 'Main Challenge: Delayed Client'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg', __icon_query__: 'search' },
+            icon: { __icon_url__: '/placeholder.svg', __icon_query__: 'search' },
             label: 'Research',
             value: '8,450',
             subText: 'Main Challenge: Delayed Client'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg', __icon_query__: 'search' },
+            icon: { __icon_url__: '/placeholder.svg', __icon_query__: 'search' },
             label: 'Research',
             value: '8,450',
             subText: 'Main Challenge: Delayed Client'
@@ -42,7 +42,7 @@ export const Schema = z.object({
         __image_url__: z.string(),
         __image_prompt__: z.string().max(100),
     }).describe('The primary visual image on the right').default({
-        __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+        __image_url__: '/replaceable_template_image.png',
         __image_prompt__: 'Hands of business people stacked together in unity'
     }),
 });

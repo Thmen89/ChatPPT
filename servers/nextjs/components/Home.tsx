@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 import OnBoardingSlidebar from "./OnBoarding/OnBoardingSlidebar";
 import OnBoardingHeader from "./OnBoarding/OnBoardingHeader";
 import ModeSelectStep from "./OnBoarding/ModeSelectStep";
-import PresentonMode from "./OnBoarding/PresentonMode";
+import TemplateMode from "./OnBoarding/TemplateMode";
 import GenerationWithImage from "./OnBoarding/GenerationWithImage";
 import FinalStep from "./OnBoarding/FinalStep";
 
@@ -33,7 +33,7 @@ interface ButtonState {
 export default function Home() {
   const router = useRouter();
   const [step, setStep] = useState<number>(1)
-  const [selectedMode, setSelectedMode] = useState<string>("presenton")
+  const [selectedMode, setSelectedMode] = useState<string>("template")
   const config = useSelector((state: RootState) => state.userConfig);
 
   const canChangeKeys = config.can_change_keys;
@@ -57,7 +57,7 @@ export default function Home() {
 
         <OnBoardingHeader currentStep={step} setStep={setStep} />
         {step === 1 && <ModeSelectStep selectedMode={selectedMode} setStep={setStep} setSelectedMode={setSelectedMode} />}
-        {step === 2 && selectedMode === "presenton" && <PresentonMode currentStep={step} setStep={setStep} />}
+        {step === 2 && selectedMode === "template" && <TemplateMode currentStep={step} setStep={setStep} />}
         {step === 2 && selectedMode === "image" && <GenerationWithImage />}
         {step === 3 && <FinalStep />}
       </main>

@@ -557,7 +557,7 @@ class ImageGenerationService:
 
         ComfyUI API-format workflows only include current widget values, not the
         UI's control_after_generate setting. Randomizing numeric seed-like inputs
-        here gives each Presenton regeneration a new output for the same prompt.
+        here gives each regeneration a new output for the same prompt.
         """
         node_index = self._build_comfyui_node_index(workflow)
         randomized_inputs: set[tuple[int, str]] = set()

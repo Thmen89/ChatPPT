@@ -5,9 +5,6 @@ import OutlinePage from './components/OutlinePage'
 export const metadata: Metadata = {
   title: "Outline Presentation",
   description: "Customize and organize your presentation outline. Drag and drop slides, add charts, and generate your presentation with ease.",
-  alternates: {
-    canonical: "https://presenton.ai/create"
-  },
   keywords: [
     "presentation generator",
     "AI presentations",

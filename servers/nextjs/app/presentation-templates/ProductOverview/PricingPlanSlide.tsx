@@ -31,11 +31,11 @@ export const Schema = z.object({
     description: "Main slide title.",
   }),
   featureIcon: z.object({
-    __icon_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg"),
+    __icon_url__: z.string().default("/placeholder.svg"),
     __icon_query__: z.string().min(3).max(30).default("check icon"),
   }).default({
     __icon_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+      "/placeholder.svg",
     __icon_query__: "check icon",
   }).meta({
     description: "Icon used for each feature bullet in plan cards.",

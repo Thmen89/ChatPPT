@@ -4,9 +4,13 @@ const fs = require("fs")
 const path = require("path")
 const packageMetadata = require("./package.json")
 
-const APP_ID = "com.presenton.presenton"
-const TEAM_ID = "S6W5C54KL6"
-const macTarget = process.env.PRESENTON_MAC_TARGET
+// Build-time knobs are read as CHATPPT_*; the PRESENTON_* names are deprecated fallbacks.
+const env = (name) => process.env[`CHATPPT_${name}`] || process.env[`PRESENTON_${name}`]
+
+const APP_ID = "io.github.thmen89.chatppt"
+// TODO(owner): Apple Developer Team ID, required for Mac App Store builds only.
+const TEAM_ID = env("APPLE_TEAM_ID") || ""
+const macTarget = env("MAC_TARGET")
 const masDevProvisioningProfile = resolveProvisioningProfileForTarget({
   target: "mas-dev",
   label: "MAS development",
@@ -22,10 +26,10 @@ const masProvisioningProfile = resolveProvisioningProfileForTarget({
   candidates: ["build/MacAppStore.provisionprofile"],
 })
 const masDevIdentity =
-  process.env.PRESENTON_MAS_DEV_IDENTITY || process.env.CSC_NAME || ""
+  env("MAS_DEV_IDENTITY") || process.env.CSC_NAME || ""
 const masDistributionIdentity =
-  process.env.PRESENTON_MAS_DISTRIBUTION_IDENTITY ||
-  process.env.PRESENTON_MAS_IDENTITY ||
+  env("MAS_DISTRIBUTION_IDENTITY") ||
+  env("MAS_IDENTITY") ||
   process.env.CSC_NAME ||
   ""
 const appStoreBundleShortVersion =
@@ -36,25 +40,25 @@ const appStoreBundleVersion =
     : undefined
 
 function getAppStoreBundleShortVersion() {
-  const configuredVersion = process.env.PRESENTON_APP_STORE_VERSION
+  const configuredVersion = env("APP_STORE_VERSION")
   if (configuredVersion) {
-    validateAppStoreVersion(configuredVersion, "PRESENTON_APP_STORE_VERSION")
+    validateAppStoreVersion(configuredVersion, "CHATPPT_APP_STORE_VERSION")
     return configuredVersion
   }
 
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(packageMetadata.version)
   if (!match) {
     throw new Error(
-      `Cannot derive an App Store version from package version "${packageMetadata.version}". Set PRESENTON_APP_STORE_VERSION to three period-separated integers, for example 1.0.0.`
+      `Cannot derive an App Store version from package version "${packageMetadata.version}". Set CHATPPT_APP_STORE_VERSION to three period-separated integers, for example 1.0.0.`
     )
   }
   return `${match[1]}.${match[2]}.${match[3]}`
 }
 
 function getAppStoreBundleVersion(bundleShortVersion) {
-  const configuredBuild = process.env.PRESENTON_APP_STORE_BUILD
+  const configuredBuild = env("APP_STORE_BUILD")
   if (configuredBuild) {
-    validateAppStoreBuild(configuredBuild, "PRESENTON_APP_STORE_BUILD")
+    validateAppStoreBuild(configuredBuild, "CHATPPT_APP_STORE_BUILD")
     return configuredBuild
   }
   return bundleShortVersion
@@ -183,9 +187,9 @@ const afterPack = async (context) => {
 
 const config = {
   appId: APP_ID,
-  productName: "Presenton",
+  productName: "ChatPPT",
   asar: false,
-  copyright: "Copyright © 2026 Presenton",
+  copyright: "Copyright © 2026 ChatPPT contributors. Derived from Presenton (Apache-2.0).",
   directories: {
     output: "dist",
     buildResources: "build",
@@ -198,18 +202,16 @@ const config = {
   ],
   afterPack,
   mac: {
-    artifactName: "Presenton-${version}.${ext}",
+    artifactName: "ChatPPT-${version}.${ext}",
     target: [macTarget || "dmg"],
     category: "public.app-category.productivity",
     hardenedRuntime: false,
     gatekeeperAssess: false,
     identity: macTarget === "mas-dev" ? null : undefined,
-    icon: "resources/ui/assets/images/presenton_short_filled.png",
+    icon: "resources/ui/assets/images/chatppt_mark.png",
     bundleShortVersion: appStoreBundleShortVersion,
     bundleVersion: appStoreBundleVersion,
-    extendInfo: {
-      ElectronTeamID: TEAM_ID,
-    },
+    extendInfo: TEAM_ID ? { ElectronTeamID: TEAM_ID } : undefined,
   },
   masDev: {
     type: "development",
@@ -228,7 +230,7 @@ const config = {
     entitlementsInherit: "build/entitlements.mas.inherit.plist",
   },
   linux: {
-    artifactName: "Presenton-${version}.${ext}",
+    artifactName: "ChatPPT-${version}.${ext}",
     target: ["AppImage", "deb"],
     icon: "build/icons",
   },
@@ -239,8 +241,8 @@ const config = {
   win: {
     target: ["nsis", "appx"],
     icon: "build/icon.ico",
-    artifactName: "Presenton-${version}.${ext}",
-    executableName: "Presenton",
+    artifactName: "ChatPPT-${version}.${ext}",
+    executableName: "ChatPPT",
   },
   nsis: {
     oneClick: false,
@@ -252,16 +254,16 @@ const config = {
     installerHeaderIcon: "build/icon.ico",
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "Presenton",
-    uninstallDisplayName: "Presenton",
+    shortcutName: "ChatPPT",
+    uninstallDisplayName: "ChatPPT",
   },
   appx: {
-    identityName: "PresentonAI.Presenton",
-    publisher: "CN=8A2C57B5-F1C6-473A-93EE-2E9B72134341",
-    displayName: "Presenton",
-    publisherDisplayName: "Presenton Inc.",
-    applicationId: "PresentonAI.Presenton",
-    
+    // TODO(owner): Microsoft Store identity (identityName, publisher CN, publisherDisplayName).
+    identityName: "ChatPPT",
+    publisher: "CN=TODO-OWNER",
+    displayName: "ChatPPT",
+    publisherDisplayName: "TODO-OWNER",
+    applicationId: "ChatPPT",
   },
 }
 

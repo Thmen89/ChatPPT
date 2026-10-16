@@ -65,7 +65,7 @@ export function setupExportHandlers() {
         return {
           success: false,
           message:
-            "Export requires Chromium. Restart Presenton and complete the Chromium setup step when prompted.",
+            "Export requires Chromium. Restart ChatPPT and complete the Chromium setup step when prompted.",
         };
       }
 
@@ -122,7 +122,7 @@ export function setupExportHandlers() {
         return {
           success: false,
           message:
-            "Export could not prepare Chromium for this Microsoft Store install. Restart Presenton and try again.",
+            "Export could not prepare Chromium for this Microsoft Store install. Restart ChatPPT and try again.",
         };
       }
       const puppeteerTempDir = path.join(tempDir, "puppeteer");

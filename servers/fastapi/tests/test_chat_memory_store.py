@@ -75,7 +75,7 @@ class TestChatMemoryStore:
                 "MEM0_ENABLED": "true",
                 "MEM0_TOP_K": "4",
                 "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
             },
             clear=False,
         ), patch(
@@ -120,7 +120,7 @@ class TestChatMemoryStore:
                 "MEM0_ENABLED": "true",
                 "MEM0_TOP_K": "6",
                 "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
             },
             clear=False,
         ), patch(
@@ -180,7 +180,7 @@ class TestChatMemoryStore:
             {
                 "MEM0_ENABLED": "true",
                 "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
             },
             clear=False,
         ), patch(

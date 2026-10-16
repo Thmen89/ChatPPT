@@ -62,7 +62,7 @@ const chartWithBulletsSlideSchema = z.object({
             title: 'Total Addressable Market',
             description: 'Companies can use TAM to plan future expansion and investment.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/chart-line-up-bold.svg',
+                __icon_url__: '/icons/bold/chart-line-up-bold.svg',
                 __icon_query__: 'target market scope'
             }
         },
@@ -70,7 +70,7 @@ const chartWithBulletsSlideSchema = z.object({
             title: 'Serviceable Available Market',
             description: 'Indicates more measurable market segments for sales efforts.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/chart-line-up-bold.svg',
+                __icon_url__: '/icons/bold/chart-line-up-bold.svg',
                 __icon_query__: 'pie chart analysis'
             }
         },
@@ -78,7 +78,7 @@ const chartWithBulletsSlideSchema = z.object({
             title: 'Serviceable Obtainable Market',
             description: 'Help companies plan development strategies according to the market.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/chart-line-up-bold.svg',
+                __icon_url__: '/icons/bold/chart-line-up-bold.svg',
                 __icon_query__: 'trending up growth'
             }
         }

@@ -35,7 +35,7 @@ async def main():
         parser.add_argument(
             "--name",
             type=str,
-            default="Presenton API (OpenAPI)",
+            default="ChatPPT API (OpenAPI)",
             help="Display name for the generated MCP server",
         )
         args = parser.parse_args()

@@ -16,7 +16,7 @@ import { safeError, safeLog } from "./safe-console";
 /** Must match the Chrome revision expected by the bundled presentation-export runtime. */
 const EXPORT_CHROME_BUILD_ID =
   process.env.EXPORT_CHROME_BUILD_ID?.trim() || "146.0.7680.76";
-const BUNDLED_CHROMIUM_MANIFEST = "presenton-runtime.json";
+const BUNDLED_CHROMIUM_MANIFEST = "chatppt-runtime.json";
 
 type BundledChromiumManifest = {
   browser?: string;

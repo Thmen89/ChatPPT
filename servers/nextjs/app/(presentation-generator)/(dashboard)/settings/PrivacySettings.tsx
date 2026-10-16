@@ -63,7 +63,7 @@ const PrivacySettings = () => {
           Usage analytics
         </h4>
         <p className="text-xs text-[#6B7280] mb-6 leading-relaxed max-w-lg">
-          Share anonymous usage data to help us improve Presenton. No personal information or presentation content is collected.
+          Share anonymous usage data to help us improve ChatPPT. No personal information or presentation content is collected.
         </p>
 
         <div className="flex items-center justify-between gap-4 rounded-[10px] bg-white border border-[#EDEEEF] p-4">

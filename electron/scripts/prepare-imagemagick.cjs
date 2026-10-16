@@ -11,7 +11,7 @@ const PLATFORM = process.platform;
 const ARCH = process.arch;
 const TARGET_DIR = path.join(__dirname, "..", "resources", "imagemagick", `${PLATFORM}-${ARCH}`);
 const CACHE_DIR = path.join(__dirname, "..", ".cache", "imagemagick", VERSION);
-const MANIFEST_NAME = "presenton-runtime.json";
+const MANIFEST_NAME = "chatppt-runtime.json";
 
 function log(message) {
   console.log(`[imagemagick] ${message}`);
@@ -177,7 +177,7 @@ function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
     const request = https.get(
       url,
-      { headers: { "User-Agent": "Presenton ImageMagick runtime fetcher" } },
+      { headers: { "User-Agent": "ChatPPT ImageMagick runtime fetcher" } },
       (response) => {
         if ([301, 302, 303, 307, 308].includes(response.statusCode || 0)) {
           const location = response.headers.location;
@@ -211,7 +211,7 @@ function fetchJson(url) {
       url,
       {
         headers: {
-          "User-Agent": "Presenton ImageMagick runtime fetcher",
+          "User-Agent": "ChatPPT ImageMagick runtime fetcher",
           Accept: "application/vnd.github+json",
         },
       },

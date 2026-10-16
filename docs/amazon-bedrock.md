@@ -1,6 +1,6 @@
 # Amazon Bedrock provider
 
-Presenton can use **Amazon Bedrock** as the text LLM provider for presentation generation, editing, and chat. Configure Bedrock in the app UI (**Settings → Text provider**) or with environment variables / `userConfig.json` (Docker and desktop).
+ChatPPT can use **Amazon Bedrock** as the text LLM provider for presentation generation, editing, and chat. Configure Bedrock in the app UI (**Settings → Text provider**) or with environment variables / `userConfig.json` (Docker and desktop).
 
 The backend sends your configured **Model** value to the Bedrock **Converse** API as `modelId`. That means you can use:
 
@@ -55,9 +55,9 @@ us.anthropic.claude-3-5-haiku-20241022-v1:0
 
 Some **newer** models (for example **Claude Sonnet 4.6**) do **not** support on-demand throughput with a plain model ID. For those you must use an **inference profile** ARN in the **Model** field.
 
-In the AWS console: **Bedrock → Inference profiles** (or cross-region inference profiles), copy the full ARN, and paste it into Presenton’s **Model** field unchanged.
+In the AWS console: **Bedrock → Inference profiles** (or cross-region inference profiles), copy the full ARN, and paste it into ChatPPT’s **Model** field unchanged.
 
-Presenton passes that string directly to Converse as `modelId`, so both formats work as long as AWS accepts them for your account and region.
+ChatPPT passes that string directly to Converse as `modelId`, so both formats work as long as AWS accepts them for your account and region.
 
 ---
 
@@ -81,7 +81,7 @@ A foundation model ARN or inference profile ARN is currently required in model i
 1. Open **Amazon Bedrock** in the same **region** as `BEDROCK_REGION`.
 2. Find the **inference profile** for the model (for example `us.anthropic.claude-sonnet-4-6`).
 3. Copy the full **inference profile ARN**.
-4. Paste the ARN into Presenton’s **Model** field (not the short model ID).
+4. Paste the ARN into ChatPPT’s **Model** field (not the short model ID).
 5. Ensure IAM allows `bedrock:InvokeModel` / Converse on that profile in that region.
 
 ---
@@ -103,7 +103,7 @@ Replace `471112542209` with **your** AWS account ID. The ARN must come from **yo
 ### Docker
 
 ```bash
-docker run -it --name presenton -p 5000:80 \
+docker run -it --name chatppt -p 5000:80 \
   -e LLM="bedrock" \
   -e BEDROCK_REGION="us-east-1" \
   -e BEDROCK_AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID" \
@@ -113,7 +113,7 @@ docker run -it --name presenton -p 5000:80 \
   -e PEXELS_API_KEY="YOUR_PEXELS_KEY" \
   -e CAN_CHANGE_KEYS="false" \
   -v "./app_data:/app_data" \
-  ghcr.io/presenton/presenton:latest
+  ghcr.io/thmen89/chatppt:latest
 ```
 
 ### On-demand model example (Haiku)
@@ -162,7 +162,7 @@ Enable model access in the Bedrock console (**Model access**) for the foundation
 - **Symptom:** Model not found, or profile ARN rejected.
 - **Checks:**
   - `BEDROCK_REGION` is the region where the model/profile was created (for example `us-east-1` in the ARN path must match `BEDROCK_REGION`).
-  - Cross-region inference profiles still use a home region in the ARN; configure Presenton’s region to match AWS guidance for that profile.
+  - Cross-region inference profiles still use a home region in the ARN; configure ChatPPT’s region to match AWS guidance for that profile.
 
 ### Unsupported on-demand invocation
 

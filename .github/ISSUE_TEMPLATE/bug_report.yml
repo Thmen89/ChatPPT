@@ -1,5 +1,5 @@
 name: Bug report
-description: Report crashes, regressions, or incorrect behavior in Presenton.
+description: Report crashes, regressions, or incorrect behavior in ChatPPT.
 title: "[Bug]: "
 labels:
   - bug
@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug in **Presenton** 🚀  
+        Thanks for reporting a bug in **ChatPPT** 🚀  
         Please provide clear steps so we can reproduce and fix the issue quickly.
 
   - type: dropdown
@@ -40,7 +40,7 @@ body:
       label: Steps to reproduce
       description: Provide the shortest reproducible steps.
       placeholder: |
-        1. Start Presenton Electron app
+        1. Start ChatPPT Electron app
         2. Generate presentation with 5 slides
         3. Click "Export PPTX"
         4. Error occurs
@@ -68,8 +68,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Presenton version
-      description: Version of Presenton you are using.
+      label: ChatPPT version
+      description: Version of ChatPPT you are using.
       placeholder: 0.6.2-beta
     validations:
       required: true
@@ -86,7 +86,7 @@ body:
   - type: dropdown
     id: run_method
     attributes:
-      label: How are you running Presenton?
+      label: How are you running ChatPPT?
       options:
         - Electron Desktop App
         - Docker

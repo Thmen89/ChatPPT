@@ -17,7 +17,7 @@ export const Schema = z.object({
             name: 'Hannah Morales',
             designation: 'Founder & CEO',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female executive smiling'
             },
             summary: 'Focus on companies with 500+ employees.'
@@ -26,7 +26,7 @@ export const Schema = z.object({
             name: 'Hannah Morales',
             designation: 'Founder & CEO',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female executive smiling'
             },
             summary: 'Focus on companies with 500+ employees.'
@@ -35,7 +35,7 @@ export const Schema = z.object({
             name: 'Hannah Morales',
             designation: 'Founder & CEO',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female executive smiling'
             },
             summary: 'Focus on companies with 500+ employees.'
@@ -44,7 +44,7 @@ export const Schema = z.object({
             name: 'Hannah Morales',
             designation: 'Founder & CEO',
             image: {
-                __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+                __image_url__: '/replaceable_template_image.png',
                 __image_prompt__: 'Professional headshot of a female executive smiling'
             },
             summary: 'Focus on companies with 500+ employees.'

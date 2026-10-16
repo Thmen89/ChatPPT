@@ -19,7 +19,7 @@ type ImageMagickRuntimeManifest = {
   kind?: string;
 };
 
-const RUNTIME_MANIFEST_NAME = "presenton-runtime.json";
+const RUNTIME_MANIFEST_NAME = "chatppt-runtime.json";
 
 function runVersion(command: string, homeDir = path.dirname(command)): string | null {
   const result = spawnSync(command, ["-version"], {
