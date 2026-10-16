@@ -304,8 +304,7 @@ const ThemePanel: React.FC = () => {
   const generateTheme = async ({
     primary,
     background,
-    source,
-  }: { primary?: string, background?: string; source: "new_theme" | "refresh" }): Promise<ThemeColors> => {
+  }: { primary?: string, background?: string } = {}): Promise<ThemeColors> => {
     const generatedTheme = await ThemeApi.generateTheme({ primary, background })
     return {
       'primary': generatedTheme.primary,
@@ -362,7 +361,7 @@ const ThemePanel: React.FC = () => {
       }
     }
 
-    const generatedColors = await generateTheme({ source: "new_theme" })
+    const generatedColors = await generateTheme()
 
 
     const theme = {
@@ -385,7 +384,7 @@ const ThemePanel: React.FC = () => {
   }
 
   const refeshTheme = async ({ primary, background }: { primary?: string, background?: string }) => {
-    const generatedTheme = await generateTheme({ primary, background, source: "refresh" })
+    const generatedTheme = await generateTheme({ primary, background })
     setCustomColors(generatedTheme)
   }
   const saveAsCustom = async () => {

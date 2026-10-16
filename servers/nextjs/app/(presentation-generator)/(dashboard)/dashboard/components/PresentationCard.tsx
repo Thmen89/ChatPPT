@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { notify } from "@/components/ui/sonner";
 
 import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoad";
@@ -28,7 +28,6 @@ export const PresentationCard = ({
   onDeleted?: (presentationId: string) => void;
 }) => {
   const router = useRouter();
-  const pathname = usePathname();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 

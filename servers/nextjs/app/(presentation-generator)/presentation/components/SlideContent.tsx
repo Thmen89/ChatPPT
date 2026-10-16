@@ -16,7 +16,6 @@ import {
   deletePresentationSlide,
   updateSlide,
 } from "@/store/slices/presentationGeneration";
-import { usePathname } from "next/navigation";
 import { addToHistory } from "@/store/slices/undoRedoSlice";
 import NewSlide from "./NewSlide";
 import SlideScale from "../../components/PresentationRender";
@@ -48,7 +47,6 @@ const SlideContent = ({
 
   // Use the centralized group layouts hook
 
-  const pathname = usePathname();
 
   const handleSubmit = async () => {
     if (!editPrompt.trim()) {

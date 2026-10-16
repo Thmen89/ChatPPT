@@ -12,7 +12,6 @@ import { notify } from '@/components/ui/sonner';
 import ToolTip from '../ToolTip';
 import { Switch } from '../ui/switch';
 import { Select, SelectItem, SelectContent, SelectValue, SelectTrigger } from '../ui/select';
-import { usePathname } from 'next/navigation';
 import { getLLMConfigValidationError, handleSaveLLMConfig } from '@/utils/storeHelpers';
 import { checkIfSelectedOllamaModelIsPulled, pullOllamaModel } from '@/utils/providerUtils';
 import { getApiUrl } from '@/utils/api';
@@ -24,7 +23,6 @@ import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageField
 const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
 
 const TemplateMode = ({ currentStep, setStep }: { currentStep: number, setStep: (step: number) => void }) => {
-    const pathname = usePathname();
     const [openProviderSelect, setOpenProviderSelect] = useState(false);
     const [openImageProviderSelect, setOpenImageProviderSelect] = useState(false);
     const userConfigState = useSelector((state: RootState) => state.userConfig);
@@ -168,50 +166,6 @@ const TemplateMode = ({ currentStep, setStep }: { currentStep: number, setStep: 
                                 : llmConfig.LLM === 'lmstudio'
                                     ? 'LM Studio API key (optional)'
                                 : `${llmConfig.LLM} API Key`;
-
-    const getSelectedTextModel = (config: LLMConfig): string => {
-        switch (config.LLM) {
-            case 'openai':
-                return config.OPENAI_MODEL || '';
-            case 'google':
-                return config.GOOGLE_MODEL || '';
-            case 'vertex':
-                return config.VERTEX_MODEL || '';
-            case 'azure':
-                return config.AZURE_OPENAI_MODEL || '';
-            case 'bedrock':
-                return config.BEDROCK_MODEL || '';
-            case 'openrouter':
-                return config.OPENROUTER_MODEL || '';
-            case 'fireworks':
-                return config.FIREWORKS_MODEL || '';
-            case 'together':
-                return config.TOGETHER_MODEL || '';
-            case 'cerebras':
-                return config.CEREBRAS_MODEL || '';
-            case 'anthropic':
-                return config.ANTHROPIC_MODEL || '';
-            case 'ollama':
-                return config.OLLAMA_MODEL || '';
-            case 'custom':
-                return config.CUSTOM_MODEL || '';
-            case 'litellm':
-                return config.LITELLM_MODEL || '';
-            case 'lmstudio':
-                return config.LMSTUDIO_MODEL || '';
-            case 'chatgpt':
-            case 'codex':
-                return config.CODEX_MODEL || '';
-            default:
-                return '';
-        }
-    };
-
-    const getSelectedImageQuality = (config: LLMConfig): string => {
-        if (config.IMAGE_PROVIDER === 'dall-e-3') return config.DALL_E_3_QUALITY || '';
-        if (config.IMAGE_PROVIDER === 'gpt-image-1.5') return config.GPT_IMAGE_1_5_QUALITY || '';
-        return '';
-    };
 
     const fetchAvailableModels = async () => {
         if (isManualModelProvider) return;
@@ -449,12 +403,6 @@ const TemplateMode = ({ currentStep, setStep }: { currentStep: number, setStep: 
                     await handleModelDownload();
                 }
             }
-
-            const textProvider = llmConfig.LLM || '';
-            const textModel = getSelectedTextModel(llmConfig);
-            const imageGenerationEnabled = !llmConfig.DISABLE_IMAGE_GENERATION;
-            const imageProvider = imageGenerationEnabled ? (llmConfig.IMAGE_PROVIDER || '') : 'disabled';
-
 
             notify.success("Configuration saved", "Your configuration was saved successfully.");
             setStep(3)

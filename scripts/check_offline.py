@@ -72,18 +72,6 @@ ALLOW: list[tuple[str, str, str]] = [
     ("*", "NOTICE", "third-party licence texts name their projects"),
     ("*", "*package-lock.json", "npm registry metadata, not runtime code"),
     ("*", "*uv.lock", "PyPI metadata, not runtime code"),
-    # Upstream branding and links: text, never requested by the app. Agent A (rebrand) removes.
-    ("presenton.ai", "README.md", "upstream links; rebrand"),
-    ("presenton.ai", "CONTRIBUTING.md", "upstream links; rebrand"),
-    ("presenton.ai", "CODE_OF_CONDUCT.md", "upstream contact; rebrand"),
-    ("presenton.ai", "electron/package.json", "package metadata; rebrand"),
-    ("presenton.ai", "electron/version.json", "upstream release notes text; rebrand"),
-    ("presenton.ai", "servers/nextjs/app/layout.tsx", "SEO metadata URLs, not fetched; rebrand"),
-    ("presenton.ai", "servers/nextjs/app/(presentation-generator)/outline/page.tsx", "canonical URL metadata; rebrand"),
-    ("presenton.ai", "servers/nextjs/app/(presentation-generator)/upload/page.tsx", "canonical URL metadata; rebrand"),
-    ("presenton.ai", "servers/nextjs/app/(presentation-generator)/(dashboard)/Components/DashboardSidebar.tsx", "help link; rebrand"),
-    ("presenton.ai", "servers/nextjs/utils/providerConstants.ts", "docs links shown to the user; rebrand"),
-    ("mixpanel", "servers/nextjs/tsconfig.tsbuildinfo", "stale committed build artifact; rebrand deletes it"),
     # Google Fonts: loaded by the *browser* when a deck/theme uses a web font. Not a
     # server call and not telemetry, but it is an outbound request; tracked here until
     # fonts ship in the image (templates: Agent E, theme UI: Agent H).

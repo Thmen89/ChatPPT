@@ -1,6 +1,6 @@
 """Download FastEmbed weights at image/app BUILD time, never at runtime.
 
-Icon search uses AllMiniLML6V2 (``PRESENTON_FASTEMBED_ICON_CACHE_DIR``). When
+Icon search uses AllMiniLML6V2 (``CHATPPT_FASTEMBED_ICON_CACHE_DIR``). When
 ``--memory`` is passed, also warms mem0's default embedder (``BAAI/bge-small-en-v1.5``
 under ``HF_HOME``) for images that ship with ``features.memory`` on.
 
@@ -42,6 +42,10 @@ def _warm_mem0_default_fastembed() -> None:
 
 
 def main() -> None:
+    # The Dockerfile copies HF_HOME out of the build stage; keep it present even when
+    # only icon weights are warmed (they live in their own cache dir).
+    if os.getenv("HF_HOME"):
+        os.makedirs(os.environ["HF_HOME"], exist_ok=True)
     _warm_icons()
     if "--memory" in sys.argv[1:]:
         _warm_mem0_default_fastembed()

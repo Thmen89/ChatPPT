@@ -19,7 +19,7 @@ import { OverlayLoader } from "@/components/ui/overlay-loader";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { setPresentationId } from "@/store/slices/presentationGeneration";
 import { useDispatch, useSelector } from "react-redux";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { RootState } from "@/store/store";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
@@ -49,7 +49,6 @@ const DocumentsPreviewPage: React.FC = () => {
   // Hooks
   const dispatch = useDispatch();
   const router = useRouter();
-  const pathname = usePathname();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Redux state

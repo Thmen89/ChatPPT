@@ -21,7 +21,6 @@ import {
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { SortableSlide } from "./SortableSlide";
 import { Separator } from "@/components/ui/separator";
-import { usePathname } from "next/navigation";
 import NewSlide from "./NewSlide";
 import { SlideThumbnailCard } from "./SlideThumbnailCard";
 
@@ -40,7 +39,6 @@ const SidePanel = ({
 
   loading,
 }: SidePanelProps) => {
-  const pathname = usePathname();
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
 
   const { presentationData, isStreaming } = useSelector(

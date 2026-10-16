@@ -5,7 +5,7 @@ import { Palette } from 'lucide-react';
 
 import { useDispatch } from 'react-redux';
 import { updateTheme } from '@/store/slices/presentationGeneration';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
     applyPresentationThemeToElement,
     clearPresentationThemeFromElement,
@@ -16,7 +16,6 @@ const ThemeSelector = ({ current_theme, themes: allThemes }: { current_theme: an
     const dispatch = useDispatch()
     const [isOpen, setIsOpen] = useState(false)
     const router = useRouter()
-    const pathname = usePathname()
     const applyTheme = async (theme: any) => {
         const element = document.getElementById("presentation-slides-wrapper");
         if (!element) return;

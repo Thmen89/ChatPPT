@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Popover,
   PopoverContent,
@@ -104,7 +104,6 @@ const PresentationHeader = ({
   /** Avoid committing on blur when Save/Cancel was used (focus/click ordering) */
   const titleBlurIntentRef = useRef<"none" | "save" | "cancel">("none");
 
-  const pathname = usePathname();
   const dispatch = useDispatch();
 
   const { presentationData, isStreaming } = useSelector(

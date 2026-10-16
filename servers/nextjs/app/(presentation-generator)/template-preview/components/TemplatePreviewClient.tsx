@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Home, Loader2, Trash2 } from "lucide-react";
@@ -16,7 +16,6 @@ import { setupImageUrlConverter } from "@/utils/image-url-converter";
 const GroupLayoutPreview = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
 
   const templateParams = searchParams.get("slug") || "";
 

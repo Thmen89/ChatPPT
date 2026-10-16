@@ -6,7 +6,6 @@ import "@/app/(presentation-generator)/utils/prism-languages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
@@ -93,7 +92,6 @@ type PresentationPageProps = {
 };
 
 const PresentationPage = ({ presentation_id, exportCookie }: PresentationPageProps) => {
-  const pathname = usePathname();
   const [contentLoading, setContentLoading] = useState(true);
   const exportCookieFromHash =
     typeof window !== "undefined"

@@ -6,7 +6,6 @@ import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashbo
 import { PresentationGrid } from "@/app/(presentation-generator)/(dashboard)/dashboard/components/PresentationGrid";
 import Link from "next/link";
 import { ArrowUpDown } from "lucide-react";
-import { usePathname } from "next/navigation";
 
 const actionCardBase =
   "absolute aspect-[16/9] h-[46.238px] w-[82.201px] rounded-[4.474px] border border-white/50 bg-cover bg-center bg-no-repeat shadow-[0_8px_18px_rgba(16,24,40,0.18)] transition-all duration-500 ease-out opacity-100 translate-y-0 scale-100";
@@ -35,7 +34,6 @@ const FloatingActionCards = () => (
 );
 
 const DashboardPage: React.FC = () => {
-  const pathname = usePathname();
   const [presentations, setPresentations] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,20 +60,16 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   const fetchPresentations = async () => {
-    let fetchedCount = 0;
-    let hasError = false;
     try {
       setIsLoading(true);
       setError(null);
       const data = await DashboardApi.getPresentations();
-      fetchedCount = data.length;
       data.sort(
         (a: any, b: any) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       setPresentations(data);
-    } catch (err) {
-      hasError = true;
+    } catch {
       setError(null);
       setPresentations([]);
     } finally {

@@ -2,14 +2,12 @@
 import { LayoutDashboard, Settings, Upload } from "lucide-react";
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { RootState } from "@/store/store";
 import { useSelector } from "react-redux";
 
 const HeaderNav = () => {
 
   const canChangeKeys = useSelector((state: RootState) => state.userConfig.can_change_keys);
-  const pathname = usePathname();
 
   return (
     <div className="flex items-center gap-2">

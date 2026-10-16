@@ -76,22 +76,6 @@ export const usePresentationGeneration = (
     }
     if (!validateInputs()) return;
 
-    const selectedTemplateId =
-      typeof selectedTemplate === "string"
-        ? selectedTemplate
-        : selectedTemplate?.id || null;
-    const selectedTemplateType =
-      typeof selectedTemplate === "string" ? "custom" : "built_in";
-    const selectedTemplateName =
-      typeof selectedTemplate === "string"
-        ? null
-        : selectedTemplate?.name || null;
-    const selectedTemplateLayoutCount =
-      typeof selectedTemplate === "string"
-        ? null
-        : selectedTemplate?.layouts?.length || 0;
-
-
     setLoadingState({
       message: "Generating presentation data...",
       isLoading: true,

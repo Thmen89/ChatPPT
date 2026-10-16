@@ -52,8 +52,6 @@ export const useTemplateCreation = () => {
         updateState({ isLoading: true, error: null });
 
         try {
-            const extensionIndex = pptxFile.name.lastIndexOf(".");
-            const fileExtension = extensionIndex >= 0 ? pptxFile.name.slice(extensionIndex).toLowerCase() : "";
             const formData = new FormData();
             formData.append("pptx_file", pptxFile);
 
