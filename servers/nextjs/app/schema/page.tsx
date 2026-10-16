@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { validate as uuidValidate } from 'uuid';
-import { getCustomTemplateDetails } from "../hooks/useCustomTemplates";
+import { getCustomTemplateDetails, refreshRuntimeTemplates } from "../hooks/useCustomTemplates";
+import { isRuntimeTemplate } from "../hooks/runtimeTemplates";
 import { getSchemaByTemplateId, getSettingsByTemplateId } from "../presentation-templates";
 const page = () => {
   const searchParams = useSearchParams();
@@ -18,22 +18,18 @@ const page = () => {
     default: false,
     icon_weight: "bold",
   });
-  const isCustomTemplate = templateID.startsWith("custom-") || uuidValidate(templateID);
-
   useEffect(() => {
     const fetchLayoutsAndSettings = async () => {
-      if (isCustomTemplate) {
-        const customTemplateDetails = await getCustomTemplateDetails(
-          isCustomTemplate ? templateID.startsWith("custom-") ? templateID.split("custom-")[1] : templateID : "",
-          isCustomTemplate ? templateID : "",
-          "",
-        );
+      // Learn which built-ins a data folder overrides before deciding where to look.
+      await refreshRuntimeTemplates().catch(() => undefined);
+      if (isRuntimeTemplate(templateID)) {
+        const customTemplateDetails = await getCustomTemplateDetails(templateID, templateID, "");
 
         if (customTemplateDetails) {
 
           setLayout(customTemplateDetails.layouts.map(layout => {
             return {
-              id: `custom-${customTemplateDetails.id}:${layout.layoutId}`,
+              id: `${customTemplateDetails.id}:${layout.layoutId}`,
               name: layout.layoutName,
               description: layout.layoutDescription,
               json_schema: layout.schemaJSON,
@@ -41,7 +37,7 @@ const page = () => {
           }));
           setSettings({
             ...customTemplateDetails.template,
-            ordered: false,
+            ordered: Boolean(customTemplateDetails.template?.ordered),
             default: false,
             icon_weight: customTemplateDetails.template?.icon_weight || "bold",
           });
@@ -64,7 +60,7 @@ const page = () => {
     fetchLayoutsAndSettings();
 
 
-  }, [isCustomTemplate]);
+  }, [templateID]);
 
 
 

@@ -306,10 +306,21 @@ async def get_google_font_file_urls(family_name: str, api_key: str) -> List[str]
         return []
 
 
+def google_fonts_enabled() -> bool:
+    """Google Fonts lookups are opt-in: set GOOGLE_FONTS_API_KEY to allow them."""
+    return bool((os.environ.get("GOOGLE_FONTS_API_KEY") or "").strip())
+
+
 async def check_google_font_availability(
     font_name: str, variants: Optional[Sequence[str]] = None
 ) -> bool:
-    """Return True when Google Fonts serves the requested family/variants."""
+    """Return True when Google Fonts serves the requested family/variants.
+
+    Offline by default: without ``GOOGLE_FONTS_API_KEY`` no request is made and every font
+    counts as unavailable, so imports use the fonts in the PPTX, uploaded ones, or the
+    system fallback."""
+    if not google_fonts_enabled():
+        return False
     try:
         url = build_google_fonts_stylesheet_url(font_name, variants=variants)
         async with aiohttp.ClientSession() as session:

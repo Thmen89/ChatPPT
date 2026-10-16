@@ -1,0 +1,7 @@
+{
+  "id": "desk",
+  "name": "Desk",
+  "description": "A dropped-in template folder (e2e fixture): two layouts and a helper module.",
+  "ordered": false,
+  "icon_weight": "regular"
+}

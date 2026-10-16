@@ -56,7 +56,6 @@ function isApiAuthExempt(pathname: string): boolean {
     pathname.startsWith("/api/v1/auth/") ||
     /** FastAPI `get_layout_by_name` fallback (no browser cookie in Docker). */
     pathname === "/api/template" ||
-    pathname === "/api/template/custom" ||
     pathname.startsWith("/api/export-presentation-data/")
   );
 }

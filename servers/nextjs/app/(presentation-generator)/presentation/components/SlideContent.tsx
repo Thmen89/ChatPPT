@@ -102,19 +102,6 @@ const SlideContent = ({
       notify.error("Could not delete slide", error.message || "Something went wrong while deleting the slide.");
     }
   };
-  useEffect(() => {
-    if (slide.layout.includes("custom")) {
-      const existingScript = document.querySelector(
-        'script[src*="tailwindcss.com"]'
-      );
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.tailwindcss.com";
-        script.async = true;
-        document.head.appendChild(script);
-      }
-    }
-  }, [slide, isStreaming]);
 
   return (
     <>

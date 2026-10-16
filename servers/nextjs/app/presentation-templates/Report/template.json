@@ -1,5 +1,8 @@
 {
+  "id": "report",
+  "name": "Report",
   "description": "Data and narrative report layouts for summaries, section indexes, methodology, findings, charts, risks, actions, appendix notes, and closing structures",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

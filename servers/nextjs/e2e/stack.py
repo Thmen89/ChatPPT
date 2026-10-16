@@ -4,7 +4,8 @@
 Reuses the benchmark's ``Stack`` (scripts/bench/run.py): nginx :80 -> Next.js :3000 and
 FastAPI :8000, MCP :8001, mock LLM :9900, auth disabled, a throwaway data folder. On top of
 that, image generation is switched on and pointed at the mock's PNG endpoint, so the flow
-covers image assets too.
+covers image assets too, and e2e/fixtures/templates/ is copied into the data folder as
+dropped-in templates.
 
 Needs what the bench needs: the FastAPI venv, the Next.js standalone build, the
 presentation-export runtime, nginx, and a Chromium at PUPPETEER_EXECUTABLE_PATH.
@@ -15,12 +16,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import signal
 import sys
 import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 sys.path.insert(0, str(REPO / "scripts" / "bench"))
 
 import run  # noqa: E402
@@ -40,6 +43,8 @@ class E2EStack(Stack):
         if logs := os.environ.get("E2E_LOGS_DIR"):
             self.logs = Path(logs)
             self.logs.mkdir(parents=True, exist_ok=True)
+        # A template dropped into <data>/templates/, for template-folder.spec.ts.
+        shutil.copytree(FIXTURES / "templates", self.app_data / "templates")
 
     def env(self) -> dict[str, str]:
         env = super().env()
