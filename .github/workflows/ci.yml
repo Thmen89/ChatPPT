@@ -1,4 +1,4 @@
-# The PR gate. Four jobs in parallel, no secrets, no keys (the e2e test runs on mock
+# The PR gate. Five jobs in parallel, no secrets, no keys (the e2e test runs on mock
 # providers). Every step is a command you can run locally; see each job's comment.
 name: CI
 
@@ -17,8 +17,8 @@ permissions:
 
 env:
   FORCE_COLOR: "1"
+  # Only `next build`'s CLI telemetry; the app itself sends none (see the offline job).
   NEXT_TELEMETRY_DISABLED: "1"
-  DISABLE_ANONYMOUS_TRACKING: "true"
 
 jobs:
   # cd servers/fastapi && uv sync --frozen
@@ -152,6 +152,46 @@ jobs:
             servers/nextjs/e2e/results
             ${{ runner.temp }}/stack-logs
           retention-days: 7
+
+  # A fresh install with no network and no provider starts, serves requests and makes
+  # zero outbound connection attempts (strace). See scripts/check_offline.py.
+  # python3 scripts/check_offline.py --require-strace   (after uv sync + npm run build)
+  offline:
+    name: offline (no network, no outbound attempts)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: allow unprivileged network namespaces, install strace
+        run: |
+          # Ubuntu 24.04 blocks `unshare -rn` for unprivileged users through AppArmor by default.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          command -v strace || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends strace; }
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: servers/fastapi/uv.lock
+      - name: backend deps
+        working-directory: servers/fastapi
+        run: uv sync --frozen --no-dev
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: servers/nextjs/package-lock.json
+      - uses: actions/cache@v5
+        with:
+          path: servers/nextjs/.next-build/cache
+          key: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-
+      - name: next build
+        working-directory: servers/nextjs
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: offline check (static + no-network runtime under strace)
+        run: python3 scripts/check_offline.py --require-strace
 
   # Blocks only on CRITICAL advisories that have a fix; everything else is a warning.
   # trivy fs --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 .
