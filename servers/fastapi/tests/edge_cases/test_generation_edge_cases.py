@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from api.v1.ppt.endpoints import presentation as presentation_endpoint
 from models.generate_presentation_request import GeneratePresentationRequest
+from templates.presentation_layout import PresentationLayoutModel
 from utils.llm_calls.generate_presentation_outlines import get_user_prompt
 
 
@@ -74,6 +75,11 @@ def test_invalid_llm_payload_raises_structured_http_error(fake_async_session):
             presentation_endpoint,
             "generate_ppt_outline",
             side_effect=failing_outline_stream,
+        ),
+        patch.object(
+            presentation_endpoint,
+            "get_layout_by_name",
+            new=AsyncMock(return_value=PresentationLayoutModel(name="general", slides=[])),
         ),
         patch.object(
             presentation_endpoint.CONCURRENT_SERVICE,

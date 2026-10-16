@@ -15,6 +15,7 @@ ChatPPT reads `chatppt.toml` from the data directory (or `CHATPPT_CONFIG`). Ever
 | `llm.model` | str |  | `CHATPPT_LLM__MODEL` | Default model for the default provider. |
 | `llm.thinking` | bool | `True` | `CHATPPT_LLM__THINKING` (legacy `DISABLE_THINKING`) | Allow reasoning/thinking on models that support it. |
 | `llm.extended_reasoning` | bool | `False` | `CHATPPT_LLM__EXTENDED_REASONING` (legacy `EXTENDED_REASONING`) | Ask for longer reasoning where supported. |
+| `llm.concurrency` | int | `8` | `CHATPPT_LLM__CONCURRENCY` | Slides generated at once; lower it if your provider rate-limits. |
 | `llm.providers.<id>.api_key` | str |  | `CHATPPT_LLM__PROVIDERS__<ID>__API_KEY` | API key or token. |
 | `llm.providers.<id>.base_url` | str |  | `CHATPPT_LLM__PROVIDERS__<ID>__BASE_URL` | Endpoint override (OpenAI-compatible servers, proxies, Ollama, LM Studio). |
 | `llm.providers.<id>.model` | str |  | `CHATPPT_LLM__PROVIDERS__<ID>__MODEL` | Default model when this provider is used. |

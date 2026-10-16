@@ -16,6 +16,29 @@ from utils.schema_utils import (
     remove_fields_from_schema,
 )
 
+# The layout schema goes to the model once, as ``response_format`` (llmai turns it into
+# json_schema, a forced tool or a response schema depending on the provider). A model
+# behind an endpoint that silently drops ``response_format`` answers without the schema's
+# keys; when that happens its (client, model) lands here and later calls also carry the
+# schema in the system prompt, as upstream always did.
+_SCHEMA_IN_PROMPT: set[str] = set()
+
+
+def _structured_output_key(client: object, model: str) -> str:
+    base_url = getattr(getattr(client, "_client", None), "base_url", "")
+    return f"{type(client).__name__}:{base_url}:{model}"
+
+
+def _ignored_schema(content: dict, response_schema: dict) -> bool:
+    """True when the reply shares less than half of the schema's top-level keys."""
+    expected = response_schema.get("required") or list(
+        (response_schema.get("properties") or {}).keys()
+    )
+    if not expected:
+        return False
+    present = sum(1 for key in expected if key in content)
+    return present * 2 < len(expected)
+
 def _resolve_prompt_language(language: Optional[str]) -> str:
     if language is None:
         return "auto-detect"
@@ -137,6 +160,15 @@ async def get_slide_content_from_type_and_outline(
     )
     response_schema = ensure_array_schemas_have_items(response_schema)
 
+    key = _structured_output_key(client, model)
+    schema_in_prompt = key in _SCHEMA_IN_PROMPT
+
+    def schema_feedback(invalid_content: dict) -> Optional[str]:
+        if schema_in_prompt or not _ignored_schema(invalid_content, response_schema):
+            return None
+        _SCHEMA_IN_PROMPT.add(key)
+        return _get_schema_markdown(response_schema)
+
     try:
         response_format = JSONSchemaResponse(
             name="response",
@@ -149,7 +181,7 @@ async def get_slide_content_from_type_and_outline(
             tone,
             verbosity,
             instructions,
-            response_schema,
+            response_schema if schema_in_prompt else None,
         )
 
         return await generate_structured_with_schema_retries(
@@ -160,6 +192,7 @@ async def get_slide_content_from_type_and_outline(
             json_schema=response_schema,
             strict=False,
             validate_schema=True,
+            feedback_extra=schema_feedback,
         )
 
     except Exception as e:

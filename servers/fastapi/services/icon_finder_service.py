@@ -50,6 +50,10 @@ class IconFinderService:
         self.vectorstore = None
         self._initialized = False
         self._initialization_failed = False
+        self._init_lock: asyncio.Lock | None = None
+        # Query -> icon names. Decks reuse the same few queries ("growth", "team"...),
+        # and the lookup is deterministic for a given vectorstore.
+        self._results: dict[tuple[str, int], list[str]] = {}
 
     def _initialize_icons_collection(self):
         if self._initialized or self._initialization_failed:
@@ -117,14 +121,33 @@ class IconFinderService:
             f"/static/icons/{normalized_weight}/{filename}"
         )
 
+    async def _ensure_initialized_async(self) -> bool:
+        """Load the model in a worker thread (it takes ~1 s and must not stall the
+        event loop while slides are streaming); concurrent first searches wait once."""
+        if self._initialized or self._initialization_failed:
+            return self.vectorstore is not None and not self._initialization_failed
+        if self._init_lock is None:
+            self._init_lock = asyncio.Lock()
+        async with self._init_lock:
+            if not self._initialized and not self._initialization_failed:
+                await asyncio.to_thread(self._initialize_icons_collection)
+        return self.vectorstore is not None and not self._initialization_failed
+
     async def search_icons(self, query: str, k: int = 1, weight: str | None = None):
-        if not self.ensure_initialized():
+        if not await self._ensure_initialized_async():
             return []
 
         try:
             icon_weight = normalize_icon_weight(weight)
-            result = await asyncio.to_thread(self.vectorstore.search, query, k)
-            return [self._icon_url_for_weight(each[0], icon_weight) for each in result]
+            key = (query, k)
+            names = self._results.get(key)
+            if names is None:
+                result = await asyncio.to_thread(self.vectorstore.search, query, k)
+                names = [each[0] for each in result]
+                if len(self._results) >= 4096:
+                    self._results.clear()
+                self._results[key] = names
+            return [self._icon_url_for_weight(name, icon_weight) for name in names]
         except Exception as e:
             LOGGER.warning("Icon search error: %s", e)
             return []
