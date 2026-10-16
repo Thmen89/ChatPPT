@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 import tomllib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
@@ -387,14 +387,56 @@ def load_settings(path: str | os.PathLike[str] | None = None, environ: Mapping[s
 LEGACY_BY_PATH_ENV: dict[str, str] = {entry.env: entry.path for entry in LEGACY_ENV}
 
 
-@lru_cache(maxsize=1)
+@dataclass
+class _Loaded:
+    settings: Settings
+    path: Path
+    mtime: float | None
+    checked: float
+
+
+_loaded: _Loaded | None = None
+RECHECK_SECONDS = 1.0
+
+
+def _mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
 def get_settings() -> Settings:
-    return load_settings()
+    """The current settings. Edits to ``chatppt.toml`` apply without a restart: the file's
+    mtime is checked at most once a second and a change reloads (and re-exports) them."""
+    global _loaded
+    now = time.monotonic()
+    if _loaded is not None and now - _loaded.checked < RECHECK_SECONDS:
+        return _loaded.settings
+    path = config_path()
+    mtime = _mtime(path)
+    if _loaded is not None and _loaded.path == path and _loaded.mtime == mtime:
+        _loaded.checked = now
+        return _loaded.settings
+    return reload_settings() if _loaded is not None else _load_cached(path, mtime, now)
+
+
+def _load_cached(path: Path, mtime: float | None, now: float) -> Settings:
+    global _loaded
+    settings = load_settings()
+    _loaded = _Loaded(settings, path, mtime, now)
+    return settings
 
 
 def reload_settings() -> Settings:
-    get_settings.cache_clear()
-    return get_settings()
+    """Re-read env and ``chatppt.toml`` now, and refresh what ``apply_to_environ`` exported."""
+    bridged = _bridge["active"]
+    restore_environ()
+    path = config_path()
+    settings = _load_cached(path, _mtime(path), time.monotonic())
+    if bridged:
+        apply_to_environ(settings)
+    return settings
 
 
 # --------------------------------------------------------------------------- legacy bridge
@@ -412,16 +454,67 @@ def to_legacy_env(settings: Settings) -> dict[str, str]:
     return out
 
 
+_exported: dict[str, str | None] = {}
+"""Legacy env names ``apply_to_environ`` wrote to ``os.environ``, with their prior values."""
+_bridge = {"active": False}
+
+LEGACY_LLM_IDS = frozenset(e.path.split(".")[2] for e in LEGACY_ENV if e.path.startswith("llm.providers."))
+LEGACY_IMAGE_IDS = frozenset(
+    {"pexels", "pixabay", "gemini_flash", "nanobanana_pro", "dall-e-3", "gpt-image-1.5", "comfyui", "open_webui"}
+    | {"openai_compatible"}
+)
+
+
+def _openai_compatible_aliases(settings: Settings) -> dict[str, str]:
+    """A provider declared only in chatppt.toml (an id upstream code does not know, with a
+    ``base_url``) is exported as upstream's generic OpenAI-compatible provider, so every
+    code path, not just the routed ones, can use it."""
+    out: dict[str, str] = {}
+    llm_id = settings.llm.provider
+    llm = settings.llm.providers.get(llm_id or "")
+    if llm_id and llm_id not in LEGACY_LLM_IDS and llm and llm.base_url:
+        out.update(LLM="custom", CUSTOM_LLM_URL=llm.base_url)
+        if llm.api_key:
+            out["CUSTOM_LLM_API_KEY"] = llm.api_key
+        if settings.llm.model or llm.model:
+            out["CUSTOM_MODEL"] = settings.llm.model or llm.model or ""
+    image_id = settings.images.provider
+    image = settings.images.providers.get(image_id or "")
+    if image_id and image_id not in LEGACY_IMAGE_IDS and image and image.base_url:
+        out.update(IMAGE_PROVIDER="openai_compatible", OPENAI_COMPAT_IMAGE_BASE_URL=image.base_url)
+        if image.api_key:
+            out["OPENAI_COMPAT_IMAGE_API_KEY"] = image.api_key
+        if image.model:
+            out["OPENAI_COMPAT_IMAGE_MODEL"] = image.model
+    return out
+
+
 def apply_to_environ(settings: Settings, environ: Any = os.environ) -> list[str]:
     """Export explicitly configured keys as legacy env vars so untouched upstream code
     (``utils/get_env.py`` readers) sees them. Returns the names written."""
     written = []
     legacy = to_legacy_env(settings)
-    for entry in LEGACY_ENV:
-        if entry.path in settings.explicit and entry.env in legacy:
-            environ[entry.env] = legacy[entry.env]
-            written.append(entry.env)
+    values = {e.env: legacy[e.env] for e in LEGACY_ENV if e.path in settings.explicit and e.env in legacy}
+    values.update(_openai_compatible_aliases(settings))
+    if environ is os.environ:
+        _bridge["active"] = True
+    for name, value in values.items():
+        if environ is os.environ and name not in _exported:
+            _exported[name] = environ.get(name)
+        environ[name] = value
+        written.append(name)
     return written
+
+
+def restore_environ() -> None:
+    """Undo ``apply_to_environ`` on ``os.environ`` (before a reload, so a key removed from
+    chatppt.toml does not linger as a stale legacy variable)."""
+    for name, previous in _exported.items():
+        if previous is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = previous
+    _exported.clear()
 
 
 # --------------------------------------------------------------------------- reference
