@@ -12,7 +12,8 @@ out and fails if any process even tries to connect (see "How it is checked").
 |---|---|---|
 | Your prompt, outline and slide text | When you generate, and only to the LLM provider **you** configured | That provider (`[llm]` in `chatppt.toml`) |
 | Image prompts | When an image provider is configured and `features.images` is on | That image provider |
-| Web fonts | When the browser renders a template or theme that uses a Google Font | `fonts.googleapis.com`, requested by your browser, not the server (being moved into the image) |
+| Web fonts | When the browser renders a template or theme that uses a Google Font | `fonts.googleapis.com`, requested by your browser (being moved into the image) |
+| Font lookup on PPTX import | Only when you import a PowerPoint as a template: the server checks each font name against Google Fonts | `fonts.googleapis.com` (and the Google Fonts API if a key is configured) |
 | Error reports | Only if you set `server.error_reporting_dsn` (legacy `SENTRY_DSN`) **and** install `sentry-sdk` | The Sentry-compatible endpoint **you** named. No PII unless `SENTRY_SEND_DEFAULT_PII=true`; no tracing unless `SENTRY_TRACES_SAMPLE_RATE` is set |
 | Desktop update check | Only if `CHATPPT_FEATURES__UPDATE_CHECK=true` **and** `UPDATE_SERVER_URL` is set | The `version.json` URL **you** named; there is no default host |
 
