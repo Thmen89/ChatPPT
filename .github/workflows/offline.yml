@@ -1,0 +1,67 @@
+name: Offline start
+
+# Proves a fresh install with no network and no provider starts, serves requests and
+# makes zero outbound connection attempts. See scripts/check_offline.py and docs/telemetry.md.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Only the CI build step: `next build` has CLI telemetry. The app itself sends none.
+      NEXT_TELEMETRY_DISABLED: "1"
+      CYPRESS_INSTALL_BINARY: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Allow unprivileged network namespaces, install strace
+        run: |
+          # Ubuntu 24.04 blocks `unshare -rn` for unprivileged users through AppArmor by default.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          command -v strace || (sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends strace)
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: servers/fastapi/uv.lock
+
+      - name: Python deps
+        working-directory: servers/fastapi
+        run: uv sync --frozen
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: servers/nextjs/package-lock.json
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: servers/nextjs/.next-build/cache
+          key: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-
+
+      - name: Build Next.js standalone
+        working-directory: servers/nextjs
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Offline check (static + no-network runtime under strace)
+        run: python3 scripts/check_offline.py --require-strace

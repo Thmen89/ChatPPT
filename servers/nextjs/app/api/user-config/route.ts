@@ -106,12 +106,6 @@ export async function POST(request: Request) {
         )
           ? userConfig.DISABLE_IMAGE_GENERATION
           : existingConfig.DISABLE_IMAGE_GENERATION,
-        DISABLE_ANONYMOUS_TRACKING: Object.prototype.hasOwnProperty.call(
-          userConfig,
-          "DISABLE_ANONYMOUS_TRACKING"
-        )
-          ? userConfig.DISABLE_ANONYMOUS_TRACKING
-          : existingConfig.DISABLE_ANONYMOUS_TRACKING,
       })
     );
     return NextResponse.json(

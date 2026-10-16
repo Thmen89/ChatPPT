@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI
@@ -12,12 +13,8 @@ from api.v1.auth.router import API_V1_AUTH_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
-from utils.get_env import (
-    get_app_data_directory_env,
-    get_sentry_dsn_env,
-    get_sentry_send_default_pii_env,
-    get_sentry_traces_sample_rate_env,
-)
+from chatppt.settings import get_settings
+from utils.get_env import get_app_data_directory_env
 from utils.mime_types import init_sandbox_safe_mimetypes
 from utils.path_helpers import get_resource_path
 
@@ -26,33 +23,32 @@ init_sandbox_safe_mimetypes()
 
 
 def _maybe_init_sentry() -> None:
-    sentry_dsn = get_sentry_dsn_env()
-    if not sentry_dsn:
+    """Error reporting is operator opt-in. Nothing is sent anywhere unless
+    ``server.error_reporting_dsn`` (legacy ``SENTRY_DSN``) is set; PII stays off
+    unless ``SENTRY_SEND_DEFAULT_PII=true``; tracing is off unless
+    ``SENTRY_TRACES_SAMPLE_RATE`` is set. See docs/telemetry.md."""
+    dsn = (get_settings().server.error_reporting_dsn or "").strip()
+    if not dsn:
         return
 
     try:
-        import sentry_sdk
-    except Exception:
-        # Sentry SDK is optional in some runtime targets.
-        return
-
-    traces_sample_rate = get_sentry_traces_sample_rate_env()
-    send_default_pii = get_sentry_send_default_pii_env()
-    try:
-        parsed_sample_rate = (
-            float(traces_sample_rate) if traces_sample_rate is not None else 1.0
+        import sentry_sdk  # optional dependency, not installed by default
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "server.error_reporting_dsn is set but sentry_sdk is not installed; "
+            "error reporting stays off."
         )
-    except ValueError:
-        parsed_sample_rate = 1.0
+        return
 
-    parsed_send_default_pii = (
-        send_default_pii.lower() == "true" if send_default_pii is not None else True
-    )
+    try:
+        traces_sample_rate = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE") or 0.0)
+    except ValueError:
+        traces_sample_rate = 0.0
 
     sentry_sdk.init(
-        dsn=sentry_dsn,
-        send_default_pii=parsed_send_default_pii,
-        traces_sample_rate=parsed_sample_rate,
+        dsn=dsn,
+        send_default_pii=(os.getenv("SENTRY_SEND_DEFAULT_PII") or "").strip().lower() == "true",
+        traces_sample_rate=traces_sample_rate,
     )
 
 

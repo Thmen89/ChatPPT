@@ -4,15 +4,29 @@ import { isDev } from "./constants";
 import { safeStderrWrite } from "./safe-console";
 
 /**
- * Version check URL — GitHub raw version.json (no API required).
- * Override with UPDATE_SERVER_URL for local testing.
+ * Update checks are OFF by default and make no network request unless the
+ * operator turns them on with CHATPPT_FEATURES__UPDATE_CHECK=true (the env form of
+ * `features.update_check`) AND points UPDATE_SERVER_URL at a version.json
+ * ({ version, message?, downloads?: { linux, mac, windows } }).
+ * There is deliberately no default host.
+ * TODO(owner): publish a version.json for ChatPPT releases and document its URL.
  */
-const VERSION_JSON_URL =
-  process.env.UPDATE_SERVER_URL ||
-  "https://raw.githubusercontent.com/presenton/presenton/refs/heads/main/electron/version.json";
+const VERSION_JSON_URL = (process.env.UPDATE_SERVER_URL || "").trim();
+
+function isTruthy(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes((value || "").trim().toLowerCase());
+}
+
+export function isUpdateCheckEnabled(): boolean {
+  return isTruthy(process.env.CHATPPT_FEATURES__UPDATE_CHECK) && VERSION_JSON_URL !== "";
+}
 
 const CURRENT_VERSION = app.getVersion();
-const WEBSITE_DOWNLOAD_URL = "https://presenton.ai/download";
+
+function downloadUrlFor(data: VersionResponse): string {
+  const key = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "windows" : "linux";
+  return (data.downloads?.[key] || "").trim();
+}
 
 /** Maximum number of fetch attempts (polls). */
 const MAX_ATTEMPTS = 3;
@@ -301,8 +315,10 @@ async function checkForUpdatesWithRetry(win: BrowserWindow): Promise<void> {
     if (data) {
       const newer = isNewerVersion(CURRENT_VERSION, data.version);
       log(`Remote ${data.version} vs current ${CURRENT_VERSION} -> newer? ${newer}`);
-      if (newer) {
-        const downloadUrl = WEBSITE_DOWNLOAD_URL;
+      const downloadUrl = downloadUrlFor(data);
+      if (newer && !downloadUrl) {
+        log("Newer version found but version.json has no download URL for this platform; skipping banner");
+      } else if (newer) {
         log(`Injecting banner for ${data.version} (after ${INJECT_DELAY_MS}ms delay)`);
         scheduleBannerInjection(win, data.version, downloadUrl, data.message);
       } else {
@@ -328,6 +344,9 @@ async function checkForUpdatesWithRetry(win: BrowserWindow): Promise<void> {
  */
 export function startUpdateChecker(win: BrowserWindow): void {
   stopUpdateChecker();
+  if (!isUpdateCheckEnabled()) {
+    return;
+  }
   updateCheckerStopped = false;
   if (!hasLiveWebContents(win)) {
     updateCheckerStopped = true;

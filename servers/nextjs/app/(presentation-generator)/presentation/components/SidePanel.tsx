@@ -23,7 +23,6 @@ import { SortableSlide } from "./SortableSlide";
 import { Separator } from "@/components/ui/separator";
 import { usePathname } from "next/navigation";
 import NewSlide from "./NewSlide";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { SlideThumbnailCard } from "./SlideThumbnailCard";
 
 interface SidePanelProps {
@@ -104,13 +103,6 @@ const SidePanel = ({
       dispatch(
         setPresentationData({ ...presentationData, slides: updatedArray })
       );
-      trackEvent(MixpanelEvent.Presentation_Slides_Reordered, {
-        pathname,
-        presentation_id: presentationId,
-        from_index: oldIndex,
-        to_index: newIndex,
-        slide_count: updatedArray.length,
-      });
     }
   };
 

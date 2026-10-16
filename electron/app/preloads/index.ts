@@ -49,6 +49,5 @@ contextBridge.exposeInMainWorld('electron', {
   },
   // API handlers
   hasRequiredKey: () => ipcRenderer.invoke("api:has-required-key"),
-  telemetryStatus: () => ipcRenderer.invoke("api:telemetry-status"),
   getTemplates: () => ipcRenderer.invoke("api:templates"),
 });

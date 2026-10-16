@@ -15,11 +15,9 @@ import {
 } from "@/utils/providerUtils";
 import { useRouter, usePathname } from "next/navigation";
 import { LLMConfig } from "@/types/llm_config";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import SettingSideBar from "./SettingSideBar";
 import TextProvider from "./TextProvider";
 import ImageProvider from "./ImageProvider";
-import PrivacySettings from "./PrivacySettings";
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { getApiUrl } from "@/utils/api";
@@ -42,7 +40,7 @@ const SettingsPage = () => {
   const pathname = usePathname();
   const [mode, setMode] = useState<'nanobanana' | 'presenton'>('presenton')
   const [selectedProvider, setSelectedProvider] = useState<
-    "text-provider" | "image-provider" | "privacy" | "session"
+    "text-provider" | "image-provider" | "session"
   >("text-provider");
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
@@ -135,9 +133,6 @@ const SettingsPage = () => {
         return;
       }
     }
-    trackEvent(MixpanelEvent.Settings_SaveConfiguration_Button_Clicked, {
-      pathname,
-    });
     const validationError = getLLMConfigValidationError(llmConfig);
     if (validationError) {
       notify.warning("Cannot save settings", validationError);
@@ -163,11 +158,9 @@ const SettingsPage = () => {
         isDisabled: true,
         text: "Saving Configuration...",
       }));
-      trackEvent(MixpanelEvent.Settings_SaveConfiguration_API_Call);
       await handleSaveLLMConfig(llmConfig);
       let ollamaModelDownloaded = false;
       if (llmConfig.LLM === "ollama" && llmConfig.OLLAMA_MODEL) {
-        trackEvent(MixpanelEvent.Settings_CheckOllamaModelPulled_API_Call);
         const isPulled = await checkIfSelectedOllamaModelIsPulled(
           llmConfig.OLLAMA_MODEL
         );
@@ -180,7 +173,6 @@ const SettingsPage = () => {
             status: "pulling",
             done: false,
           });
-          trackEvent(MixpanelEvent.Settings_DownloadOllamaModel_API_Call);
           const downloadOutcome = await handleModelDownload();
           if (downloadOutcome === "cancelled") {
             return;
@@ -446,7 +438,6 @@ const SettingsPage = () => {
             llmConfig={llmConfig}
           />}
           {mode === 'presenton' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
-          {selectedProvider === 'privacy' && <PrivacySettings />}
           {selectedProvider === "session" && (
             <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>

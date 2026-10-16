@@ -24,7 +24,6 @@ import { PresentationGenerationApi } from "../../services/api/presentation-gener
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ConfigurationSelects } from "./ConfigurationSelects";
 import { RootState } from "@/store/store";
 import { ImagesApi } from "../../services/api/images";
@@ -174,10 +173,6 @@ const UploadPage = () => {
   };
 
   const trackUploadValidationFailure = (reason: string) => {
-    trackEvent(MixpanelEvent.Upload_Configuration_Invalid, {
-      ...getUploadSnapshotProps(),
-      reason,
-    });
   };
 
   const handleConfigChange = (key: keyof PresentationConfig, value: unknown) => {
@@ -245,7 +240,6 @@ const UploadPage = () => {
    */
   const handleGeneratePresentation = async () => {
     if (!validateConfiguration()) return;
-    trackEvent(MixpanelEvent.Upload_Generation_Started, getUploadSnapshotProps());
 
 
     const isStockProviderReady = await ensureStockImageProviderReady();
@@ -304,13 +298,6 @@ const UploadPage = () => {
       files: responses,
     }));
     dispatch(clearOutlines())
-    trackEvent(MixpanelEvent.Upload_Documents_Processed, {
-      ...getUploadSnapshotProps(),
-      uploaded_documents_count: documents.length,
-      decompose_job_count: responses.length,
-      destination: "/documents-preview",
-    });
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
     router.push("/documents-preview");
   };
 
@@ -344,12 +331,6 @@ const UploadPage = () => {
 
     dispatch(setPresentationId(createResponse.id));
     dispatch(clearOutlines())
-    trackEvent(MixpanelEvent.Upload_Outline_Generation_Requested, {
-      ...getUploadSnapshotProps(),
-      presentation_id: createResponse.id,
-      destination: "/outline",
-    });
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
     router.push("/outline");
   };
 

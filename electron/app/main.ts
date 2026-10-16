@@ -27,7 +27,7 @@ import {
   resolveImageMagickRuntime,
   type ImageMagickRuntime,
 } from "./utils/imagemagick-runtime";
-import { startUpdateChecker, stopUpdateChecker } from "./utils/update-checker";
+import { isUpdateCheckEnabled, startUpdateChecker, stopUpdateChecker } from "./utils/update-checker";
 import {
   addMainBreadcrumb,
   captureMainException,
@@ -363,7 +363,6 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         DISABLE_THINKING: process.env.DISABLE_THINKING,
         WEB_GROUNDING: process.env.WEB_GROUNDING,
         DATABASE_URL: process.env.DATABASE_URL,
-        DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
         COMFYUI_URL: process.env.COMFYUI_URL,
         COMFYUI_WORKFLOW: process.env.COMFYUI_WORKFLOW,
         DALL_E_3_QUALITY: process.env.DALL_E_3_QUALITY,
@@ -528,7 +527,6 @@ app.whenReady().then(async () => {
       DISABLE_THINKING: process.env.DISABLE_THINKING,
       WEB_GROUNDING: process.env.WEB_GROUNDING,
       DATABASE_URL: process.env.DATABASE_URL,
-      DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
       COMFYUI_URL: process.env.COMFYUI_URL,
       COMFYUI_WORKFLOW: process.env.COMFYUI_WORKFLOW,
       DALL_E_3_QUALITY: process.env.DALL_E_3_QUALITY,
@@ -567,9 +565,9 @@ app.whenReady().then(async () => {
     return;
   }
 
-  // Begin polling the version server for available updates
+  // Opt-in only (CHATPPT_FEATURES__UPDATE_CHECK + UPDATE_SERVER_URL); off by default.
   const updateWindow = getLiveMainWindow();
-  if (updateWindow && !updateWindow.webContents.isDestroyed()) {
+  if (isUpdateCheckEnabled() && updateWindow && !updateWindow.webContents.isDestroyed()) {
     safeStderrWrite("[Presenton] Starting update checker...\n");
     startUpdateChecker(updateWindow);
   }

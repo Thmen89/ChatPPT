@@ -47,7 +47,6 @@ interface ElectronAPI {
     callback: (payload: { level: string; text: string }) => void
   ) => () => void;
   hasRequiredKey: () => Promise<{ hasKey: boolean }>;
-  telemetryStatus: () => Promise<{ telemetryEnabled: boolean }>;
   getTemplates: () => Promise<
     Array<{
       templateName: string;

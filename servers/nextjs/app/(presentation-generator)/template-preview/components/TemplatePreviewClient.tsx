@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Home, Loader2, Trash2 } from "lucide-react";
 import "../../utils/prism-languages";
 
-import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
 import Header from "../../(dashboard)/dashboard/components/Header";
 import { notify } from "@/components/ui/sonner";
@@ -138,8 +137,6 @@ const GroupLayoutPreview = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_Button_Clicked, { pathname });
-                    trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_API_Call);
                     handleDeleteCustomTemplate();
                   }}
                   className="flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"

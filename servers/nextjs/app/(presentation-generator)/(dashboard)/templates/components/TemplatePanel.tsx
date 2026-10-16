@@ -12,7 +12,6 @@ import {
 } from "@/app/hooks/useCustomTemplates";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import Link from "next/link";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import {
     TemplatePreviewStage,
     LayoutsBadge,
@@ -24,7 +23,6 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
     const router = useRouter();
     const { previewLayouts, loading } = useCustomTemplatePreview(`${template.id}`);
     const handleOpen = useCallback(() => {
-        trackEvent(MixpanelEvent.Templates_Custom_Opened, { template_id: template.id, template_name: template.name });
         if (template.id.startsWith('custom-')) {
             router.push(`/template-preview?slug=${template.id}`)
         } else {
@@ -95,7 +93,6 @@ const LayoutPreview = () => {
     const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
 
     useEffect(() => {
-        trackEvent(MixpanelEvent.Templates_Page_Viewed);
         const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
         if (!existingScript) {
             const script = document.createElement("script");
@@ -106,7 +103,6 @@ const LayoutPreview = () => {
     }, []);
 
     const handleOpenPreview = useCallback((id: string) => {
-        trackEvent(MixpanelEvent.Templates_Inbuilt_Opened, { template_id: id });
         router.push(`/template-preview?slug=${id}`);
     }, [router]);
 
@@ -135,7 +131,6 @@ const LayoutPreview = () => {
                     <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
                         <Link
                             href="/custom-template"
-                            onClick={() => trackEvent(MixpanelEvent.Templates_New_Template_Clicked)}
                             className="inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm  shadow-sm hover:shadow-md"
                             aria-label="Create new template"
                             style={{
@@ -155,7 +150,7 @@ const LayoutPreview = () => {
             <div className="l mx-auto px-6 py-8">
                 <div className='p-1 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center '>
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => { trackEvent(MixpanelEvent.Templates_Tab_Switched, { tab: 'custom' }); setTab('custom'); }}
+                        onClick={() => setTab('custom')}
                         style={{
                             background: tab === 'custom' ? '#F4F3FF' : 'transparent',
                             color: tab === 'custom' ? '#5146E5' : '#3A3A3A'
@@ -165,7 +160,7 @@ const LayoutPreview = () => {
                         <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
                     </svg>
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => { trackEvent(MixpanelEvent.Templates_Tab_Switched, { tab: 'default' }); setTab('default'); }}
+                        onClick={() => setTab('default')}
                         style={{
                             background: tab === 'default' ? '#F4F3FF' : 'transparent',
                             color: tab === 'default' ? '#5146E5' : '#3A3A3A'

@@ -7,7 +7,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { AlertCircle } from "lucide-react";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
@@ -232,7 +231,6 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
             <Button
               className="mt-4 bg-red-500 text-white hover:bg-red-600 focus:ring-4 focus:ring-red-300"
               onClick={() => {
-                trackEvent(MixpanelEvent.PdfMaker_Retry_Button_Clicked, { pathname });
                 window.location.reload();
               }}
             >

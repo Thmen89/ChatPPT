@@ -14,7 +14,6 @@ import { notify } from "@/components/ui/sonner";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 import { getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 interface LayoutItemProps {
   layout: any;
@@ -128,14 +127,6 @@ const NewSlideV1 = ({
           presentation: presentationId,
         };
         dispatch(addNewSlide({ slideData: newSlide, index }));
-        trackEvent(MixpanelEvent.Presentation_Slide_Added, {
-          pathname,
-          presentation_id: presentationId,
-          inserted_after_index: index,
-          template_id: templateID,
-          layout_id: id,
-          is_custom_template: isCustomTemplate,
-        });
         setShowNewSlideSelection(false);
       } catch (error: any) {
         console.error(error);

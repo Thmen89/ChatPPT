@@ -4,7 +4,6 @@ import Wrapper from "@/components/Wrapper";
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ArrowLeft } from "lucide-react";
 
 const PATHS_WITH_HEADER_BACK = [
@@ -43,7 +42,7 @@ const Header = () => {
       <Wrapper className="px-5 sm:px-10 lg:px-20">
         <div className="flex items-center justify-between py-1">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard" onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}>
+            <Link href="/dashboard">
               <img
                 src="/logo-with-bg.png"
                 alt="Presentation logo"
@@ -56,9 +55,6 @@ const Header = () => {
               <Link
                 href={backHref}
                 className="text-[#333333] text-xs font-syne font-semibold flex items-center gap-2"
-                onClick={() =>
-                  trackEvent(MixpanelEvent.Navigation, { from: pathname, to: backHref })
-                }
               >
                 <ArrowLeft className="w-4 h-4 shrink-0 text-[#333333]" aria-hidden />
                 <span>{backLabel}</span>

@@ -7,7 +7,6 @@ import { PresentationGenerationApi } from "../../services/api/presentation-gener
 import { LoadingState, TABS } from "../types/index";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
-import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -92,15 +91,6 @@ export const usePresentationGeneration = (
         ? null
         : selectedTemplate?.layouts?.length || 0;
 
-    trackEvent(MixpanelEvent.Outline_Presentation_Generation_Started, {
-      pathname,
-      presentation_id: presentationId,
-      outline_count: outlines?.length || 0,
-      template_id: selectedTemplateId,
-      template_type: selectedTemplateType,
-      template_name: selectedTemplateName,
-      template_layout_count: selectedTemplateLayoutCount,
-    });
 
     setLoadingState({
       message: "Generating presentation data...",

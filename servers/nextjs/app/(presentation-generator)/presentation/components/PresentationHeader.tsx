@@ -25,7 +25,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { RootState } from "@/store/store";
 import { notify } from "@/components/ui/sonner";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 import ToolTip from "@/components/ToolTip";
 import {
@@ -150,12 +149,6 @@ const PresentationHeader = ({
     const next = trimmed || presentationData.title || "Presentation";
     if (next !== presentationData.title) {
       dispatch(updateTitle(next));
-      trackEvent(MixpanelEvent.Presentation_Title_Updated, {
-        pathname,
-        presentation_id,
-        previous_title_length: (presentationData.title || "").length,
-        next_title_length: next.length,
-      });
     }
     setIsEditingTitle(false);
   };
@@ -206,12 +199,6 @@ const PresentationHeader = ({
 
     let exportToastId: string | number | undefined;
     try {
-      trackEvent(MixpanelEvent.Presentation_Export_Started, {
-        pathname,
-        presentation_id,
-        format: "pptx",
-        slide_count: presentationData?.slides?.length || 0,
-      });
       exportToastId = notify.loading(
         "Exporting PPTX",
         "Your presentation is being exported. This may take a moment."
@@ -271,12 +258,6 @@ const PresentationHeader = ({
 
     let exportToastId: string | number | undefined;
     try {
-      trackEvent(MixpanelEvent.Presentation_Export_Started, {
-        pathname,
-        presentation_id,
-        format: "pdf",
-        slide_count: presentationData?.slides?.length || 0,
-      });
       exportToastId = notify.loading(
         "Exporting PDF",
         "Your presentation is being exported. This may take a moment."
@@ -330,11 +311,6 @@ const PresentationHeader = ({
     setIsRegenerateConfirmOpen(false);
     dispatch(clearPresentationData());
     dispatch(clearHistory());
-    trackEvent(MixpanelEvent.Presentation_Regenerated, {
-      pathname,
-      presentation_id,
-      slide_count: presentationData?.slides?.length || 0,
-    });
     router.push(`/presentation?id=${presentation_id}&stream=true`);
   };
   const downloadLink = (path: string, fileName: string) => {
@@ -541,13 +517,6 @@ const PresentationHeader = ({
                   const to = `?id=${presentation_id}&mode=present&slide=${
                     currentSlide || 0
                   }`;
-                  trackEvent(MixpanelEvent.Presentation_Mode_Entered, {
-                    pathname,
-                    presentation_id,
-                    slide_index: currentSlide || 0,
-                    slide_count: presentationData?.slides?.length || 0,
-                  });
-                  trackEvent(MixpanelEvent.Navigation, { from: pathname, to });
                   router.push(to);
                 }}
                 disabled={

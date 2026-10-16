@@ -27,7 +27,6 @@ import { getIconFromFile } from "../../utils/others";
 import { ChevronRight, PanelRightOpen, X } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
 import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 // Types
 interface LoadingState {
@@ -149,7 +148,6 @@ const DocumentsPreviewPage: React.FC = () => {
       const documentPaths = fileItems.map(
         (fileItem: FileItem) => fileItem.file_path
       );
-      trackEvent(MixpanelEvent.DocumentsPreview_Create_Presentation_API_Call);
       const createResponse = await PresentationGenerationApi.createPresentation(
         {
           content: config?.prompt ?? "",
@@ -166,7 +164,6 @@ const DocumentsPreviewPage: React.FC = () => {
       );
 
       dispatch(setPresentationId(createResponse.id));
-      trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
       router.replace("/outline");
     } catch (error: any) {
       console.error("Error in radar presentation creation:", error);

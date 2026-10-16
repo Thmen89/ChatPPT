@@ -6,7 +6,6 @@ import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashbo
 import { PresentationGrid } from "@/app/(presentation-generator)/(dashboard)/dashboard/components/PresentationGrid";
 import Link from "next/link";
 import { ArrowUpDown } from "lucide-react";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePathname } from "next/navigation";
 
 const actionCardBase =
@@ -80,11 +79,6 @@ const DashboardPage: React.FC = () => {
       setError(null);
       setPresentations([]);
     } finally {
-      trackEvent(MixpanelEvent.Dashboard_Page_Viewed, {
-        pathname,
-        presentation_count: fetchedCount,
-        load_failed: hasError,
-      });
       setIsLoading(false);
     }
   };
@@ -110,12 +104,6 @@ const DashboardPage: React.FC = () => {
         </h2>
         <Link
           href="/upload"
-          onClick={() =>
-            trackEvent(MixpanelEvent.Dashboard_New_Presentation_Clicked, {
-              pathname,
-              source: "dashboard_actions_card",
-            })
-          }
           className="group/action bg-white z-50 mt-2  relative  block w-[304px] max-w-full overflow-visible rounded-[10.8px] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4 cursor-pointer"
           aria-label="Create presentation"
         >
