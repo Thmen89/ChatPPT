@@ -56,6 +56,9 @@ class E2EStack(Stack):
 
 
 def main() -> None:
+    # Stream like a real provider, not instantly: the UI gates actions on streams finishing,
+    # and an instant mock hides races that a slower machine exposes.
+    os.environ.setdefault("MOCK_LLM_TOKENS_PER_S", "150")
     stack = E2EStack()
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:

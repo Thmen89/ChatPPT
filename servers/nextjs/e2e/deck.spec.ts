@@ -23,7 +23,11 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
 
   await page.waitForURL("**/outline");
   await expect(page.getByText("Slide 4", { exact: true })).toBeVisible();
-  await page.getByText("Select Template", { exact: true }).click();
+  // The outline page ignores tab switches until the stream ends ("Loading..." -> "Select a Template").
+  await expect(page.getByRole("button", { name: "Select a Template" })).toBeVisible();
+  const templateTab = page.getByRole("tab", { name: "Select Template" });
+  await templateTab.click();
+  await expect(templateTab).toHaveAttribute("aria-selected", "true");
   await page.locator("h3", { hasText: /^general$/i }).first().click();
   await page.getByRole("button", { name: /Generate Presentation/ }).click();
 
