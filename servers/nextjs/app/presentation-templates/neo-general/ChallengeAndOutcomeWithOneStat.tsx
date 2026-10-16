@@ -23,7 +23,7 @@ export const Schema = z.object({
         __icon_url__: z.string(),
         __icon_query__: z.string().max(30),
     }).describe('Icon displayed with the metric').default({
-        __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg',
+        __icon_url__: '/placeholder.svg',
         __icon_query__: 'circle',
     }),
 });

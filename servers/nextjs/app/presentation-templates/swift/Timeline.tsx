@@ -11,13 +11,13 @@ const IconSchema = z
     __icon_url__: z
       .string()
       .default(
-        "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/clipboard-text-bold.svg"
+        "/icons/bold/clipboard-text-bold.svg"
       ),
     __icon_query__: z.string().min(0).max(80).default("timeline icon"),
   })
   .default({
     __icon_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/clipboard-text-bold.svg",
+      "/icons/bold/clipboard-text-bold.svg",
     __icon_query__: "timeline icon",
   })
 

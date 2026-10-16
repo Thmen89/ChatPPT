@@ -1,5 +1,5 @@
 /**
- * Docker / startup terminal banner for Presenton.
+ * Docker / startup terminal banner for ChatPPT.
  * Renders a compact brand logo + startup status.
  */
 
@@ -47,7 +47,7 @@ function styleAsciiArt(rawAscii) {
 
 function loadAsciiBanner() {
   const thisDir = path.dirname(fileURLToPath(import.meta.url));
-  const asciiPath = path.join(thisDir, "presenton-ascii.txt");
+  const asciiPath = path.join(thisDir, "chatppt-ascii.txt");
 
   try {
     const raw = fs.readFileSync(asciiPath, "utf8").trimEnd();
@@ -74,11 +74,13 @@ function padVis(styled, width) {
  * @param {number} [opts.fastapiPort]
  * @param {string} [opts.hostHttpPort] — host-published HTTP port (docker -p HOST:80). Default from env or "5000".
  */
-export function printPresentonStartupBanner(opts = {}) {
+export function printStartupBanner(opts = {}) {
   const nextPort = opts.nextPort ?? 3000;
   const fastapiPort = opts.fastapiPort ?? 8000;
   const hostHttpPort =
     opts.hostHttpPort ??
+    process.env.CHATPPT_HOST_HTTP_PORT ??
+    // Deprecated names, kept as fallbacks for one release.
     process.env.PRESENTON_HOST_HTTP_PORT ??
     process.env.PRESENTON_PUBLIC_PORT ??
     "5000";
@@ -94,12 +96,10 @@ export function printPresentonStartupBanner(opts = {}) {
 
   const title = [
     "",
-    BOLD + fgRgb(138, 99, 255, "   Open Source AI Presentation Generator"),
+    BOLD + fgRgb(138, 99, 255, "   Lean, fast, customisable AI deck tool"),
     "   " +
-      accent("Love the Project?  ") +
-      brand("Star us on github: ") +
-      BOLD +
-      fgRgb(224, 218, 255, "https://github.com/presenton/presenton"),
+      muted("Source: ") +
+      fgRgb(224, 218, 255, "https://github.com/Thmen89/ChatPPT"),
     muted("   ─────────────────────────────────────────────────────────"),
     "",
   ].join("\n");
@@ -131,10 +131,14 @@ export function printPresentonStartupBanner(opts = {}) {
     brand(
       "  ╚════════════════════════════════════════════════════════════════════╝",
     ),
-    "",
-    "   " + muted("Made with ❤️  by the Presenton team"),
   ].join("\n");
 
   const bannerHeader = iconBlock ? `${iconBlock}\n` : "";
   console.log("\n" + bannerHeader + title + summary);
 }
+
+/**
+ * Deprecated alias: start.js still imports this name. Rename the import (and this file, which
+ * the Dockerfile copies by name) together, then drop the alias.
+ */
+export const printPresentonStartupBanner = printStartupBanner;

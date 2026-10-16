@@ -24,7 +24,12 @@ def _icon_fastembed_cache_directory() -> str:
     in Docker: ``./app_data`` is often bind-mounted and would hide weights baked at image build.
     Falls back to the weights shipped next to the code, then to ``<data>/fastembed_cache``.
     """
-    override = (os.getenv("PRESENTON_FASTEMBED_ICON_CACHE_DIR") or "").strip()
+    override = (
+        os.getenv("CHATPPT_FASTEMBED_ICON_CACHE_DIR")
+        # Deprecated name, kept as a fallback for one release.
+        or os.getenv("PRESENTON_FASTEMBED_ICON_CACHE_DIR")
+        or ""
+    ).strip()
     if override:
         return os.path.abspath(override)
     bundled = get_resource_path("fastembed_cache")

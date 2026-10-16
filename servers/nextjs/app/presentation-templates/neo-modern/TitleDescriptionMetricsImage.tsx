@@ -17,7 +17,7 @@ export const Schema = z.object({
         __image_url__: z.string(),
         __image_prompt__: z.string().max(100)
     }).default({
-        __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+        __image_url__: '/replaceable_template_image.png',
         __image_prompt__: 'A professional business collaboration scene with people putting their hands together in the center.'
     }).describe("The primary visual image displayed on the right side of the slide.")
 })
@@ -106,7 +106,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                     <div className="flex-1 flex items-center justify-center pr-[52px]">
                         <div className="w-[531px] h-[559px] overflow-hidden rounded-sm">
                             <img
-                                src={image?.__image_url__ || 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png'}
+                                src={image?.__image_url__ || '/replaceable_template_image.png'}
                                 alt={image?.__image_prompt__ || 'Layout visual content'}
                                 className="w-full h-full object-cover"
                                 style={{ objectPosition: '52.9% 44.07%' }}

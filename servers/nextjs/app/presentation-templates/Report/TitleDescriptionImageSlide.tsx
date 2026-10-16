@@ -35,7 +35,7 @@ export const Schema = z.object({
   }).optional().meta({
     description: "Large image shown on the right side of the slide or optional.",
   }).default({
-    __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+    __image_url__: "/placeholder.jpg",
     __image_prompt__: "Thoughtful woman portrait on a neutral backdrop",
   }),
 });

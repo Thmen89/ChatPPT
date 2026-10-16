@@ -19,7 +19,7 @@ export const Schema = z.object({
         __image_url__: z.string(),
         __image_prompt__: z.string().max(100),
     }).describe('The large image featured on the right side of the slide').default({
-        __image_url__: 'https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png',
+        __image_url__: '/replaceable_template_image.png',
         __image_prompt__: 'A professional business setting showing collaboration or success.',
     }),
 });

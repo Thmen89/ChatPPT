@@ -191,7 +191,7 @@ const chromiumCacheRecovery = prepareChromiumCacheRecovery(
   electronAppPaths.cacheDir,
   electronAppPaths.userDataDir,
 );
-safeLog("[Presenton] Electron paths initialized:", electronAppPaths);
+safeLog("[ChatPPT] Electron paths initialized:", electronAppPaths);
 
 initMainSentry();
 updateSentryRuntimeContext(chromiumCacheRecovery);
@@ -201,7 +201,7 @@ app.on("child-process-gone", (_event, details) => {
 });
 
 addMainBreadcrumb("memory", "electron.main.startup", memorySnapshotMb());
-safeLog("[Presenton] Startup memory:", {
+safeLog("[ChatPPT] Startup memory:", {
   memory: memorySnapshotMb(),
 });
 
@@ -211,7 +211,7 @@ const createWindow = () => {
     height: 720,
     show: false, // Reveal once the launch screen has painted to avoid a blank flash.
     backgroundColor: "#f3f5ff",
-    icon: path.join(baseDir, "resources/ui/assets/images/presenton_short_filled.png"),
+    icon: path.join(baseDir, "resources/ui/assets/images/chatppt_mark.png"),
     webPreferences: {
         webSecurity: false,
         // Ensure a known preload path and explicit isolation settings so
@@ -223,10 +223,10 @@ const createWindow = () => {
           const p = path.join(__dirname, 'preloads/index.js');
           try {
             if (!fs.existsSync(p)) {
-              safeWarn(`[Presenton] Preload not found at ${p}`);
+              safeWarn(`[ChatPPT] Preload not found at ${p}`);
             }
           } catch (e) {
-            safeWarn('[Presenton] Failed to stat preload path', e);
+            safeWarn('[ChatPPT] Failed to stat preload path', e);
           }
           return p;
         })(),
@@ -248,7 +248,7 @@ const createWindow = () => {
   // sees download progress and can manage downloads normally.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!isSupportedExternalUrl(url)) {
-      safeWarn("[Presenton] Blocked unsupported window open URL.");
+      safeWarn("[ChatPPT] Blocked unsupported window open URL.");
       return { action: "deny" };
     }
 
@@ -258,16 +258,16 @@ const createWindow = () => {
           return;
         }
 
-        safeWarn(`[Presenton] Failed to open external URL: ${result.message || "Unknown error"}`);
+        safeWarn(`[ChatPPT] Failed to open external URL: ${result.message || "Unknown error"}`);
         await showOpenTargetErrorDialog({
           parent: mainWindow,
           title: "Could Not Open Link",
-          message: "Presenton could not open this link in your browser.",
+          message: "ChatPPT could not open this link in your browser.",
           detail: `${result.message || "No application is registered to open this link."}\n\n${url}`,
         });
       })
       .catch((error) => {
-        safeWarn("[Presenton] Failed to handle external URL open:", error);
+        safeWarn("[ChatPPT] Failed to handle external URL open:", error);
       });
 
     return { action: "deny" };
@@ -312,13 +312,13 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
     const exportPackageRoot = path.join(baseDir, "resources", "export");
     const exportConverterPath = resolveExportConverterPath(baseDir);
     if (imageMagickRuntime) {
-      safeLog("[Presenton] ImageMagick runtime resolved:", {
+      safeLog("[ChatPPT] ImageMagick runtime resolved:", {
         source: imageMagickRuntime.source,
         binaryPath: imageMagickRuntime.binaryPath,
         homeDir: imageMagickRuntime.homeDir,
       });
     } else {
-      safeWarn("[Presenton] ImageMagick runtime was not found; LiteParse image conversion will fail until it is bundled or installed.");
+      safeWarn("[ChatPPT] ImageMagick runtime was not found; LiteParse image conversion will fail until it is bundled or installed.");
     }
     const fastApi = await startFastApiServer(
       fastapiDir,
@@ -376,7 +376,7 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         // Python invoke the exact binary path instead of relying on PATH.
         ...(sofficePath && {
           SOFFICE_PATH: sofficePath,
-          PRESENTON_OFFICE_RENDERER: "libreoffice",
+          CHATPPT_OFFICE_RENDERER: "libreoffice",
         }),
         ...buildImageMagickEnv(imageMagickRuntime),
         LITEPARSE_RUNNER_PATH: getLiteParseRunnerPath(),
@@ -407,7 +407,7 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         APP_DATA_DIRECTORY: appDataDir,
         DISABLE_AUTH: disableAuthForElectron,
         EXPORT_PACKAGE_ROOT: exportPackageRoot,
-        PRESENTON_APP_ROOT: baseDir,
+        CHATPPT_APP_ROOT: baseDir,
         ...(exportConverterPath && {
           BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
@@ -477,7 +477,7 @@ app.whenReady().then(async () => {
       .loadFile(path.join(baseDir, "resources/ui/homepage/index.html"))
       .catch((error) => {
         if (!initialWindow.isDestroyed()) {
-          safeWarn("[Presenton] Failed to load startup page", error);
+          safeWarn("[ChatPPT] Failed to load startup page", error);
         }
       });
   }
@@ -533,7 +533,7 @@ app.whenReady().then(async () => {
       GPT_IMAGE_1_5_QUALITY: process.env.GPT_IMAGE_1_5_QUALITY,
     })
   } catch (error) {
-    safeWarn("[Presenton] Failed to persist startup user config", error);
+    safeWarn("[ChatPPT] Failed to persist startup user config", error);
   }
 
   const [fastApiPort, nextjsPort] = await findUnusedPorts();
@@ -561,14 +561,14 @@ app.whenReady().then(async () => {
     if (mainWindow.isDestroyed()) {
       return;
     }
-    safeWarn("[Presenton] Failed to load application URL", error);
+    safeWarn("[ChatPPT] Failed to load application URL", error);
     return;
   }
 
   // Opt-in only (CHATPPT_FEATURES__UPDATE_CHECK + UPDATE_SERVER_URL); off by default.
   const updateWindow = getLiveMainWindow();
   if (isUpdateCheckEnabled() && updateWindow && !updateWindow.webContents.isDestroyed()) {
-    safeStderrWrite("[Presenton] Starting update checker...\n");
+    safeStderrWrite("[ChatPPT] Starting update checker...\n");
     startUpdateChecker(updateWindow);
   }
 });

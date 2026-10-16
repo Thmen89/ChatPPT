@@ -30,7 +30,7 @@ const bulletIconsOnlySlideSchema = z.object({
             title: 'Custom Software',
             subtitle: 'We create tailored software to optimize processes and boost efficiency.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/code-bold.svg',
+                __icon_url__: '/icons/bold/code-bold.svg',
                 __icon_query__: 'code software development'
             }
         },
@@ -38,7 +38,7 @@ const bulletIconsOnlySlideSchema = z.object({
             title: 'Digital Consulting',
             subtitle: 'Our consultants guide organizations in leveraging the latest technologies.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/users-four-bold.svg',
+                __icon_url__: '/icons/bold/users-four-bold.svg',
                 __icon_query__: 'users consulting team'
             }
         },
@@ -46,7 +46,7 @@ const bulletIconsOnlySlideSchema = z.object({
             title: 'Support Services',
             subtitle: 'We provide ongoing support to help businesses adapt and maintain performance.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/headphones-bold.svg',
+                __icon_url__: '/icons/bold/headphones-bold.svg',
                 __icon_query__: 'headphones support service'
             }
         },
@@ -54,7 +54,7 @@ const bulletIconsOnlySlideSchema = z.object({
             title: 'Scalable Marketing',
             subtitle: 'Our data-driven strategies help businesses expand their reach and engagement.',
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/code-bold.svg',
+                __icon_url__: '/icons/bold/code-bold.svg',
                 __icon_query__: 'trending up marketing growth'
             }
         }

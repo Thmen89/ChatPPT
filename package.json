@@ -1,9 +1,9 @@
 {
-  "name": "presenton",
+  "name": "chatppt",
   "version": "1.0.0",
   "presentationExportVersion": "v0.2.9",
   "type": "module",
-  "description": "Open-source AI presentation generator",
+  "description": "ChatPPT: lean, fast, customisable AI deck tool",
   "scripts": {
     "sync:presentation-export": "node scripts/sync-presentation-export.cjs",
     "sync:presentation-export:force": "node scripts/sync-presentation-export.cjs --force",

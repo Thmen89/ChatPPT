@@ -38,7 +38,7 @@ interface ButtonState {
 const SettingsPage = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [mode, setMode] = useState<'nanobanana' | 'presenton'>('presenton')
+  const [mode, setMode] = useState<'nanobanana' | 'template'>('template')
   const [selectedProvider, setSelectedProvider] = useState<
     "text-provider" | "image-provider" | "session"
   >("text-provider");
@@ -426,7 +426,7 @@ const SettingsPage = () => {
           {mode === 'nanobanana' && <div className=" w-full bg-[#F9F8F8] p-7 rounded-[20px]">
             <h4>Nano Banana</h4>
           </div>}
-          {mode === 'presenton' && selectedProvider === 'text-provider' && <TextProvider
+          {mode === 'template' && selectedProvider === 'text-provider' && <TextProvider
 
 
             onInputChange={(value, field) => {
@@ -437,7 +437,7 @@ const SettingsPage = () => {
             }}
             llmConfig={llmConfig}
           />}
-          {mode === 'presenton' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
+          {mode === 'template' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === "session" && (
             <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>

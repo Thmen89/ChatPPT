@@ -20,7 +20,13 @@ const RECOVERY_KEY = "shared-dictionary-cache-v1";
 const SENTINEL_FILE = "chromium-cache-recovery.json";
 
 function getRecoveryMode(): ChromiumCacheRecoveryStatus["mode"] {
-  const raw = process.env.PRESENTON_CHROMIUM_CACHE_RECOVERY?.trim().toLowerCase();
+  const raw = (
+    process.env.CHATPPT_CHROMIUM_CACHE_RECOVERY ??
+    // Deprecated name, kept as a fallback for one release.
+    process.env.PRESENTON_CHROMIUM_CACHE_RECOVERY
+  )
+    ?.trim()
+    .toLowerCase();
   if (["0", "false", "no", "off"].includes(raw ?? "")) {
     return "off";
   }
@@ -169,11 +175,11 @@ export function prepareChromiumCacheRecovery(
 
   if (status.errors.length > 0) {
     status.status = "failed";
-    safeWarn("[Presenton] Chromium cache recovery finished with errors:", status);
+    safeWarn("[ChatPPT] Chromium cache recovery finished with errors:", status);
     return status;
   }
 
-  safeLog("[Presenton] Chromium cache recovery prepared:", {
+  safeLog("[ChatPPT] Chromium cache recovery prepared:", {
     mode: status.mode,
     quarantined: status.quarantined,
     removedStaleDirectories: status.removedStaleDirectories,
@@ -222,7 +228,7 @@ export async function finishChromiumCacheRecovery(
     status.status = "failed";
     const message = error instanceof Error ? error.message : String(error);
     status.errors.push(`session-clear: ${message}`);
-    safeError("[Presenton] Chromium cache recovery failed:", error);
+    safeError("[ChatPPT] Chromium cache recovery failed:", error);
     captureMainException(error, {
       area: "chromium-cache-recovery",
       mode: status.mode,

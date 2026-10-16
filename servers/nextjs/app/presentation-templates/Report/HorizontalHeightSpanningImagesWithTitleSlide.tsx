@@ -9,10 +9,10 @@ const MemberSchema = z.object({
     description: "Title/name/subject for the image",
   }),
   image: z.object({
-    __image_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg"),
+    __image_url__: z.string().default("/placeholder.jpg"),
     __image_prompt__: z.string().default("Professional portrait of a team member"),
   }).default({
-    __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+    __image_url__: "/placeholder.jpg",
     __image_prompt__: "Professional portrait of a team member",
   }),
 });
@@ -32,7 +32,7 @@ export const Schema = z.object({
         subtext: "Title",
         title: "Lanny LA",
         image: {
-          __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+          __image_url__: "/placeholder.jpg",
           __image_prompt__: "Professional portrait of a male team member",
         },
       },
@@ -40,7 +40,7 @@ export const Schema = z.object({
         subtext: "Title",
         title: "Lanny LA",
         image: {
-          __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+          __image_url__: "/placeholder.jpg",
           __image_prompt__: "Professional portrait of a female team member",
         },
       },
@@ -48,7 +48,7 @@ export const Schema = z.object({
         subtext: "Title",
         title: "Lanny LA",
         image: {
-          __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+          __image_url__: "/placeholder.jpg",
           __image_prompt__: "Professional portrait of a business manager",
         },
       },
@@ -56,7 +56,7 @@ export const Schema = z.object({
         subtext: "Title",
         title: "Lanny LA",
         image: {
-          __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+          __image_url__: "/placeholder.jpg",
           __image_prompt__: "Professional portrait of a senior employee",
         },
       },
@@ -64,7 +64,7 @@ export const Schema = z.object({
         subtext: "Title",
         title: "Lanny LA",
         image: {
-          __image_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+          __image_url__: "/placeholder.jpg",
           __image_prompt__: "Professional portrait of a young executive",
         },
       },

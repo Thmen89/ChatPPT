@@ -17,7 +17,7 @@ const WorkflowStepSchema = z.object({
       description: "Query used to search the icon",
     }),
   }).default({
-    __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    __icon_url__: "/placeholder.svg",
     __icon_query__: "check icon",
   }),
 });
@@ -40,7 +40,7 @@ export const Schema = z.object({
         title: "Design",
         description: "Create wireframes and design system components.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -48,7 +48,7 @@ export const Schema = z.object({
         title: "Develop",
         description: "Build features using modern frameworks and best practices.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -56,7 +56,7 @@ export const Schema = z.object({
         title: "Test & QA",
         description: "Run automated tests and quality assurance checks.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -64,7 +64,7 @@ export const Schema = z.object({
         title: "Deploy",
         description: "Ship to production with CI and CD pipeline automation.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },

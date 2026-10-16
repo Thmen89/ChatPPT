@@ -31,6 +31,8 @@ servers/fastapi/build/
 servers/fastapi/dist/
 servers/fastapi/fastembed_cache/
 servers/fastapi/*.egg-info/
+servers/fastapi/.coverage
+servers/nextjs/tsconfig.tsbuildinfo
 .codex/
 
 # benchmark output

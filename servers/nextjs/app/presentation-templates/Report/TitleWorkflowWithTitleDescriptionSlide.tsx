@@ -5,11 +5,11 @@ import { RemoteSvgIcon } from "@/app/hooks/useRemoteSvgIcon";
 
 const ServiceItemSchema = z.object({
   icon: z.object({
-    __icon_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg"),
+    __icon_url__: z.string().default("/placeholder.svg"),
     __icon_query__: z.string().default("pulse icon"),
   }).default({
     __icon_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+      "/placeholder.svg",
     __icon_query__: "pulse icon",
   }).meta({
     description: "Icon used for service circles.",
@@ -43,7 +43,7 @@ export const Schema = z.object({
       {
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "pulse icon",
         },
         heading: "Heading",
@@ -52,7 +52,7 @@ export const Schema = z.object({
       {
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "upload icon",
         },
         heading: "Heading",
@@ -61,7 +61,7 @@ export const Schema = z.object({
       {
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "pulse icon",
         },
         heading: "Heading",
@@ -70,7 +70,7 @@ export const Schema = z.object({
       {
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "pulse icon",
         },
         heading: "Heading",

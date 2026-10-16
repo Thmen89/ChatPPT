@@ -52,7 +52,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                 {/* Background Decorative Image */}
                 <div className="absolute inset-0">
                     <img
-                        src={backgroundImage?.__image_url__ || 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/users/79e3281f-47a3-4e45-9c74-b495089583cb/xml-to-html/6cdcb19a975e4a02e2543f953b66a74c.jpeg'}
+                        src={backgroundImage?.__image_url__ || '/placeholder.jpg'}
                         className="w-full h-full object-cover"
                         alt="background"
                     />

@@ -1,177 +1,49 @@
-# Contributing to Presenton
+# Contributing to ChatPPT
 
-Welcome! 🚀  
-Thanks for helping improve **Presenton — the open-source AI presentation generator.**
+Thanks for helping. ChatPPT aims to be simple, fast and customisable, so the best contributions
+are small, focused, and leave the default lighter or faster than they found it.
 
-## Quick Links
+## Run it locally
 
-- **GitHub:** https://github.com/presenton/presenton
-- **Docs:** https://docs.presenton.ai
-- **Website:** https://presenton.ai
-- **Discord:** https://discord.gg/9ZsKKxudNE
-- **X:** https://x.com/presentonai
+Prerequisites: Python 3.11, [uv](https://docs.astral.sh/uv/), Node.js LTS and npm.
 
----
+Backend (FastAPI, port 8000):
 
-# Current Contribution Scope
-
-The Electron application contains:
-
-- Desktop application
-- FastAPI backend
-- Next.js frontend
-- Local runtime integrations
-
-Contributions outside `electron/` may not be accepted at this time.
-
----
-
-# How to Contribute
-
-### Bugs
-Open an issue and include:
-
-- Steps to reproduce
-- Expected vs actual behavior
-- Logs or screenshots
-
-### Features
-Start a **GitHub Issue** or **Discussion** explaining:
-
-- The problem
-- Proposed solution
-
-### Code Contributions
-
-1. Fork the repository
-2. Create a branch
-3. Implement your changes
-4. Open a Pull Request
-
-Example branch names:
-
+```bash
+cd servers/fastapi
+uv sync
+uv run python server.py --port 8000
 ```
 
-feature/add-template-support
-fix/export-pptx-error
-docs/update-readme
+Frontend (Next.js, port 3000), in a second terminal:
 
+```bash
+cd servers/nextjs
+npm ci
+NEXT_PUBLIC_FAST_API=http://127.0.0.1:8000 npm run dev
 ```
 
----
+Or run the whole stack in one container: `docker build -t chatppt . && docker run -p 5000:80 chatppt`.
 
-# Development Setup (Electron)
+The desktop app lives in `electron/` (`npm run setup:env`, then `npm run dev`).
 
-### Prerequisites
+## Tests and checks
 
-- Node.js (LTS)
-- npm
-- Python
-- `uv` (Python package manager)
-
-# Setup Environment
-
-From the `electron` directory:
-
-```
-cd electron
-npm run setup:env
+```bash
+cd servers/fastapi && .venv/bin/python -m pytest tests/unit tests/regression -q
+cd servers/nextjs && npx tsc --noEmit && npm run lint
 ```
 
-This installs:
+`python scripts/bench/run.py` measures speed and footprint; include its numbers when a change
+could affect either.
 
-- Node dependencies
-- FastAPI dependencies
-- Next.js dependencies
+## Pull requests
 
----
+- One concern per PR, with a short "before / after" description.
+- Add or update tests for behaviour you change.
+- Don't make the default heavier or slower, add a required service, or add a setting a new
+  user has to understand.
+- AI-assisted PRs are welcome; say so, and say how you tested.
+- By contributing you agree your work is licensed under Apache-2.0.
 
-# Run the Electron App (Development)
-
-```
-
-npm run dev
-
-```
-
-This will:
-
-- compile TypeScript
-- start the Electron app
-- run the backend and UI locally
-
----
-
-# Build the Electron App
-
-To build all components:
-
-```
-
-npm run build:all
-
-```
-
----
-
-# Before Opening a PR
-
-Please ensure:
-
-- Changes are **inside `electron/`**
-- Code runs locally on development as well as build environment both
-- PRs are **small and focused**
-- You explain **what and why**
-
-For UI changes, include screenshots.
-
----
-
-# AI-Assisted Contributions
-
-PRs created with **AI tools (ChatGPT, Claude, Codex, etc.) are welcome.**
-
-Please mention:
-
-- that the PR is **AI-assisted**
-- the level of testing performed
-- confirmation that you reviewed the generated code
-
----
-
-# Good First Issues
-
-Look for issues labeled:
-
-```
-
-good first issue
-help wanted
-
-```
-
----
-
-# Community
-
-Questions or discussions:
-
-💬 Discord  
-https://discord.gg/9ZsKKxudNE
-
----
-
-# Code of Conduct
-
-Please follow our community guidelines:
-
-```
-
-CODE_OF_CONDUCT.md
-
-```
-
----
-
-Thanks for helping make **Presenton better for everyone.**
-```
+See `docs/roadmap.md` for the plan and `docs/upstream.md` for how we track Presenton.

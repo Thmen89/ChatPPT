@@ -46,7 +46,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "market innovation",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg",
+            "/icons/bold/checks-bold.svg",
         },
       },
       {
@@ -55,7 +55,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "industry building",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/fediverse-logo-bold.svg",
+            "/icons/bold/fediverse-logo-bold.svg",
         },
       },
       {
@@ -64,7 +64,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "SEM data analysis",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/video-bold.svg",
+            "/icons/bold/video-bold.svg",
         },
       },
       {
@@ -73,7 +73,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "end user impact",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/users-four-bold.svg",
+            "/icons/bold/users-four-bold.svg",
         },
       },
       {
@@ -82,7 +82,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "industry building",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/fediverse-logo-bold.svg",
+            "/icons/bold/fediverse-logo-bold.svg",
         },
       },
       {
@@ -91,7 +91,7 @@ const bulletWithIconsDescriptionGridSlideSchema = z.object({
         icon: {
           __icon_query__: "SEM data analysis",
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/video-bold.svg",
+            "/icons/bold/video-bold.svg",
         },
       },
     ])

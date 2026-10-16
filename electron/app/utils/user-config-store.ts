@@ -126,7 +126,7 @@ function acquireLock(configPath: string): () => void {
         } catch (error) {
           const code = (error as NodeJS.ErrnoException | undefined)?.code;
           if (code !== "ENOENT") {
-            console.warn("[Presenton] Failed to release user config lock", error);
+            console.warn("[ChatPPT] Failed to release user config lock", error);
           }
         }
       };
@@ -175,7 +175,7 @@ function copyBackupIfPossible(configPath: string, primaryValid: boolean): void {
       });
     }
   } catch (error) {
-    console.warn("[Presenton] Failed to update user config backup", error);
+    console.warn("[ChatPPT] Failed to update user config backup", error);
   }
 }
 

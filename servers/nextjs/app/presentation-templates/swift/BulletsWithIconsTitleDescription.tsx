@@ -23,7 +23,7 @@ const ItemSchema = z
   .default({
     icon: {
       __icon_url__:
-        "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/graduation-cap-bold.svg",
+        "/icons/bold/graduation-cap-bold.svg",
       __icon_query__: "feature icon",
     },
     title: "Lorem ipsum dolor",
@@ -53,7 +53,7 @@ const Schema = z
         {
           icon: {
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/graduation-cap-bold.svg",
+              "/icons/bold/graduation-cap-bold.svg",
             __icon_query__: "feature icon",
           },
           title: "Lorem ipsum dolor",
@@ -63,7 +63,7 @@ const Schema = z
         {
           icon: {
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/user-bold.svg",
+              "/icons/bold/user-bold.svg",
             __icon_query__: "feature icon",
           },
           title: "Lorem ipsum dolor",
@@ -73,7 +73,7 @@ const Schema = z
         {
           icon: {
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/calendar-blank-bold.svg",
+              "/icons/bold/calendar-blank-bold.svg",
             __icon_query__: "feature icon",
           },
           title: "Lorem ipsum dolor",
@@ -83,7 +83,7 @@ const Schema = z
         {
           icon: {
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/x-bold.svg",
+              "/icons/bold/x-bold.svg",
             __icon_query__: "feature icon",
           },
           title: "Lorem ipsum dolor",
@@ -100,25 +100,25 @@ const Schema = z
       "Concise paragraph describing context. Keep it short and readable across one or two lines.",
     items: [
       {
-        icon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/graduation-cap-bold.svg", __icon_query__: "feature icon" },
+        icon: { __icon_url__: "/icons/bold/graduation-cap-bold.svg", __icon_query__: "feature icon" },
         title: "Lorem ipsum dolor",
         description:
           "Concise supporting text under the first icon explaining the point.",
       },
       {
-        icon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/user-bold.svg", __icon_query__: "feature icon" },
+        icon: { __icon_url__: "/icons/bold/user-bold.svg", __icon_query__: "feature icon" },
         title: "Lorem ipsum dolor",
         description:
           "Concise supporting text under the second icon explaining the point.",
       },
       {
-        icon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/calendar-blank-bold.svg", __icon_query__: "feature icon" },
+        icon: { __icon_url__: "/icons/bold/calendar-blank-bold.svg", __icon_query__: "feature icon" },
         title: "Lorem ipsum dolor",
         description:
           "Concise supporting text under the third icon explaining the point.",
       },
       {
-        icon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/x-bold.svg", __icon_query__: "feature icon" },
+        icon: { __icon_url__: "/icons/bold/x-bold.svg", __icon_query__: "feature icon" },
         title: "Lorem ipsum dolor",
         description:
           "Concise supporting text under the fourth icon explaining the point.",

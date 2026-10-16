@@ -13,27 +13,27 @@ export const Schema = z.object({
         subDescription: z.string().max(100).describe('The sub description of the item')
     })).max(5).describe('A list of up to 5 items').default([
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'growth chart' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'growth chart' },
             heading: '2021',
             subDescription: 'Briefly elaborate on what you want to discuss.Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'money bag' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'money bag' },
             heading: '2020',
             subDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'global' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'global' },
             heading: '2019',
             subDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'handshake' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'handshake' },
             heading: '2018',
             subDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'lightbulb' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'lightbulb' },
             heading: '2017',
             subDescription: 'Briefly elaborate on what you want to discuss.'
         }

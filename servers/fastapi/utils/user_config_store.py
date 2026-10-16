@@ -133,7 +133,7 @@ def _user_config_lock(config_path: str) -> Iterator[None]:
         except FileNotFoundError:
             pass
         except Exception as error:
-            print(f"[Presenton] Failed to release user config lock: {error}")
+            print(f"[ChatPPT] Failed to release user config lock: {error}")
 
 
 def _copy_backup_if_possible(config_path: str, primary_valid: bool) -> None:
@@ -150,7 +150,7 @@ def _copy_backup_if_possible(config_path: str, primary_valid: bool) -> None:
                 lambda: shutil.copy2(config_path, config_backup_path),
             )
     except Exception as error:
-        print(f"[Presenton] Failed to update user config backup: {error}")
+        print(f"[ChatPPT] Failed to update user config backup: {error}")
 
 
 def _write_atomic_json(config_path: str, config: dict, primary_valid: bool) -> None:

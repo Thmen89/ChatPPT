@@ -25,12 +25,12 @@ const DEFAULT_ROWS: Array<{ label: string; cells: CellStatus[] }> = [
 ];
 const DEFAULT_CHECK_ICON = {
   __icon_url__:
-    "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    "/placeholder.svg",
   __icon_query__: "check icon",
 };
 const DEFAULT_CROSS_ICON = {
   __icon_url__:
-    "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    "/placeholder.svg",
   __icon_query__: "cross icon",
 };
 
