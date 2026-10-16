@@ -5,7 +5,7 @@ import os
 from typing import Any, Optional
 from uuid import UUID
 
-from services.mem0_oss_memory import get_shared_mem0_client
+from services.mem0_oss_memory import get_shared_mem0_client, memory_enabled
 
 LOGGER = logging.getLogger(__name__)
 CHAT_TURN_TAG = "[chat_turn]"
@@ -14,7 +14,7 @@ DEFAULT_MAX_STORED_TURNS = 20
 
 class ChatMemoryStore:
     def __init__(self):
-        self._enabled = self._to_bool(os.getenv("MEM0_ENABLED"), default=True)
+        self._enabled = memory_enabled()
         self._runtime_enabled = True
         self._top_k = self._to_int(os.getenv("MEM0_TOP_K"), default=8)
         self._max_context_chars = self._to_int(

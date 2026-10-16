@@ -9,13 +9,12 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { notify } from "@/components/ui/sonner";
 
 import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoad";
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
 import MarkdownRenderer from "@/components/MarkDownRender";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 export const PresentationCard = ({
   id,
@@ -29,18 +28,11 @@ export const PresentationCard = ({
   onDeleted?: (presentationId: string) => void;
 }) => {
   const router = useRouter();
-  const pathname = usePathname();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handlePreview = (e: React.MouseEvent) => {
     e.preventDefault();
-    trackEvent(MixpanelEvent.Dashboard_Presentation_Opened, {
-      pathname,
-      presentation_id: id,
-      title_length: (title || "").length,
-      slide_count: presentation?.slides?.length || 0,
-    });
     router.push(`/presentation?id=${id}&type=standard`);
   };
   useEffect(() => {
@@ -91,11 +83,6 @@ export const PresentationCard = ({
     const response = await DashboardApi.deletePresentation(id);
 
     if (response?.success) {
-      trackEvent(MixpanelEvent.Dashboard_Presentation_Deleted, {
-        pathname,
-        presentation_id: id,
-        slide_count: presentation?.slides?.length || 0,
-      });
       notify.success("Presentation deleted", "The presentation was removed from your dashboard.");
       setShowDeleteDialog(false);
       if (onDeleted) {

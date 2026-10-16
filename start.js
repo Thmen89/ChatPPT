@@ -265,17 +265,6 @@ const isOllamaInstalled = () =>
 
 const shouldStartOllama = () => isTruthyEnv(process.env.START_OLLAMA);
 
-const ensureOllamaRuntime = async () => {
-  if (!shouldStartOllama() || isOllamaInstalled()) {
-    return;
-  }
-
-  console.log("START_OLLAMA=true; installing Ollama runtime...");
-  await runCommand("sh", ["-c", "curl -fsSL https://ollama.com/install.sh | sh"], {
-    cwd: "/",
-  });
-};
-
 const ensurePresentationExportRuntime = async () => {
   if (process.env.ENSURE_PRESENTATION_EXPORT_RUNTIME === "false") {
     return;
@@ -563,7 +552,7 @@ const startServers = async (nginxReadyPromise) => {
     exitPromises.push(new Promise((resolve) => ollamaProcess.on("exit", resolve)));
   } else if (shouldStartOllamaRuntime) {
     console.log(
-      "Ollama requested, but the binary is not installed. Set START_OLLAMA=true to install it at startup, or set OLLAMA_URL to a remote daemon."
+      "START_OLLAMA=true but no ollama binary is installed (nothing is downloaded at runtime). Install Ollama in the image or set OLLAMA_URL to a remote daemon."
     );
   } else {
     console.log(
@@ -616,7 +605,6 @@ const startNginx = () => {
 
 const main = async () => {
   await ensurePresentationExportRuntime();
-  await ensureOllamaRuntime();
 
   if (isDev) {
     await setupNodeModules();

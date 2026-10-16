@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
-import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 interface CodexConfigProps {
   codexModel: string;
@@ -103,7 +102,6 @@ export default function CodexConfig({
   const handleSignIn = async () => {
     try {
 
-      trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
       onInputChange('codex', 'LLM');
 
       const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/initiate"), {

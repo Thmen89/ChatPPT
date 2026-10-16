@@ -17,7 +17,6 @@ import { PresentationGenerationApi } from "../services/api/presentation-generati
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/sonner";
 import { PreviousGeneratedImagesResponse } from "../services/api/params";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ImagesApi } from "../services/api/images";
 import { ImageAssetResponse } from "../services/api/types";
 import { resolveBackendAssetSource } from "@/utils/api";
@@ -130,7 +129,6 @@ const ImageEditor = ({
 
   const getPreviousGeneratedImage = async () => {
     try {
-      trackEvent(MixpanelEvent.ImageEditor_GetPreviousGeneratedImages_API_Call);
       const response =
         await PresentationGenerationApi.getPreviousGeneratedImages();
       setPreviousGeneratedImages(response);
@@ -279,7 +277,6 @@ const ImageEditor = ({
     try {
       setIsGenerating(true);
       setError(null);
-      trackEvent(MixpanelEvent.ImageEditor_GenerateImage_API_Call);
       const response = await PresentationGenerationApi.generateImage({
         prompt: prompt,
       });
@@ -316,7 +313,6 @@ const ImageEditor = ({
     try {
       setIsUploading(true);
       setUploadError(null);
-      trackEvent(MixpanelEvent.ImageEditor_UploadImage_API_Call);
       const result = await ImagesApi.uploadImage(file);
       setUploadedImageUrl(resolveEditorImageSource(result));
     } catch (err:any) {

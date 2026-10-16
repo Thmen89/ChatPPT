@@ -4,7 +4,6 @@ import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/
 import { ProcessedSlide } from "../types";
 import { getHeader } from "@/app/(presentation-generator)/services/api/header";
 import { getApiUrl } from "@/utils/api";
-import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 
 export const useLayoutSaving = (
@@ -16,10 +15,6 @@ export const useLayoutSaving = (
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const openSaveModal = useCallback(() => {
-    trackEvent(MixpanelEvent.CustomTemplate_Save_Modal_Opened, {
-      slide_count: slides.length,
-      processed_slides: slides.filter((slide) => slide.processed).length,
-    });
     setIsModalOpen(true);
   }, [slides]);
 
@@ -39,14 +34,6 @@ export const useLayoutSaving = (
     setIsSavingLayout(true);
 
     try {
-      trackEvent(MixpanelEvent.CustomTemplate_Save_Started, {
-        template_info_id,
-        layout_name: layoutName,
-        layout_name_length: layoutName.length,
-        description_length: description.length,
-        slide_count: slides.length,
-        processed_slides: slides.filter((slide) => slide.processed).length,
-      });
 
 
 
@@ -94,12 +81,6 @@ export const useLayoutSaving = (
         "Layout saved",
         `Layout "${layoutName}" was saved successfully.`
       );
-      trackEvent(MixpanelEvent.CustomTemplate_Saved, {
-        template_info_id,
-        saved_template_id: data.id,
-        layout_name: layoutName,
-        slide_count: slides.length,
-      });
 
       closeSaveModal();
       return data.id;

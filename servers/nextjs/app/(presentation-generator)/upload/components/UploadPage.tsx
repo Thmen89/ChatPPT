@@ -11,7 +11,7 @@
 
 "use client";
 import React, { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
 import { PromptInput } from "./PromptInput";
@@ -24,21 +24,12 @@ import { PresentationGenerationApi } from "../../services/api/presentation-gener
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ConfigurationSelects } from "./ConfigurationSelects";
 import { RootState } from "@/store/store";
 import { ImagesApi } from "../../services/api/images";
 import CurrentConfig from "./CurrentConfig";
-import { LLMConfig } from "@/types/llm_config";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
-const FILE_TYPE_WORD = new Set([".doc", ".docx", ".docm", ".odt", ".rtf"]);
-const FILE_TYPE_PRESENTATION = new Set([".ppt", ".pptx", ".pptm", ".odp"]);
-const FILE_TYPE_SPREADSHEET = new Set([".xls", ".xlsx", ".xlsm", ".ods", ".csv", ".tsv"]);
-const FILE_TYPE_IMAGE = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"]);
-const FILE_MIME_IMAGE = new Set(["image/jpeg", "image/png", "image/gif", "image/bmp", "image/tiff", "image/webp"]);
-const FILE_TYPE_PDF = new Set([".pdf"]);
-const FILE_TYPE_TEXT = new Set([".txt"]);
 
 // Types for loading state
 interface LoadingState {
@@ -49,71 +40,8 @@ interface LoadingState {
   extra_info?: string;
 }
 
-const getFileExtension = (fileName: string): string => {
-  const index = fileName.lastIndexOf(".");
-  if (index < 0) return "";
-  return fileName.slice(index).toLowerCase();
-};
-
-const getFileCategory = (file: File): string => {
-  const extension = getFileExtension(file.name || "");
-  if (FILE_TYPE_WORD.has(extension)) return "word";
-  if (FILE_TYPE_PRESENTATION.has(extension)) return "presentation";
-  if (FILE_TYPE_SPREADSHEET.has(extension)) return "spreadsheet";
-  if (FILE_TYPE_IMAGE.has(extension) || FILE_MIME_IMAGE.has((file.type || "").toLowerCase())) return "image";
-  if (FILE_TYPE_PDF.has(extension) || file.type === "application/pdf") return "pdf";
-  if (FILE_TYPE_TEXT.has(extension) || file.type === "text/plain") return "text";
-  return "other";
-};
-
-const getSelectedTextModel = (config?: LLMConfig): string => {
-  if (!config) return "";
-  switch (config.LLM) {
-    case "openai":
-      return config.OPENAI_MODEL || "";
-    case "google":
-      return config.GOOGLE_MODEL || "";
-    case "vertex":
-      return config.VERTEX_MODEL || "";
-    case "azure":
-      return config.AZURE_OPENAI_MODEL || "";
-    case "bedrock":
-      return config.BEDROCK_MODEL || "";
-    case "openrouter":
-      return config.OPENROUTER_MODEL || "";
-    case "fireworks":
-      return config.FIREWORKS_MODEL || "";
-    case "together":
-      return config.TOGETHER_MODEL || "";
-    case "cerebras":
-      return config.CEREBRAS_MODEL || "";
-    case "litellm":
-      return config.LITELLM_MODEL || "";
-    case "lmstudio":
-      return config.LMSTUDIO_MODEL || "";
-    case "anthropic":
-      return config.ANTHROPIC_MODEL || "";
-    case "ollama":
-      return config.OLLAMA_MODEL || "";
-    case "custom":
-      return config.CUSTOM_MODEL || "";
-    case "codex":
-      return config.CODEX_MODEL || "";
-    default:
-      return "";
-  }
-};
-
-const getSelectedImageQuality = (config?: LLMConfig): string => {
-  if (!config) return "";
-  if (config.IMAGE_PROVIDER === "dall-e-3") return config.DALL_E_3_QUALITY || "";
-  if (config.IMAGE_PROVIDER === "gpt-image-1.5") return config.GPT_IMAGE_1_5_QUALITY || "";
-  return "";
-};
-
 const UploadPage = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const dispatch = useDispatch();
   const llmConfig = useSelector((state: RootState) => state.userConfig.llm_config);
 
@@ -137,48 +65,6 @@ const UploadPage = () => {
     showProgress: false,
     extra_info: "",
   });
-
-  const getUploadSnapshotProps = () => {
-    const trimmedPrompt = config.prompt.trim();
-    const trimmedInstructions = (config.instructions || "").trim();
-    const attachmentCategories = Array.from(new Set(files.map(getFileCategory))).sort();
-    const imageGenerationEnabled = !llmConfig?.DISABLE_IMAGE_GENERATION;
-    const parsedSlides =
-      config.slides && /^\d+$/.test(config.slides) ? Number(config.slides) : null;
-
-    return {
-      pathname,
-      generation_path: files.length > 0 ? "documents" : "prompt_only",
-      slides_selected: parsedSlides,
-      slides_mode: config.slides ? "selected" : "auto",
-      language: config.language || "",
-      tone: config.tone,
-      verbosity: config.verbosity,
-      include_table_of_contents: !!config.includeTableOfContents,
-      include_title_slide: !!config.includeTitleSlide,
-      web_search: !!config.webSearch,
-      has_prompt: Boolean(trimmedPrompt),
-      prompt_char_count: trimmedPrompt.length,
-      prompt_word_count: trimmedPrompt ? trimmedPrompt.split(/\s+/).filter(Boolean).length : 0,
-      has_instructions: Boolean(trimmedInstructions),
-      instructions_char_count: trimmedInstructions.length,
-      has_attachments: files.length > 0,
-      attachments_count: files.length,
-      attachment_categories: attachmentCategories.join(","),
-      text_provider: llmConfig?.LLM || "",
-      text_model: getSelectedTextModel(llmConfig),
-      image_generation_enabled: imageGenerationEnabled,
-      image_provider: imageGenerationEnabled ? (llmConfig?.IMAGE_PROVIDER || "") : "disabled",
-      image_quality: imageGenerationEnabled ? getSelectedImageQuality(llmConfig) : "",
-    };
-  };
-
-  const trackUploadValidationFailure = (reason: string) => {
-    trackEvent(MixpanelEvent.Upload_Configuration_Invalid, {
-      ...getUploadSnapshotProps(),
-      reason,
-    });
-  };
 
   const handleConfigChange = (key: keyof PresentationConfig, value: unknown) => {
     setConfig((prev) => ({ ...prev, [key]: value } as PresentationConfig));
@@ -221,19 +107,16 @@ const UploadPage = () => {
    */
   const validateConfiguration = (): boolean => {
     if (!config.language) {
-      trackUploadValidationFailure("language_missing");
       notify.warning("Language required", "Please select a language.");
       return false;
     }
 
     if (files.length > 0 && config.language === LanguageType.Auto) {
-      trackUploadValidationFailure("language_auto_with_documents");
       notify.warning("Language required", "Please choose a language before processing uploaded documents.");
       return false;
     }
 
     if (!config.prompt.trim() && files.length === 0) {
-      trackUploadValidationFailure("prompt_or_document_missing");
       notify.warning("Input required", "Provide a prompt or upload at least one document.");
       return false;
     }
@@ -245,12 +128,10 @@ const UploadPage = () => {
    */
   const handleGeneratePresentation = async () => {
     if (!validateConfiguration()) return;
-    trackEvent(MixpanelEvent.Upload_Generation_Started, getUploadSnapshotProps());
 
 
     const isStockProviderReady = await ensureStockImageProviderReady();
     if (!isStockProviderReady) {
-      trackUploadValidationFailure("stock_image_provider_unreachable");
       return;
     }
 
@@ -304,13 +185,6 @@ const UploadPage = () => {
       files: responses,
     }));
     dispatch(clearOutlines())
-    trackEvent(MixpanelEvent.Upload_Documents_Processed, {
-      ...getUploadSnapshotProps(),
-      uploaded_documents_count: documents.length,
-      decompose_job_count: responses.length,
-      destination: "/documents-preview",
-    });
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
     router.push("/documents-preview");
   };
 
@@ -344,12 +218,6 @@ const UploadPage = () => {
 
     dispatch(setPresentationId(createResponse.id));
     dispatch(clearOutlines())
-    trackEvent(MixpanelEvent.Upload_Outline_Generation_Requested, {
-      ...getUploadSnapshotProps(),
-      presentation_id: createResponse.id,
-      destination: "/outline",
-    });
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
     router.push("/outline");
   };
 
