@@ -785,7 +785,7 @@ class ImageGenerationService:
             raise Exception("No outputs found in ComfyUI response")
 
         # Find the first image in outputs
-        for node_id, node_output in outputs.items():
+        for _node_id, node_output in outputs.items():
             if "images" in node_output:
                 for image_info in node_output["images"]:
                     filename = image_info["filename"]

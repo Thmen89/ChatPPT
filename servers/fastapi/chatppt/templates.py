@@ -25,7 +25,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, cast, get_args
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -43,11 +43,15 @@ class TemplateManifest(BaseModel):
     name: str = Field(description="Shown in the template picker.")
     description: str = ""
     version: int = Field(default=1, ge=1, description="Bump when layouts change incompatibly.")
-    ordered: bool = Field(default=False, description="Use layouts in file order instead of letting the model pick one per slide.")
+    ordered: bool = Field(
+        default=False, description="Use layouts in file order instead of letting the model pick one per slide."
+    )
     default: bool = Field(default=False, description="Offer this template first.")
     icon_weight: IconWeight = "regular"
-    layouts: Optional[list[str]] = Field(default=None, description="Layout file names in order; default is every .tsx sorted by name.")
-    theme: Optional[str] = Field(default=None, description="theme.json in the folder, or a theme id from <data>/themes.")
+    layouts: list[str] | None = Field(
+        default=None, description="Layout file names in order; default is every .tsx sorted by name."
+    )
+    theme: str | None = Field(default=None, description="theme.json in the folder, or a theme id from <data>/themes.")
     fonts: list[str] = Field(default_factory=list, description="Font files under fonts/ to load with the layouts.")
 
     @field_validator("id")
@@ -76,7 +80,7 @@ class TemplateInfo:
 
 
 def default_builtin_dir() -> Path:
-    return (Path(__file__).resolve().parents[2] / "nextjs" / "app" / "presentation-templates")
+    return Path(__file__).resolve().parents[2] / "nextjs" / "app" / "presentation-templates"
 
 
 def read_manifest(folder: Path) -> TemplateManifest:
@@ -88,7 +92,7 @@ def read_manifest(folder: Path) -> TemplateManifest:
         data.setdefault("name", folder.name)
         return TemplateManifest.model_validate(data)
 
-    legacy: dict = {}
+    legacy: dict[str, Any] = {}
     legacy_path = folder / LEGACY_SETTINGS_NAME
     if legacy_path.is_file():
         try:
@@ -102,18 +106,20 @@ def read_manifest(folder: Path) -> TemplateManifest:
         description=str(legacy.get("description") or ""),
         ordered=bool(legacy.get("ordered", False)),
         default=bool(legacy.get("default", False)),
-        icon_weight=icon_weight if icon_weight in IconWeight.__args__ else "regular",  # type: ignore[attr-defined]
+        icon_weight=cast(IconWeight, icon_weight if icon_weight in get_args(IconWeight) else "regular"),
     )
 
 
 def layout_files(folder: Path, manifest: TemplateManifest) -> tuple[Path, ...]:
     if manifest.layouts:
         return tuple(folder / name for name in manifest.layouts if (folder / name).is_file())
-    return tuple(sorted(
-        p for p in folder.glob(f"*{LAYOUT_SUFFIX}")
-        if p.is_file() and p.name not in _SKIP_FILES
-        and ".test." not in p.name and ".spec." not in p.name
-    ))
+    return tuple(
+        sorted(
+            p
+            for p in folder.glob(f"*{LAYOUT_SUFFIX}")
+            if p.is_file() and p.name not in _SKIP_FILES and ".test." not in p.name and ".spec." not in p.name
+        )
+    )
 
 
 def load_template(folder: Path, source: Literal["builtin", "data"]) -> TemplateInfo | None:

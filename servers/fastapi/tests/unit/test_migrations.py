@@ -1,31 +1,25 @@
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 
 import migrations
+from alembic import command
 
 
 def _alembic_config(database_url: str) -> Config:
     config = Config()
-    config.set_main_option(
-        "script_location", str(Path(__file__).resolve().parents[2] / "alembic")
-    )
+    config.set_main_option("script_location", str(Path(__file__).resolve().parents[2] / "alembic"))
     config.set_main_option("sqlalchemy.url", database_url)
     return config
 
 
-def test_legacy_database_with_theme_is_stamped_past_theme_migration(
-    tmp_path, monkeypatch
-):
+def test_legacy_database_with_theme_is_stamped_past_theme_migration(tmp_path, monkeypatch):
     database_url = f"sqlite:///{tmp_path / 'legacy.db'}"
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            connection.execute(
-                text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)")
-            )
+            connection.execute(text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)"))
     finally:
         engine.dispose()
 
@@ -36,9 +30,7 @@ def test_legacy_database_with_theme_is_stamped_past_theme_migration(
         lambda _config, revision: stamped_revisions.append(revision),
     )
 
-    migrations._stamp_legacy_database_if_needed(
-        _alembic_config(database_url), database_url
-    )
+    migrations._stamp_legacy_database_if_needed(_alembic_config(database_url), database_url)
 
     assert stamped_revisions == [migrations.REVISION_BEFORE_TEMPLATE_CREATE_INFO]
 
@@ -48,12 +40,8 @@ def test_upgrade_from_baseline_stamp_skips_existing_theme_column(tmp_path):
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            connection.execute(
-                text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)")
-            )
-            connection.execute(
-                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
-            )
+            connection.execute(text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)"))
+            connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
             connection.execute(
                 text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
                 {"revision": migrations.LEGACY_BASELINE_REVISION},
@@ -62,13 +50,8 @@ def test_upgrade_from_baseline_stamp_skips_existing_theme_column(tmp_path):
         command.upgrade(_alembic_config(database_url), "head")
 
         with engine.connect() as connection:
-            version = connection.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar_one()
-            columns = {
-                row[1]
-                for row in connection.execute(text("PRAGMA table_info(presentations)"))
-            }
+            version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            columns = {row[1] for row in connection.execute(text("PRAGMA table_info(presentations)"))}
 
         assert version == "c7b70d0f31b1"
         assert "theme" in columns
@@ -81,9 +64,7 @@ def test_upgrade_from_theme_stamp_skips_existing_template_create_infos_table(tmp
     engine = create_engine(database_url)
     try:
         with engine.begin() as connection:
-            connection.execute(
-                text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)")
-            )
+            connection.execute(text("CREATE TABLE presentations (id TEXT PRIMARY KEY, theme JSON)"))
             connection.execute(
                 text(
                     """
@@ -99,9 +80,7 @@ def test_upgrade_from_theme_stamp_skips_existing_template_create_infos_table(tmp
                     """
                 )
             )
-            connection.execute(
-                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
-            )
+            connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
             connection.execute(
                 text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
                 {"revision": migrations.REVISION_BEFORE_TEMPLATE_CREATE_INFO},
@@ -110,15 +89,8 @@ def test_upgrade_from_theme_stamp_skips_existing_template_create_infos_table(tmp
         command.upgrade(_alembic_config(database_url), "head")
 
         with engine.connect() as connection:
-            version = connection.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar_one()
-            tables = {
-                row[0]
-                for row in connection.execute(
-                    text("SELECT name FROM sqlite_master WHERE type = 'table'")
-                )
-            }
+            version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            tables = {row[0] for row in connection.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
 
         assert version == "c7b70d0f31b1"
         assert "template_create_infos" in tables
@@ -149,9 +121,7 @@ def test_upgrade_from_template_stamp_skips_existing_chat_history_table(tmp_path)
                     """
                 )
             )
-            connection.execute(
-                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
-            )
+            connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
             connection.execute(
                 text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
                 {"revision": migrations.REVISION_TEMPLATE_CREATE_INFO},
@@ -160,15 +130,8 @@ def test_upgrade_from_template_stamp_skips_existing_chat_history_table(tmp_path)
         command.upgrade(_alembic_config(database_url), "head")
 
         with engine.connect() as connection:
-            version = connection.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar_one()
-            indexes = {
-                row[1]
-                for row in connection.execute(
-                    text("PRAGMA index_list(chat_history_messages)")
-                )
-            }
+            version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            indexes = {row[1] for row in connection.execute(text("PRAGMA index_list(chat_history_messages)"))}
 
         assert version == "c7b70d0f31b1"
         assert {

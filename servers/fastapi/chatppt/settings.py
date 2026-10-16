@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import tomllib
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Literal, Mapping, Optional, get_args, get_origin
+from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -45,46 +45,60 @@ class ProviderCredentials(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    api_key: Optional[str] = Field(default=None, description="API key or token.")
-    base_url: Optional[str] = Field(default=None, description="Endpoint override (OpenAI-compatible servers, proxies, Ollama, LM Studio).")
-    model: Optional[str] = Field(default=None, description="Default model when this provider is used.")
+    api_key: str | None = Field(default=None, description="API key or token.")
+    base_url: str | None = Field(
+        default=None, description="Endpoint override (OpenAI-compatible servers, proxies, Ollama, LM Studio)."
+    )
+    model: str | None = Field(default=None, description="Default model when this provider is used.")
     # Azure OpenAI
-    endpoint: Optional[str] = Field(default=None, description="Azure OpenAI resource endpoint.")
-    api_version: Optional[str] = Field(default=None, description="Azure OpenAI API version.")
-    deployment: Optional[str] = Field(default=None, description="Azure OpenAI deployment name.")
+    endpoint: str | None = Field(default=None, description="Azure OpenAI resource endpoint.")
+    api_version: str | None = Field(default=None, description="Azure OpenAI API version.")
+    deployment: str | None = Field(default=None, description="Azure OpenAI deployment name.")
     # Vertex AI
-    project: Optional[str] = Field(default=None, description="Google Cloud project (Vertex).")
-    location: Optional[str] = Field(default=None, description="Google Cloud region (Vertex).")
+    project: str | None = Field(default=None, description="Google Cloud project (Vertex).")
+    location: str | None = Field(default=None, description="Google Cloud region (Vertex).")
     # Bedrock
-    region: Optional[str] = Field(default=None, description="AWS region (Bedrock).")
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_session_token: Optional[str] = None
-    profile_name: Optional[str] = Field(default=None, description="AWS profile name (Bedrock).")
+    region: str | None = Field(default=None, description="AWS region (Bedrock).")
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_session_token: str | None = None
+    profile_name: str | None = Field(default=None, description="AWS profile name (Bedrock).")
     # Image providers
-    quality: Optional[str] = Field(default=None, description="Image quality preset where the provider has one.")
-    workflow: Optional[str] = Field(default=None, description="ComfyUI workflow JSON path.")
+    quality: str | None = Field(default=None, description="Image quality preset where the provider has one.")
+    workflow: str | None = Field(default=None, description="ComfyUI workflow JSON path.")
 
 
 class StepRoute(BaseModel):
     """Which provider/model handles one generation step; unset fields fall back to [llm]."""
 
-    provider: Optional[str] = None
-    model: Optional[str] = None
+    provider: str | None = None
+    model: str | None = None
 
 
 class LLMSettings(BaseModel):
-    provider: Optional[str] = Field(default=None, description="Default LLM provider id: openai, anthropic, google, vertex, azure, bedrock, openrouter, fireworks, together, cerebras, litellm, lmstudio, ollama, custom, codex.")
-    model: Optional[str] = Field(default=None, description="Default model for the default provider.")
+    provider: str | None = Field(
+        default=None,
+        description="Default LLM provider id: openai, anthropic, google, vertex, azure, bedrock, openrouter, fireworks, together, cerebras, litellm, lmstudio, ollama, custom, codex.",
+    )
+    model: str | None = Field(default=None, description="Default model for the default provider.")
     thinking: bool = Field(default=True, description="Allow reasoning/thinking on models that support it.")
     extended_reasoning: bool = Field(default=False, description="Ask for longer reasoning where supported.")
-    providers: dict[str, ProviderCredentials] = Field(default_factory=dict, description="Per-provider credentials, keyed by provider id.")
-    routing: dict[str, StepRoute] = Field(default_factory=dict, description=f"Per-step overrides, keys: {', '.join(STEPS)}.")
+    providers: dict[str, ProviderCredentials] = Field(
+        default_factory=dict, description="Per-provider credentials, keyed by provider id."
+    )
+    routing: dict[str, StepRoute] = Field(
+        default_factory=dict, description=f"Per-step overrides, keys: {', '.join(STEPS)}."
+    )
 
 
 class ImageSettings(BaseModel):
-    provider: Optional[str] = Field(default=None, description="Image provider id: pexels, pixabay, gemini_flash, nanobanana_pro, dall-e-3, gpt-image-1.5, comfyui, open_webui, openai_compatible. Unset means placeholder images.")
-    providers: dict[str, ProviderCredentials] = Field(default_factory=dict, description="Per-image-provider credentials, keyed by provider id.")
+    provider: str | None = Field(
+        default=None,
+        description="Image provider id: pexels, pixabay, gemini_flash, nanobanana_pro, dall-e-3, gpt-image-1.5, comfyui, open_webui, openai_compatible. Unset means placeholder images.",
+    )
+    providers: dict[str, ProviderCredentials] = Field(
+        default_factory=dict, description="Per-image-provider credentials, keyed by provider id."
+    )
 
 
 class FeatureSettings(BaseModel):
@@ -97,11 +111,19 @@ class FeatureSettings(BaseModel):
 
 
 class ServerSettings(BaseModel):
-    public_url: str = Field(default="http://localhost:5000", description="URL users open; used for links, CORS and the exporter.")
-    data_dir: str = Field(default="/data", description="Where the database, uploads, exports, templates, prompts and this file live.")
-    database_url: Optional[str] = Field(default=None, description="SQLAlchemy URL. Default is SQLite in data_dir; set postgresql://... to opt in.")
+    public_url: str = Field(
+        default="http://localhost:5000", description="URL users open; used for links, CORS and the exporter."
+    )
+    data_dir: str = Field(
+        default="/data", description="Where the database, uploads, exports, templates, prompts and this file live."
+    )
+    database_url: str | None = Field(
+        default=None, description="SQLAlchemy URL. Default is SQLite in data_dir; set postgresql://... to opt in."
+    )
     log_level: str = Field(default="info", description="debug, info, warning or error.")
-    error_reporting_dsn: Optional[str] = Field(default=None, description="Sentry-compatible DSN. Unset means no error reporting at all.")
+    error_reporting_dsn: str | None = Field(
+        default=None, description="Sentry-compatible DSN. Unset means no error reporting at all."
+    )
 
 
 class AuthSettings(BaseModel):
@@ -109,16 +131,16 @@ class AuthSettings(BaseModel):
 
 
 class PathSettings(BaseModel):
-    templates: Optional[str] = Field(default=None, description="Template folders. Default <data>/templates.")
-    prompts: Optional[str] = Field(default=None, description="Prompt overrides. Default <data>/prompts.")
-    themes: Optional[str] = Field(default=None, description="Theme files. Default <data>/themes.")
+    templates: str | None = Field(default=None, description="Template folders. Default <data>/templates.")
+    prompts: str | None = Field(default=None, description="Prompt overrides. Default <data>/prompts.")
+    themes: str | None = Field(default=None, description="Theme files. Default <data>/themes.")
 
 
 class GenerationDefaults(BaseModel):
     template: str = Field(default="general", description="Template used when a request names none.")
-    theme: Optional[str] = Field(default=None, description="Theme id applied when a request names none.")
+    theme: str | None = Field(default=None, description="Theme id applied when a request names none.")
     n_slides: int = Field(default=10, ge=1, le=50)
-    language: Optional[str] = Field(default=None, description="Default output language; unset lets the model detect it.")
+    language: str | None = Field(default=None, description="Default output language; unset lets the model detect it.")
     tone: str = Field(default="default")
     verbosity: str = Field(default="standard", description="concise, standard or text-heavy.")
 
@@ -132,8 +154,12 @@ class Settings(BaseModel):
     paths: PathSettings = Field(default_factory=PathSettings)
     defaults: GenerationDefaults = Field(default_factory=GenerationDefaults)
 
-    source_path: Optional[str] = Field(default=None, exclude=True, description="File the settings were read from, if any.")
-    explicit: set[str] = Field(default_factory=set, exclude=True, description="Dotted keys set by chatppt.toml or CHATPPT_* (not by legacy env or defaults).")
+    source_path: str | None = Field(default=None, exclude=True, description="File the settings were read from, if any.")
+    explicit: set[str] = Field(
+        default_factory=set,
+        exclude=True,
+        description="Dotted keys set by chatppt.toml or CHATPPT_* (not by legacy env or defaults).",
+    )
 
     @property
     def data_dir(self) -> Path:
@@ -156,6 +182,7 @@ class Settings(BaseModel):
 
 
 # --------------------------------------------------------------------------- legacy env map
+
 
 def _bool_from_env(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
@@ -181,8 +208,9 @@ class Legacy:
     to_env: Callable[[Any], str] = str
 
 
-def _provider_legacy(prefix: str, provider: str, *, model_env: str | None = None,
-                     base_url_env: str | None = None) -> list[Legacy]:
+def _provider_legacy(
+    prefix: str, provider: str, *, model_env: str | None = None, base_url_env: str | None = None
+) -> list[Legacy]:
     out = [Legacy(f"{prefix}_API_KEY", f"llm.providers.{provider}.api_key")]
     out.append(Legacy(model_env or f"{prefix}_MODEL", f"llm.providers.{provider}.model"))
     if base_url_env:
@@ -255,7 +283,8 @@ LEGACY_BY_PATH: dict[str, Legacy] = {entry.path: entry for entry in LEGACY_ENV}
 
 # --------------------------------------------------------------------------- loading
 
-def _set_path(raw: dict, dotted: str, value: Any) -> None:
+
+def _set_path(raw: dict[str, Any], dotted: str, value: Any) -> None:
     node = raw
     parts = dotted.split(".")
     for part in parts[:-1]:
@@ -267,7 +296,7 @@ def _set_path(raw: dict, dotted: str, value: Any) -> None:
     node[parts[-1]] = value
 
 
-def _get_path(raw: Mapping, dotted: str) -> Any:
+def _get_path(raw: Mapping[str, Any], dotted: str) -> Any:
     node: Any = raw
     for part in dotted.split("."):
         if not isinstance(node, Mapping) or part not in node:
@@ -276,7 +305,7 @@ def _get_path(raw: Mapping, dotted: str) -> Any:
     return node
 
 
-def _flatten(raw: Mapping, prefix: str = "") -> set[str]:
+def _flatten(raw: Mapping[str, Any], prefix: str = "") -> set[str]:
     keys: set[str] = set()
     for key, value in raw.items():
         dotted = f"{prefix}{key}"
@@ -287,16 +316,16 @@ def _flatten(raw: Mapping, prefix: str = "") -> set[str]:
     return keys
 
 
-def _apply_env_overrides(raw: dict, environ: Mapping[str, str]) -> None:
+def _apply_env_overrides(raw: dict[str, Any], environ: Mapping[str, str]) -> None:
     for name, value in environ.items():
         if not name.startswith(ENV_PREFIX) or name in {"CHATPPT_CONFIG"}:
             continue
-        dotted = ".".join(part.lower() for part in name[len(ENV_PREFIX):].split("__"))
+        dotted = ".".join(part.lower() for part in name[len(ENV_PREFIX) :].split("__"))
         if dotted:
             _set_path(raw, dotted, value)
 
 
-def _apply_legacy_env(raw: dict, environ: Mapping[str, str], explicit: set[str]) -> list[str]:
+def _apply_legacy_env(raw: dict[str, Any], environ: Mapping[str, str], explicit: set[str]) -> list[str]:
     applied: list[str] = []
     for entry in LEGACY_ENV:
         value = environ.get(entry.env)
@@ -326,8 +355,7 @@ def config_path(environ: Mapping[str, str] = os.environ, data_dir: str | None = 
 _warned_legacy: set[str] = set()
 
 
-def load_settings(path: str | os.PathLike | None = None,
-                  environ: Mapping[str, str] | None = None) -> Settings:
+def load_settings(path: str | os.PathLike[str] | None = None, environ: Mapping[str, str] | None = None) -> Settings:
     environ = os.environ if environ is None else environ
     data_dir = default_data_dir(environ)
     file_path = Path(path) if path else config_path(environ, data_dir)
@@ -352,8 +380,7 @@ def load_settings(path: str | os.PathLike | None = None,
         _warned_legacy.update(new)
         hints = ", ".join(f"{env} → {LEGACY_BY_PATH_ENV[env]}" for env in new[:8])
         more = f" (+{len(new) - 8} more)" if len(new) > 8 else ""
-        LOGGER.warning("Legacy environment variables in use; move them to %s: %s%s",
-                       file_path, hints, more)
+        LOGGER.warning("Legacy environment variables in use; move them to %s: %s%s", file_path, hints, more)
     return settings
 
 
@@ -371,6 +398,7 @@ def reload_settings() -> Settings:
 
 
 # --------------------------------------------------------------------------- legacy bridge
+
 
 def to_legacy_env(settings: Settings) -> dict[str, str]:
     """The legacy env vars equivalent to these settings (only for values that are set)."""
@@ -397,6 +425,7 @@ def apply_to_environ(settings: Settings, environ: Any = os.environ) -> list[str]
 
 
 # --------------------------------------------------------------------------- reference
+
 
 def _type_name(annotation: Any) -> str:
     origin = get_origin(annotation)
@@ -427,7 +456,7 @@ def reference_rows(model: type[BaseModel] = Settings, prefix: str = "") -> list[
             value_type = get_args(inner)[1]
             rows.extend(reference_rows(value_type, dotted + ".<id>."))
             continue
-        default = field.default if field.default_factory is None else field.default_factory()
+        default = field.get_default(call_default_factory=True)
         default_text = "" if default is None else repr(default)
         env = ENV_PREFIX + "__".join(p.upper() for p in dotted.split("."))
         legacy = LEGACY_BY_PATH.get(dotted)
@@ -451,7 +480,9 @@ def render_reference() -> str:
         "|---|---|---|---|---|",
     ]
     for key, typ, default, env, desc in reference_rows():
-        lines.append(f"| `{key}` | {typ} | {('`' + default + '`') if default else ''} | `{env.split(' ')[0]}`{env[len(env.split(' ')[0]):]} | {desc} |")
+        lines.append(
+            f"| `{key}` | {typ} | {('`' + default + '`') if default else ''} | `{env.split(' ')[0]}`{env[len(env.split(' ')[0]) :]} | {desc} |"
+        )
     lines += [
         "",
         "## Example",

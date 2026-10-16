@@ -14,7 +14,6 @@ import re
 
 from services.documents_loader import DocumentsLoader
 from utils.asset_directory_utils import absolute_fastapi_asset_url, get_images_directory
-import uuid
 from constants.documents import POWERPOINT_TYPES
 
 
@@ -568,8 +567,6 @@ async def _convert_pptx_to_pdf(pptx_path: str, temp_dir: str) -> str:
 
         # Step 1: Convert PPTX to PDF using LibreOffice
         print("Starting LibreOffice PDF conversion...")
-        pdf_filename = "temp_presentation.pdf"
-        pdf_path = os.path.join(screenshots_dir, pdf_filename)
 
         try:
             result = subprocess.run(

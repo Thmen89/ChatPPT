@@ -12,9 +12,10 @@ braces (``{{`` ``}}``).
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 BUILTIN_DIR = Path(__file__).resolve().parent.parent / "prompts"
 SUFFIX = ".md"
@@ -24,7 +25,7 @@ class PromptNotFound(KeyError):
     pass
 
 
-class _Safe(dict):
+class _Safe(dict[str, Any]):
     def __missing__(self, key: str) -> str:
         return "{" + key + "}"
 

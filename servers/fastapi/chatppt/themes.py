@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -50,8 +50,10 @@ class Theme(BaseModel):
     fonts: ThemeFonts = Field(default_factory=ThemeFonts)
     spacing: Literal["compact", "regular", "airy"] = "regular"
     radius: int = Field(default=8, ge=0, le=48, description="Corner radius in px for cards and images.")
-    logo: Optional[str] = Field(default=None, description="URL or path (relative to the theme file) of a logo shown on slides.")
-    footer: Optional[str] = Field(default=None, description="Footer text on every slide, e.g. a confidentiality note.")
+    logo: str | None = Field(
+        default=None, description="URL or path (relative to the theme file) of a logo shown on slides."
+    )
+    footer: str | None = Field(default=None, description="Footer text on every slide, e.g. a confidentiality note.")
 
     @field_validator("id")
     @classmethod

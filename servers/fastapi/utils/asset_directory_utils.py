@@ -60,7 +60,6 @@ def filesystem_image_path_to_app_data_url(path_or_url: str) -> str:
         abs_root = os.path.normpath(os.path.abspath(images_root))
     except (OSError, ValueError):
         return stripped
-    abs_image_key = os.path.normcase(abs_image)
     abs_root_key = os.path.normcase(abs_root)
     try:
         common = os.path.commonpath([abs_root, abs_image])

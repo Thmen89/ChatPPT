@@ -15,7 +15,7 @@ if str(FASTAPI_ROOT) not in sys.path:
     sys.path.insert(0, str(FASTAPI_ROOT))
 
 
-from services.icon_finder_service import ICON_FINDER_SERVICE
+from services.icon_finder_service import ICON_FINDER_SERVICE  # noqa: E402  (after sys.path setup)
 
 
 def _warm_mem0_default_fastembed() -> None:

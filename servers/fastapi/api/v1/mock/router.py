@@ -27,7 +27,7 @@ async def mock_presentation_generation_completed():
     "/presentation-generation-failed",
     response_model=List[APIErrorModel],
 )
-async def mock_presentation_generation_completed():
+async def mock_presentation_generation_failed():
     return [
         APIErrorModel(
             status_code=500,

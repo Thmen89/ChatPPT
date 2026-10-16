@@ -50,9 +50,107 @@ include = [
 
 [dependency-groups]
 dev = [
+    "mypy>=2.4.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
 ]
+
+# Lint: E, F, I, B, UP everywhere new code lives (chatppt/, tests/). Inherited upstream
+# packages get the bug-finding rules only; style/modernisation is suppressed there until
+# a workstream rewrites the file (then delete it from UPSTREAM below).
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["alembic/versions", "fastembed_cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# `ruff format` owns line length; what it can't wrap (long strings, URLs) is fine as is.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency markers are meant to be called in defaults.
+extend-immutable-calls = [
+    "fastapi.Body", "fastapi.Cookie", "fastapi.Depends", "fastapi.File",
+    "fastapi.Form", "fastapi.Header", "fastapi.Path", "fastapi.Query",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# UPSTREAM: Presenton code, style rules off.
+"{api,constants,enums,models,services,templates,utils,scripts,alembic}/**" = ["I", "UP", "B904", "B905"]
+"{server,mcp_server,migrations}.py" = ["I", "UP", "B904", "B905"]
+
+[tool.ruff.format]
+# Formatting is enforced on new code only; reformatting upstream would conflict with every open branch.
+exclude = ["{api,constants,enums,models,services,templates,utils,scripts,alembic}/**", "server.py", "mcp_server.py", "migrations.py"]
+
+# Types: mypy's default level everywhere, strict on chatppt/. Modules in the LEGACY list
+# below had errors when CI started; take one out when you fix it, never add one.
+[tool.mypy]
+python_version = "3.11"
+files = ["."]
+exclude = ['^alembic/', '^fastembed_cache/', '^build/', '^dist/', '^\.venv/']
+ignore_missing_imports = true
+warn_redundant_casts = true
+# Calling into upstream `utils` (untyped) from strict code is fine.
+untyped_calls_exclude = ["utils"]
+disable_error_code = ["annotation-unchecked"]
+
+[[tool.mypy.overrides]]
+# --strict, spelled out (mypy only honours `strict` globally).
+module = ["chatppt", "chatppt.*"]
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# LEGACY: 121 errors in 33 upstream modules when CI started.
+module = [
+    "api.v1.ppt.background_tasks",
+    "api.v1.ppt.endpoints.files",
+    "api.v1.ppt.endpoints.images",
+    "api.v1.ppt.endpoints.ollama",
+    "api.v1.ppt.endpoints.pptx_slides",
+    "api.v1.ppt.endpoints.presentation",
+    "api.v1.ppt.endpoints.slide_to_html",
+    "migrations",
+    "warm_fastembed_cache",  # scripts/ is not a package
+    "services.chat.memory_layer",
+    "services.chat.sql_chat_history",
+    "services.document_conversion_service",
+    "services.documents_loader",
+    "services.export_task_service",
+    "services.image_generation_service",
+    "services.liteparse_service",
+    "services.mem0_presentation_memory_service",
+    "services.score_based_chunker",
+    "services.webhook_service",
+    "templates.custom_layout_from_db",
+    "templates.fonts_and_slides_preview",
+    "templates.handler",
+    "templates.pptx_convert",
+    "templates.pptx_font_utils",
+    "templates.router",
+    "utils.db_utils",
+    "utils.download_helpers",
+    "utils.file_utils",
+    "utils.get_dynamic_models",
+    "utils.llm_calls.edit_slide",
+    "utils.llm_config",
+    "utils.outline_utils",
+    "utils.runtime_limits",
+]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

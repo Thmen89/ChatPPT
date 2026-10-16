@@ -7,7 +7,7 @@ from services.documents_loader import (
 
 
 def test_unwrap_strips_liteparse_json_line():
-    inner = "Title\n\nBody with \"quotes\" and\nnewlines."
+    inner = 'Title\n\nBody with "quotes" and\nnewlines.'
     line = json.dumps(
         {"ok": True, "filePath": "/tmp/x.pdf", "text": inner},
         ensure_ascii=False,
@@ -28,9 +28,7 @@ def test_unwrap_rejects_malformed_json():
 
 def test_clean_extracts_text_when_json_truncated():
     """Drops everything before the "text" value and unescapes, even if JSON is not closed."""
-    blob = (
-        '{"ok": true, "filePath": "/tmp/x.pdf", "text": "    similarweb |  HypeAuditor\\n\\n2024" '
-    )
+    blob = '{"ok": true, "filePath": "/tmp/x.pdf", "text": "    similarweb |  HypeAuditor\\n\\n2024" '
     # Missing closing " } — json.loads will fail, fallback path should still return body
     out = clean_extracted_document_text(blob)
     assert "similarweb" in out
