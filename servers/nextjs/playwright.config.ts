@@ -7,7 +7,7 @@ const BASE_URL = "http://127.0.0.1";
 
 export default defineConfig({
   testDir: "./e2e",
-  outputDir: "./e2e/.results",
+  outputDir: "./e2e/results",
   timeout: 180_000,
   expect: { timeout: 30_000 },
   workers: 1,

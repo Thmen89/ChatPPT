@@ -1,2 +1,2 @@
 # Playwright traces and output (playwright.config.ts: outputDir)
-.results/
+results/

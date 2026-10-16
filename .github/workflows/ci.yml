@@ -1,0 +1,189 @@
+# The PR gate. Four jobs in parallel, no secrets, no keys (the e2e test runs on mock
+# providers). Every step is a command you can run locally; see each job's comment.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+  DISABLE_ANONYMOUS_TRACKING: "true"
+
+jobs:
+  # cd servers/fastapi && uv sync --frozen
+  # uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+  backend:
+    name: backend (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: servers/fastapi
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: servers/fastapi/uv.lock
+      - run: uv sync --frozen
+      - name: ruff
+        run: uv run --frozen ruff check --output-format=github .
+      - name: ruff format
+        run: uv run --frozen ruff format --check .
+      - name: mypy
+        run: uv run --frozen mypy
+      - name: pytest
+        env:
+          APP_DATA_DIRECTORY: /tmp/chatppt-data
+          TEMP_DIRECTORY: /tmp/chatppt
+        run: uv run --frozen pytest -q --cov --cov-report=
+      - name: coverage summary
+        run: |
+          {
+            echo "### Backend coverage: $(uv run --frozen coverage report --format=total)% of lines"
+            echo
+            uv run --frozen coverage report --format=markdown --include='chatppt/*'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # cd servers/nextjs && npm ci && npm run lint && npm run build && npm run typecheck
+  frontend:
+    name: frontend (eslint, tsc, next build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: servers/nextjs
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: servers/nextjs/package-lock.json
+      - run: npm ci
+      - name: eslint
+        run: npm run lint
+      - uses: actions/cache@v5
+        with:
+          path: servers/nextjs/.next-build/cache
+          key: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-
+      - name: next build
+        run: npm run build
+      - name: tsc
+        run: npm run typecheck
+
+  # One-time: build as above, uv sync, the export runtime (scripts/bench/README.md), nginx.
+  # cd servers/nextjs && npm run test:e2e
+  e2e:
+    name: e2e (prompt to PPTX, Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: servers/fastapi/uv.lock
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: servers/nextjs/package-lock.json
+      - name: backend deps
+        working-directory: servers/fastapi
+        run: uv sync --frozen --no-dev
+      - name: frontend deps
+        working-directory: servers/nextjs
+        run: npm ci
+      - uses: actions/cache@v5
+        with:
+          path: servers/nextjs/.next-build/cache
+          key: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('servers/nextjs/package-lock.json') }}-
+      - name: next build
+        working-directory: servers/nextjs
+        run: npm run build
+      - uses: actions/cache@v5
+        with:
+          path: presentation-export
+          key: export-runtime-${{ hashFiles('package.json', 'scripts/sync-presentation-export.cjs') }}
+      - name: export runtime
+        run: |
+          node scripts/sync-presentation-export.cjs
+          if [ ! -d presentation-export/node_modules/sharp ]; then
+            cd presentation-export && npm init -y >/dev/null
+            npm i sharp@^0.34.5 --include=optional --omit=dev --no-package-lock --no-fund --no-audit
+          fi
+      - name: Playwright Chromium
+        working-directory: servers/nextjs
+        run: npx playwright install --with-deps chromium
+      - name: nginx on :80, unprivileged
+        # FastAPI reaches Next.js through http://localhost (nginx on :80); see docs/architecture.md.
+        run: |
+          command -v nginx || { sudo apt-get update && sudo apt-get install -y nginx; }
+          sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
+          sudo mkdir -p /var/lib/nginx /var/log/nginx
+          sudo chown -R "$USER" /var/lib/nginx /var/log/nginx
+      - name: playwright test
+        working-directory: servers/nextjs
+        env:
+          E2E_LOGS_DIR: ${{ runner.temp }}/stack-logs
+        run: npm run test:e2e
+      - name: upload trace and stack logs
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-${{ github.run_attempt }}
+          path: |
+            servers/nextjs/e2e/results
+            ${{ runner.temp }}/stack-logs
+          retention-days: 7
+
+  # Blocks only on CRITICAL advisories that have a fix; everything else is a warning.
+  # trivy fs --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 .
+  scan:
+    name: scan (trivy, pip-audit, npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TRIVY_VERSION: "0.75.0"
+      TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: install trivy (pinned binary, checksum verified)
+        run: |
+          curl -sSLf -o "$RUNNER_TEMP/trivy.tgz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: trivy (HIGH and CRITICAL, report only)
+        run: trivy fs --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 0 .
+      - name: trivy (fixable CRITICAL, blocking)
+        run: trivy fs --skip-db-update --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 .
+      - name: pip-audit (report only)
+        working-directory: servers/fastapi
+        run: |
+          uv export --frozen --no-dev --no-emit-project -q -o "$RUNNER_TEMP/requirements.txt"
+          uvx --from 'pip-audit>=2.9,<3' pip-audit --disable-pip --require-hashes --progress-spinner off \
+            -r "$RUNNER_TEMP/requirements.txt" || echo "::warning title=pip-audit::advisories in Python dependencies (see log)"
+      - name: npm audit, app (blocking on critical)
+        working-directory: servers/nextjs
+        run: npm audit --omit=dev --audit-level=critical
+      - name: npm audit, repo root (blocking on critical)
+        run: npm audit --omit=dev --audit-level=critical
