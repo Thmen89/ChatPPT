@@ -86,7 +86,7 @@ export const Schema = z.object({
         label: "Lorem ipsum dolor sit.",
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -95,7 +95,7 @@ export const Schema = z.object({
         label: "Lorem ipsum dolor sit.",
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -104,7 +104,7 @@ export const Schema = z.object({
         label: "Lorem ipsum dolor sit.",
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -113,7 +113,7 @@ export const Schema = z.object({
         label: "Lorem ipsum dolor sit.",
         icon: {
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+            "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },

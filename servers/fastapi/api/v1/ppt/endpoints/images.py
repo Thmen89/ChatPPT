@@ -61,7 +61,7 @@ async def search_stock_images(
         # Pexels can return cached public responses for common queries.
         # Use a nonce query in strict mode to force a real auth check.
         if strict_api_key:
-            validation_query = f"__presenton_auth_check_{uuid.uuid4().hex}"
+            validation_query = f"__chatppt_auth_check_{uuid.uuid4().hex}"
             await image_generation_service.get_image_from_pexels(
                 validation_query,
                 api_key=api_key,

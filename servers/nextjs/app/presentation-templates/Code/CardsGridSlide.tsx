@@ -16,7 +16,7 @@ const FeatureCardSchema = z.object({
       description: "Query used to search the icon",
     }),
   }).default({
-    __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    __icon_url__: "/placeholder.svg",
     __icon_query__: "check icon",
   }).meta({
     description: "Suiting icon used for each bullet in plan cards.",
@@ -41,7 +41,7 @@ export const Schema = z.object({
         title: "Modern Stack",
         description: "Built with React, TypeScript, and Tailwind CSS for maximum developer experience.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -49,7 +49,7 @@ export const Schema = z.object({
         title: "Component Library ",
         description: "Reusable UI components with consistent design patterns.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -57,7 +57,7 @@ export const Schema = z.object({
         title: "CLI Tools",
         description: "Command-line utilities for scaffolding and automation.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -65,7 +65,7 @@ export const Schema = z.object({
         title: "Analytics",
         description: "Built-in tracking and performance monitoring.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -73,7 +73,7 @@ export const Schema = z.object({
         title: "Version Control",
         description: "Git-based workflow with automated deployments.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },
@@ -81,7 +81,7 @@ export const Schema = z.object({
         title: "Best Practices",
         description: "Following industry standards and modern development patterns.",
         icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "check icon",
         },
       },

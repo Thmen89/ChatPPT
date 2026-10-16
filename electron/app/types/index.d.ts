@@ -53,7 +53,7 @@ interface FastApiEnv {
   /** Absolute path to the resolved LibreOffice executable discovered at startup. */
   SOFFICE_PATH?: string,
   /** Office renderer for PPTX/office conversion (always libreoffice when set). */
-  PRESENTON_OFFICE_RENDERER?: string,
+  CHATPPT_OFFICE_RENDERER?: string,
   /** Absolute path to the bundled/resolved ImageMagick magick executable. */
   IMAGEMAGICK_BINARY?: string,
   /** ImageMagick runtime root used by the bundled portable build. */
@@ -89,7 +89,7 @@ interface NextJsEnv {
   APP_DATA_DIRECTORY?: string,
   DISABLE_AUTH?: string,
   EXPORT_PACKAGE_ROOT?: string,
-  PRESENTON_APP_ROOT?: string,
+  CHATPPT_APP_ROOT?: string,
   BUILT_PYTHON_MODULE_PATH?: string,
 }
 

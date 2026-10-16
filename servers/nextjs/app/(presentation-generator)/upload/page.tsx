@@ -5,40 +5,9 @@ import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/compone
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Presenton | Open Source AI presentation generator",
+  title: "Create a presentation | ChatPPT",
   description:
-    "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-  alternates: {
-    canonical: "https://presenton.ai/create",
-  },
-  keywords: [
-    "presentation generator",
-    "AI presentations",
-    "data visualization",
-    "automatic presentation maker",
-    "professional slides",
-    "data-driven presentations",
-    "document to presentation",
-    "presentation automation",
-    "smart presentation tool",
-    "business presentations",
-  ],
-  openGraph: {
-    title: "Create Data Presentation | PresentOn",
-    description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-    type: "website",
-    url: "https://presenton.ai/create",
-    siteName: "PresentOn",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Create Data Presentation | PresentOn",
-    description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-    site: "@presenton_ai",
-    creator: "@presenton_ai",
-  },
+    "Generate a presentation from a prompt or your documents, then edit and export it as PPTX or PDF.",
 };
 
 const page = () => {

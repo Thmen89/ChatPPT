@@ -16,27 +16,27 @@ export const Schema = z.object({
         itemDescription: z.string().max(50).describe('The sub description of the item')
     })).max(5).describe('A list of items with icons, headings, and descriptions').default([
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
             heading: '2021',
             itemDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
             heading: '2020',
             itemDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
             heading: '2019',
             itemDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
             heading: '2018',
             itemDescription: 'Briefly elaborate on what you want to discuss.'
         },
         {
-            icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
+            icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' },
             heading: '2017',
             itemDescription: 'Briefly elaborate on what you want to discuss.'
         }

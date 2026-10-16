@@ -11,13 +11,13 @@ const IconSchema = z
     __icon_url__: z
       .string()
       .default(
-        "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/file-text-bold.svg"
+        "/icons/bold/file-text-bold.svg"
       ),
     __icon_query__: z.string().min(0).max(80).default("feature icon"),
   })
   .default({
     __icon_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/file-text-bold.svg",
+      "/icons/bold/file-text-bold.svg",
     __icon_query__: "feature icon",
   })
 
@@ -63,7 +63,7 @@ const Schema = z
           body: "Lorem ipsum dolor sit amet.",
           icon: IconSchema.parse({
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/devices-bold.svg",
+              "/icons/bold/devices-bold.svg",
           }),
         },
         {
@@ -71,7 +71,7 @@ const Schema = z
           body: "Lorem ipsum dolor sit amet.",
           icon: IconSchema.parse({
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/chart-line-up-bold.svg",
+              "/icons/bold/chart-line-up-bold.svg",
           }),
         },
         {
@@ -79,7 +79,7 @@ const Schema = z
           body: "Lorem ipsum dolor sit amet.",
           icon: IconSchema.parse({
             __icon_url__:
-              "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg",
+              "/icons/bold/checks-bold.svg",
           }),
         },
       ]),
@@ -97,7 +97,7 @@ const Schema = z
         body: "Lorem ipsum dolor sit amet.",
         icon: IconSchema.parse({
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/devices-bold.svg",
+            "/icons/bold/devices-bold.svg",
         }),
       },
       {
@@ -105,7 +105,7 @@ const Schema = z
         body: "Lorem ipsum dolor sit amet.",
         icon: IconSchema.parse({
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/chart-line-up-bold.svg",
+            "/icons/bold/chart-line-up-bold.svg",
         }),
       },
       {
@@ -113,7 +113,7 @@ const Schema = z
         body: "Lorem ipsum dolor sit amet.",
         icon: IconSchema.parse({
           __icon_url__:
-            "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg",
+            "/icons/bold/checks-bold.svg",
         }),
       },
     ],

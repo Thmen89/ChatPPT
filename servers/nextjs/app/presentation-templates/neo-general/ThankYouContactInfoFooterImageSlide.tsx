@@ -6,13 +6,13 @@ export const Schema = z.object({
     description: z.string().max(120).describe('Supporting description text').default('Thanks for supporting our small business! to show our love, please enjoy 20% off you next order with the code "CODE20"'),
     contactTitle: z.string().max(15).describe('Heading for the contact section').default('Contact Us'),
     phone: z.string().max(20).describe('Phone number text').default('+977-98000000'),
-    email: z.string().max(30).describe('Email address text').default('presenton@gmail.com'),
-    website: z.string().max(30).describe('Website URL text').default('www.presenton.com'),
+    email: z.string().max(30).describe('Email address text').default('hello@example.com'),
+    website: z.string().max(30).describe('Website URL text').default('www.example.com'),
     footerImage: z.object({
         __image_url__: z.string(),
         __image_prompt__: z.string().max(100)
     }).default({
-        __image_url__: "https://presenton-public-assets.s3.ap-southeast-1.amazonaws.com/replaceable_template_image.png",
+        __image_url__: "/replaceable_template_image.png",
         __image_prompt__: "A professional aesthetic photo of business hands reviewing documents and charts"
     })
 });

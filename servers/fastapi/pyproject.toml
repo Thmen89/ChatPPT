@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "presenton-backend"
+name = "chatppt-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "ChatPPT backend (FastAPI)"
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "alembic>=1.14.0",

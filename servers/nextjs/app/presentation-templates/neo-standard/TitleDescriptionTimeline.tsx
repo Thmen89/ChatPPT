@@ -15,11 +15,11 @@ export const Schema = z.object({
         year: z.string().max(4).describe('The year of the timeline event'),
         eventDescription: z.string().max(100).describe('Brief description of the timeline event')
     })).max(5).describe('A list of events for the timeline').default([
-        { icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2021', eventDescription: 'Briefly elaborate on what you want to discuss.' },
-        { icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2020', eventDescription: 'Briefly elaborate on what you want to discuss.' },
-        { icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2019', eventDescription: 'Briefly elaborate on what you want to discuss.' },
-        { icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2018', eventDescription: 'Briefly elaborate on what you want to discuss.' },
-        { icon: { __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2017', eventDescription: 'Briefly elaborate on what you want to discuss.' },
+        { icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2021', eventDescription: 'Briefly elaborate on what you want to discuss.' },
+        { icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2020', eventDescription: 'Briefly elaborate on what you want to discuss.' },
+        { icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2019', eventDescription: 'Briefly elaborate on what you want to discuss.' },
+        { icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2018', eventDescription: 'Briefly elaborate on what you want to discuss.' },
+        { icon: { __icon_url__: '/icons/bold/checks-bold.svg', __icon_query__: 'checkmark' }, year: '2017', eventDescription: 'Briefly elaborate on what you want to discuss.' },
     ]),
 });
 

@@ -111,6 +111,6 @@ export async function showOpenTargetErrorDialog({
 
     await dialog.showMessageBox(options);
   } catch (error) {
-    safeWarn("[Presenton] Failed to show open target error dialog:", error);
+    safeWarn("[ChatPPT] Failed to show open target error dialog:", error);
   }
 }

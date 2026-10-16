@@ -18,7 +18,7 @@ const StepSchema = z.object({
     __icon_url__: z.string(),
     __icon_query__: z.string(),
   }).default({
-    __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    __icon_url__: "/placeholder.svg",
     __icon_query__: "pulse icon",
   }),
   highlighted: z.boolean().default(false).meta({
@@ -38,31 +38,31 @@ export const Schema = z.object({
     .default([
       {
         label: "TAGLINE TAGLINE", body: "Ut enim ad minim. Ut enim ad minim. ", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "pulse icon",
         }, highlighted: false
       },
       {
         label: "TAGLINE", body: "Ut enim ad minim. Ut enim ad minim.", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "upload icon",
         }, highlighted: false
       },
       {
         label: "TAGLINE", body: "Ut enim ad minim.", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "pulse icon",
         }, highlighted: false
       },
       {
         label: "TAGLINE", body: "Ut enim ad minim.", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "upload icon",
         }, highlighted: false
       },
       {
         label: "TAGLINE", body: "Ut enim ad minim.", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "pulse icon",
         }, highlighted: true
       },

@@ -16,7 +16,7 @@ node_modules
 app_data
 presentation-export
 servers/fastapi/tests
-servers/fastapi/presenton_backend.egg-info
+servers/fastapi/chatppt_backend.egg-info
 servers/fastapi/.python-version
 servers/fastapi/placeholder
 servers/nextjs/cypress
