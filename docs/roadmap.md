@@ -13,21 +13,27 @@ instantly, so "0 ms" shows ChatPPT's own overhead; "800 ms" paces every LLM call
 hosted model and shows what the pipeline's shape costs. Real-provider numbers
 (`--real`) will be added once a key is configured.
 
-| Metric | Baseline, mock 0 ms | Baseline, mock 800 ms | Target | Status |
-|---|---|---|---|---|
-| Cold start (all processes answering) | 4.9 s | 4.8 s | < 3 s | |
-| Idle RAM, whole stack | 493 MB (FastAPI 262, MCP 97, Next 113, nginx 22) | 493 MB | < 300 MB | |
-| Outline (create + stream) | 0.5 s | 1.3 s | provider-bound | |
-| Time to first slide, after outline | 1.3 s | 2.3 s | < 1.5 s + one LLM call | |
-| Time to full 10-slide deck, after outline | 1.3 s | 9.6 s | < 2 s + one LLM call (parallel) | |
-| Prompt → full deck in editor | 1.9 s | 11.0 s | < 2 × LLM call | |
-| PPTX export | 18.0 s | 16.9 s | < 5 s | |
-| API deck incl. PPTX (`/presentation/generate`) | 22.6 s | 26.6 s | < 10 s + 2 LLM calls | |
-| LLM requests per deck (UI / API) | 12 / 12 | 12 / 12 | 11 (outline, structure, 1/slide) or fewer | |
-| Tokens per deck, approx (UI / API) | 18.2k / 17.7k | same | < 9k | |
-| Container image, compressed | 1.25 GB (`ghcr.io/presenton/presenton:v0.8.7-beta`) | | slim ≤ 450 MB, full ≤ 900 MB | |
-| Git clone | 652 MB, 10,019 files | | < 100 MB | |
-| CI | build only, no lint/types/e2e | | lint + types + tests + e2e + scan, < 10 min | |
+| Metric | Baseline, mock 0 ms | Baseline, mock 800 ms | After wave 1, 0 ms / 800 ms | Target | Status |
+|---|---|---|---|---|---|
+| Cold start (all processes answering) | 4.9 s | 4.8 s | 4.1 s (9.4 s on a cold page cache) | < 3 s | |
+| Idle RAM, whole stack | 493 MB (FastAPI 262, MCP 97, Next 113, nginx 22) | 493 MB | 435–451 MB (FastAPI 220: memory off by default) | < 300 MB | |
+| Outline (create + stream) | 0.5 s | 1.3 s | 0.15 s / 0.97 s | provider-bound | |
+| Time to first slide, after outline | 1.3 s | 2.3 s | 0.18 s / 1.8 s | < 1.5 s + one LLM call | |
+| Time to full 10-slide deck, after outline | 1.3 s | 9.6 s | 0.91 s / 9.6 s | < 2 s + one LLM call (parallel) | |
+| Prompt → full deck in editor | 1.9 s | 11.0 s | 1.2 s / 10.7 s | < 2 × LLM call | |
+| PPTX export | 18.0 s | 16.9 s | 18.4 s / 18.9 s | < 5 s | |
+| API deck incl. PPTX (`/presentation/generate`) | 22.6 s | 26.6 s | 22.4 s / 26.9 s | < 10 s + 2 LLM calls | |
+| LLM requests per deck (UI / API) | 12 / 12 | 12 / 12 | 12 / 12 | 11 (outline, structure, 1/slide) or fewer | |
+| Tokens per deck, approx (UI / API) | 18.2k / 17.7k | same | 18.2k / 17.7k | < 9k | |
+| Container image, compressed | 1.25 GB (`ghcr.io/presenton/presenton:v0.8.7-beta`) | | not rebuilt (wave 2, packaging) | slim ≤ 450 MB, full ≤ 900 MB | |
+| Git clone | 652 MB, 10,019 files | | tracked tree 141 MB → 46 MB; clone still carries history | < 100 MB | |
+| CI | build only, no lint/types/e2e | | lint + types + tests + e2e + offline + scan (#5) | lint + types + tests + e2e + scan, < 10 min | |
+
+Wave 1 (strip, zero telemetry, lean CI) did not touch the generation path, so the
+generation numbers are unchanged within noise; the wins are RAM (memory off by default),
+repo size, no outbound traffic and a real PR gate. Bench note: the icon model is no longer
+in git, so the wave 1 run points `CHATPPT_FASTEMBED_ICON_CACHE_DIR` at the old cache to keep
+icon search in the measured path.
 
 Reading the baseline:
 
