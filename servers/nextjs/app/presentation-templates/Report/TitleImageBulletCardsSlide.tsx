@@ -23,11 +23,11 @@ export const Schema = z.object({
     description: "Whether the image should be shown.",
   }),
   featureImage: z.object({
-    __image_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg"),
+    __image_url__: z.string().default("/placeholder.jpg"),
     __image_prompt__: z.string().default("Thinking woman portrait on a neutral background"),
   }).default({
     __image_url__:
-      "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/images/placeholder.jpg",
+      "/placeholder.jpg",
     __image_prompt__: "Thinking woman portrait on a neutral background",
   }).meta({
     description: "Optional image used on the left side of the slide.",

@@ -14,7 +14,7 @@ const ImageSchema = z.object({
 })
 
 const IconSchema = z.object({
-  __icon_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/fediverse-logo-bold.svg").meta({
+  __icon_url__: z.string().default("/icons/bold/fediverse-logo-bold.svg").meta({
     description: "URL to icon",
   }),
   __icon_query__: z.string().min(2).max(20).default("info icon").meta({
@@ -47,7 +47,7 @@ const Schema = z.object({
       description: "Single-character symbol inside the round badge",
     }),
     symbolIcon: IconSchema.default({
-      __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/fediverse-logo-bold.png",
+      __icon_url__: "/icons/bold/fediverse-logo-bold.svg",
       __icon_query__: "info icon",
     }).meta({
       description: "Optional icon representation for the round symbol",
@@ -61,25 +61,25 @@ const Schema = z.object({
   })).min(1).max(4).default([
     {
       symbolText: "i",
-      symbolIcon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/fediverse-logo-bold.svg", __icon_query__: "info icon" },
+      symbolIcon: { __icon_url__: "/icons/bold/fediverse-logo-bold.svg", __icon_query__: "info icon" },
       title: "Visionary Leadership",
       description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
     },
     {
       symbolText: "i",
-      symbolIcon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/video-bold.png", __icon_query__: "info icon" },
+      symbolIcon: { __icon_url__: "/icons/bold/video-bold.svg", __icon_query__: "info icon" },
       title: "Innovation at the Core",
       description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
     },
     {
       symbolText: "i",
-      symbolIcon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/receipt-x-bold.png", __icon_query__: "info icon" },
+      symbolIcon: { __icon_url__: "/icons/bold/receipt-x-bold.svg", __icon_query__: "info icon" },
       title: "Customer-Centric Disruption",
       description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
     },
     {
       symbolText: "i",
-      symbolIcon: { __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/users-four-bold.png", __icon_query__: "info icon" },
+      symbolIcon: { __icon_url__: "/icons/bold/users-four-bold.svg", __icon_query__: "info icon" },
       title: "Customer-Centric Disruption",
       description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
     }

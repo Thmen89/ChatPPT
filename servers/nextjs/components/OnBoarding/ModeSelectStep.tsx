@@ -11,12 +11,12 @@ const ModeSelectStep = ({ selectedMode, setStep, setSelectedMode }: { selectedMo
             </div>
             <div className='space-y-5'>
                 <div onClick={() => {
-                    setSelectedMode("presenton")
+                    setSelectedMode("template")
 
-                }} className={`border font-syne  rounded-[11px] p-3  flex items-center  justify-between gap-6 cursor-pointer ${selectedMode === "presenton" ? "border-[#a49cfc]" : "border-[#EDEEEF]"}`}>
+                }} className={`border font-syne  rounded-[11px] p-3  flex items-center  justify-between gap-6 cursor-pointer ${selectedMode === "template" ? "border-[#a49cfc]" : "border-[#EDEEEF]"}`}>
                     <div className='flex items-center gap-6'>
                         <div className='rounded-[4px] bg-[#F4F3FF]  pt-[16.8px] pl-[16.8px] pb-[15.8px] pr-[17.1px]  w-[74px] h-[74px] flex items-center justify-center'>
-                            <img src='/logo-with-bg.png' alt='presenton' className='w-[40px] h-[41.4px] object-contain' />
+                            <img src='/logo-with-bg.png' alt="ChatPPT" className='w-[40px] h-[41.4px] object-contain' />
                         </div>
                         <div className=''>
                             <div className='flex items-start gap-2 relative '>
@@ -35,7 +35,7 @@ const ModeSelectStep = ({ selectedMode, setStep, setSelectedMode }: { selectedMo
 
                     <div className='flex items-center gap-6'>
                         <div className='rounded-[4px] bg-[#FFF6ED]  p-[12px] w-[74px] h-[74px] flex items-center justify-center'>
-                            <img src='/image_mode.png' alt='presenton' className='w-full h-full object-contain' />
+                            <img src='/image_mode.png' alt="ChatPPT" className='w-full h-full object-contain' />
                         </div>
                         <div className=''>
                             <div className='flex items-start gap-2 relative '>

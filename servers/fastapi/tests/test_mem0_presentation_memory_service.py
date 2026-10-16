@@ -68,7 +68,7 @@ class TestMem0PresentationMemoryService:
             "os.environ",
             {
                 "MEM0_ENABLED": "true",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
                 "OLLAMA_URL": "http://ollama:11434",
                 "OLLAMA_MODEL": "llama3.1:8b",
             },
@@ -96,7 +96,7 @@ class TestMem0PresentationMemoryService:
             "os.environ",
             {
                 "MEM0_ENABLED": "true",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
             },
             clear=False,
         ), patch(
@@ -166,7 +166,7 @@ class TestMem0PresentationMemoryService:
             {
                 "MEM0_ENABLED": "true",
                 "MEM0_TOP_K": "5",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
             },
             clear=False,
         ), patch(

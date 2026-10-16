@@ -9,7 +9,7 @@ export const slideLayoutDescription =
 const MAX_TIMELINE_ITEMS_PER_SLIDE = 5;
 const DEFAULT_ICON = {
   __icon_url__:
-    "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    "/placeholder.svg",
   __icon_query__: "shield check icon",
 };
 

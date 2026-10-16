@@ -26,7 +26,7 @@ export function getUserConfig(): UserConfig {
 export function setupEnv(fastApiPort: number, nextjsPort: number) {
   const { app } = require('electron');
   process.env.APP_VERSION = app.getVersion();
-  process.env.SENTRY_RELEASE = process.env.SENTRY_RELEASE || `presenton-electron@${process.env.APP_VERSION}`;
+  process.env.SENTRY_RELEASE = process.env.SENTRY_RELEASE || `chatppt-electron@${process.env.APP_VERSION}`;
   process.env.SENTRY_ENVIRONMENT = process.env.SENTRY_ENVIRONMENT || (app.isPackaged ? 'production' : 'development');
   const tempDir = getTempDir();
   const userConfigPath = getUserConfigPath();

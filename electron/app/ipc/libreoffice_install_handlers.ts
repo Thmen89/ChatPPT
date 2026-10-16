@@ -301,7 +301,7 @@ function formatBytes(bytes: number): string {
 function getPublicInstallerDir(): string {
   if (process.platform === "win32") {
     const publicRoot = process.env.PUBLIC || "C:\\Users\\Public";
-    return path.join(publicRoot, "Documents", "Presenton", "Installers");
+    return path.join(publicRoot, "Documents", "ChatPPT", "Installers");
   }
   return path.join(app.getPath("userData"), "installers");
 }
@@ -335,7 +335,7 @@ function assertWindowsMsiLooksValid(msiPath: string): void {
 function copyInstallerToStableWindowsPath(sourcePath: string, filename: string): string {
   const candidates = [
     getPublicInstallerDir(),
-    path.join(app.getPath("downloads"), "PresentonInstallers"),
+    path.join(app.getPath("downloads"), "ChatPPTInstallers"),
     path.join(app.getPath("userData"), "installers"),
   ];
 
@@ -727,7 +727,7 @@ export function setupLibreOfficeInstallHandlers() {
     const result = await isLibreOfficeInstalled();
     if (result.installed && result.path) {
       process.env.SOFFICE_PATH = result.path;
-      process.env.PRESENTON_OFFICE_RENDERER = "libreoffice";
+      process.env.CHATPPT_OFFICE_RENDERER = "libreoffice";
     }
     return result;
   });
@@ -762,7 +762,7 @@ export function setupLibreOfficeInstallHandlers() {
       }
       if (result.path) {
         process.env.SOFFICE_PATH = result.path;
-        process.env.PRESENTON_OFFICE_RENDERER = "libreoffice";
+        process.env.CHATPPT_OFFICE_RENDERER = "libreoffice";
       }
       sendProgress(wc, "done", 100, "LibreOffice is ready");
       return { ok: true, path: result.path ?? getSofficePath() };

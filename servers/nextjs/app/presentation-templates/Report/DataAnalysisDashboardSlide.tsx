@@ -23,12 +23,12 @@ const SummaryCardSchema = z.object({
     description: "Short summary card label.",
   }),
   icon: z.object({
-    __icon_url__: z.string().default("https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg"),
+    __icon_url__: z.string().default("/placeholder.svg"),
     __icon_query__: z.string().default("pulse icon"),
   }).optional().meta({
     description: "Icon shown in each compact summary card.",
   }).default({
-    __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+    __icon_url__: "/placeholder.svg",
     __icon_query__: "pulse icon",
   }),
 });
@@ -75,25 +75,25 @@ export const Schema = z.object({
     .default([
       {
         value: "5", label: "Text 1", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "placeholder icon",
         }
       },
       {
         value: "52", label: "Text 2", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "placeholder icon",
         }
       },
       {
         value: "4", label: "Text 3", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "placeholder icon",
         }
       },
       {
         value: "80%", label: "Text 4", icon: {
-          __icon_url__: "https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/placeholder.svg",
+          __icon_url__: "/placeholder.svg",
           __icon_query__: "placeholder icon",
         }
       },

@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest a new capability or improvement for Presenton.
+description: Suggest a new capability or improvement for ChatPPT.
 title: "[Feature]: "
 labels:
   - enhancement
@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting an improvement to **Presenton** 🚀  
+        Thanks for suggesting an improvement to **ChatPPT** 🚀  
         Please describe the feature clearly so we can understand the problem and evaluate the idea.
 
   - type: textarea
@@ -26,7 +26,7 @@ body:
       label: Problem to solve
       description: What problem are you trying to solve? Why is the current behavior insufficient?
       placeholder: |
-        Currently Presenton exports presentations only as PPTX or PDF.
+        Currently ChatPPT exports presentations only as PPTX or PDF.
         Our team collaborates primarily in Google Slides, so we must manually convert files.
     validations:
       required: true
@@ -75,7 +75,7 @@ body:
         - Frequency of the issue
         - Workflow impact
       placeholder: |
-        Affected users: Teams using Presenton for collaborative presentations
+        Affected users: Teams using ChatPPT for collaborative presentations
         Severity: Medium
         Frequency: Frequent
         Impact: Saves time and removes manual conversion steps.

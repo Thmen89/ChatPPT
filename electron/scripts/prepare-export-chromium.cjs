@@ -10,7 +10,7 @@ const {
 
 const buildId = (process.env.EXPORT_CHROME_BUILD_ID || "146.0.7680.76").trim();
 const cacheDir = path.join(__dirname, "..", "resources", "chromium");
-const manifestPath = path.join(cacheDir, "presenton-runtime.json");
+const manifestPath = path.join(cacheDir, "chatppt-runtime.json");
 
 function getRevisionDir(platform) {
   return path.join(cacheDir, Browser.CHROME, `${platform}-${buildId}`);

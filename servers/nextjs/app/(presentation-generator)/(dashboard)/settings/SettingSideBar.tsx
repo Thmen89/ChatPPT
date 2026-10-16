@@ -6,7 +6,7 @@ import { RootState } from '@/store/store'
 
 type SettingsSection = 'text-provider' | 'image-provider' | 'privacy' | 'session'
 
-const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }: { mode: 'nanobanana' | 'presenton', setMode: (mode: 'nanobanana' | 'presenton') => void, selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void }) => {
+const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }: { mode: 'nanobanana' | 'template', setMode: (mode: 'nanobanana' | 'template') => void, selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
     const textProviderIcon = LLM_PROVIDERS[llm_config.LLM as keyof typeof LLM_PROVIDERS]?.icon
     const imageProviderIcon = IMAGE_PROVIDERS[llm_config.IMAGE_PROVIDER as keyof typeof IMAGE_PROVIDERS]?.icon || '/providers/pexel.png'
@@ -17,10 +17,10 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>Select Mode</p>
                 <div className='p-0.5 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center mb-[34px] '>
                     <button className='px-3 font-syne h-[26px] text-[10px] font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => setMode('presenton')}
+                        onClick={() => setMode('template')}
                         style={{
-                            background: mode === 'presenton' ? '#F4F3FF' : 'transparent',
-                            color: mode === 'presenton' ? '#5146E5' : '#3A3A3A'
+                            background: mode === 'template' ? '#F4F3FF' : 'transparent',
+                            color: mode === 'template' ? '#5146E5' : '#3A3A3A'
                         }}
                     >Template Based
                     </button>
@@ -45,7 +45,7 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
 
                 </div>
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>Select Provider</p>
-                {mode === 'presenton' && <div className='space-y-2.5'>
+                {mode === 'template' && <div className='space-y-2.5'>
                     <button className={` w-full rounded-[6px] px-3 py-4 flex items-center gap-1.5 border  ${selectedProvider === 'text-provider' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`} onClick={() => setSelectedProvider('text-provider')}>
                         <div className='relative w-[18px] h-[18px] rounded-full overflow-hidden border border-[#EDEEEF]'>
 

@@ -1,7 +1,7 @@
 # Electron Dependency Strategy
 
 This is the working strategy for reducing first-run dependency installers in
-the Electron app while keeping Presenton Apache-2.0.
+the Electron app while keeping ChatPPT Apache-2.0.
 
 ## Recommendation
 
@@ -44,7 +44,7 @@ Bundled Chromium:
 
 ```text
 electron/resources/chromium/
-  presenton-runtime.json
+  chatppt-runtime.json
   chrome/<platform-build-id>/...
 ```
 
@@ -61,7 +61,7 @@ Bundled ImageMagick:
 
 ```text
 electron/resources/imagemagick/<platform>-<arch>/
-  presenton-runtime.json
+  chatppt-runtime.json
   ...
 ```
 
@@ -94,7 +94,7 @@ other system installs.
 
 ## Current Behavior
 
-- FastAPI receives `SOFFICE_PATH` and `PRESENTON_OFFICE_RENDERER=libreoffice` when
+- FastAPI receives `SOFFICE_PATH` and `CHATPPT_OFFICE_RENDERER=libreoffice` when
   LibreOffice is detected at startup.
 - FastAPI receives `IMAGEMAGICK_BINARY`, `MAGICK_HOME`, and
   `MAGICK_CONFIGURE_PATH` when the bundled or system ImageMagick runtime is

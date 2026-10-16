@@ -265,7 +265,7 @@ const createMessageId = () => {
 };
 
 const conversationStorageKey = (presentationId: string) =>
-  `presenton:chat:conversationId:${presentationId}`;
+  `chatppt:chat:conversationId:${presentationId}`;
 
 const AssistantMarker = () => (
   <div className="mb-3 flex items-center gap-1.5 text-[#A4A7AE]">

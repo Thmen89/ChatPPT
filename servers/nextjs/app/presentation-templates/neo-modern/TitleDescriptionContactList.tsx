@@ -17,15 +17,15 @@ export const Schema = z.object({
     })).max(3).describe('A list of items').default([
         {
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg',
+                __icon_url__: '/icons/bold/checks-bold.svg',
                 __icon_query__: 'envelope',
             },
             label: 'Email',
-            value: 'presenton@gmail.com',
+            value: 'hello@example.com',
         },
         {
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg',
+                __icon_url__: '/icons/bold/checks-bold.svg',
                 __icon_query__: 'phone',
             },
             label: 'Phone',
@@ -33,11 +33,11 @@ export const Schema = z.object({
         },
         {
             icon: {
-                __icon_url__: 'https://presenton-public.s3.ap-southeast-1.amazonaws.com/static/icons/bold/checks-bold.svg',
+                __icon_url__: '/icons/bold/checks-bold.svg',
                 __icon_query__: 'globe',
             },
             label: 'Website',
-            value: 'www.presenton.com',
+            value: 'www.example.com',
         },
     ]),
 });
