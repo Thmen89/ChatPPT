@@ -16,8 +16,6 @@ import {
   deletePresentationSlide,
   updateSlide,
 } from "@/store/slices/presentationGeneration";
-import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { addToHistory } from "@/store/slices/undoRedoSlice";
 import NewSlide from "./NewSlide";
 import SlideScale from "../../components/PresentationRender";
@@ -49,7 +47,6 @@ const SlideContent = ({
 
   // Use the centralized group layouts hook
 
-  const pathname = usePathname();
 
   const handleSubmit = async () => {
     if (!editPrompt.trim()) {
@@ -66,16 +63,6 @@ const SlideContent = ({
 
       if (response) {
         dispatch(updateSlide({ index: slide.index, slide: response }));
-        trackEvent(MixpanelEvent.Presentation_Slide_Updated, {
-          pathname,
-          presentation_id: presentationId,
-          slide_id: slide.id,
-          slide_index: slide.index,
-          layout: slide.layout,
-          prompt_char_count: editPrompt.trim().length,
-          prompt_word_count: editPrompt.trim().split(/\s+/).filter(Boolean)
-            .length,
-        });
         notify.success("Slide updated", "Your changes were applied to this slide.");
         setEditPrompt("");
       } else {
@@ -102,13 +89,6 @@ const SlideContent = ({
         return;
       }
 
-      trackEvent(MixpanelEvent.Presentation_Slide_Deleted, {
-        pathname,
-        presentation_id: presentationId,
-        slide_id: slide.id,
-        slide_index: slide.index,
-        layout: slide.layout,
-      });
       // Add current state to past
       dispatch(
         addToHistory({

@@ -1,7 +1,20 @@
-import { app } from "electron";
-import * as Sentry from "@sentry/electron/main";
+/**
+ * Optional error reporting for the desktop main process.
+ *
+ * Off unless the operator sets SENTRY_DSN (same key as the server's
+ * `server.error_reporting_dsn`) AND installs `@sentry/electron`, which is not a
+ * dependency. Nothing is sent by default. PII stays off unless
+ * SENTRY_SEND_DEFAULT_PII=true. See docs/telemetry.md.
+ */
 
-let isSentryInitialized = false;
+type SentryMain = {
+  init: (options: Record<string, unknown>) => void;
+  captureException: (error: unknown) => void;
+  addBreadcrumb: (breadcrumb: Record<string, unknown>) => void;
+  setContext: (name: string, context: Record<string, unknown>) => void;
+};
+
+let sentry: SentryMain | null = null;
 
 type MainSentryRuntimeContext = {
   profileHash?: string;
@@ -9,161 +22,49 @@ type MainSentryRuntimeContext = {
   cacheRecoveryMode?: string;
 };
 
-function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
-  if (value === undefined) {
-    return defaultValue;
-  }
-
-  return !["0", "false", "no", "off"].includes(value.trim().toLowerCase());
-}
-
-function parseSampleRate(value: string | undefined, defaultValue: number): number {
-  if (!value) {
-    return defaultValue;
-  }
-
-  const parsed = Number.parseFloat(value);
-  if (Number.isNaN(parsed)) {
-    return defaultValue;
-  }
-
-  return Math.max(0, Math.min(1, parsed));
-}
-
-function getEnvironment(): string {
-  if (process.env.SENTRY_ENVIRONMENT) {
-    return process.env.SENTRY_ENVIRONMENT;
-  }
-
-  if (process.env.NODE_ENV) {
-    return process.env.NODE_ENV;
-  }
-
-  return app.isPackaged ? "production" : "development";
-}
-
-function getRelease(): string {
-  if (process.env.SENTRY_RELEASE) {
-    return process.env.SENTRY_RELEASE;
-  }
-
-  return `presenton-electron@${app.getVersion()}`;
-}
-
 export function initMainSentry(): void {
-  if (isSentryInitialized) {
+  const dsn = (process.env.SENTRY_DSN || "").trim();
+  if (sentry || !dsn) {
     return;
   }
-
-  const dsn = "https://48b091ed88ae147c0957a46a823c1449@o4509882707410944.ingest.us.sentry.io/4511171070394368";
-  const isEnabled = parseBoolean(process.env.SENTRY_ENABLED, true);
-
-  if (!isEnabled) {
-    return;
-  }
-
-  const tracesSampleRate = parseSampleRate(
-    process.env.SENTRY_TRACES_SAMPLE_RATE,
-    app.isPackaged ? 0.2 : 1.0,
-  );
 
   try {
-    Sentry.init({
+    // Lazy, optional: only resolved when an operator configured a DSN.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("@sentry/electron/main") as SentryMain;
+    mod.init({
       dsn,
-      enabled: true,
-      release: getRelease(),
-      environment: getEnvironment(),
-      debug: parseBoolean(process.env.SENTRY_DEBUG, false),
-      sendDefaultPii: parseBoolean(process.env.SENTRY_SEND_DEFAULT_PII, false),
-      enableLogs: parseBoolean(process.env.SENTRY_ENABLE_LOGS, true),
-      tracesSampleRate,
-      integrations: [Sentry.startupTracingIntegration()],
+      sendDefaultPii: (process.env.SENTRY_SEND_DEFAULT_PII || "").trim().toLowerCase() === "true",
+      tracesSampleRate: Number.parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || "0") || 0,
     });
-
-    isSentryInitialized = true;
-    Sentry.setTag("process.type", "main");
-    Sentry.setTag("electron.version", process.versions.electron ?? "unknown");
-    Sentry.setTag("chromium.version", process.versions.chrome ?? "unknown");
-    Sentry.setTag("node.version", process.versions.node ?? "unknown");
-    Sentry.setTag("os.platform", process.platform);
-    Sentry.setTag("os.arch", process.arch);
-    Sentry.setContext("runtime", {
-      appVersion: app.getVersion(),
-      electronVersion: process.versions.electron ?? "unknown",
-      chromiumVersion: process.versions.chrome ?? "unknown",
-      nodeVersion: process.versions.node ?? "unknown",
-      platform: process.platform,
-      arch: process.arch,
-      packaged: app.isPackaged,
-    });
-    console.log("[Sentry] Initialized in Electron main process.");
+    sentry = mod;
   } catch (error) {
-    console.error("[Sentry] Failed to initialize in Electron main process:", error);
+    console.warn("[ErrorReporting] SENTRY_DSN is set but @sentry/electron is not installed; reporting stays off.", error);
   }
 }
 
 export function setMainSentryRuntimeContext(context: MainSentryRuntimeContext): void {
-  if (!isSentryInitialized) {
-    return;
-  }
-
   try {
-    if (context.profileHash) {
-      Sentry.setTag("profile.hash", context.profileHash);
-    }
-    if (context.cacheRecoveryStatus) {
-      Sentry.setTag("cache_recovery.status", context.cacheRecoveryStatus);
-    }
-    if (context.cacheRecoveryMode) {
-      Sentry.setTag("cache_recovery.mode", context.cacheRecoveryMode);
-    }
-    Sentry.setContext("presenton", {
-      profileHash: context.profileHash,
-      cacheRecoveryStatus: context.cacheRecoveryStatus,
-      cacheRecoveryMode: context.cacheRecoveryMode,
-    });
+    sentry?.setContext("runtime", { ...context });
   } catch {
-    /* ignore context failures */
+    /* ignore */
   }
 }
 
-export function captureMainException(
-  error: unknown,
-  context?: Record<string, unknown>,
-): void {
-  if (!isSentryInitialized) {
-    return;
-  }
-
+export function captureMainException(error: unknown, context?: Record<string, unknown>): void {
+  if (!sentry) return;
   try {
-    Sentry.withScope((scope) => {
-      if (context) {
-        scope.setContext("presenton", context);
-      }
-      Sentry.captureException(error);
-    });
+    if (context) sentry.setContext("details", context);
+    sentry.captureException(error);
   } catch {
-    /* ignore capture failures */
+    /* ignore */
   }
 }
 
-export function addMainBreadcrumb(
-  category: string,
-  message: string,
-  data?: Record<string, unknown>,
-): void {
-  if (!isSentryInitialized) {
-    return;
-  }
-
+export function addMainBreadcrumb(category: string, message: string, data?: Record<string, unknown>): void {
   try {
-    Sentry.addBreadcrumb({
-      category,
-      message,
-      level: "info",
-      data,
-    });
+    sentry?.addBreadcrumb({ category, message, level: "info", data });
   } catch {
-    /* ignore breadcrumb failures */
+    /* ignore */
   }
 }

@@ -69,14 +69,14 @@ class TestMem0PresentationMemoryService:
                 "os.environ",
                 {
                     "MEM0_ENABLED": "true",
-                    # This test is about the generated config, not the spaCy model gate.
-                    "MEM0_REQUIRE_SPACY_MODEL": "false",
                     "APP_DATA_DIRECTORY": "/tmp/chatppt-test",
                     "OLLAMA_URL": "http://ollama:11434",
                     "OLLAMA_MODEL": "llama3.1:8b",
                 },
                 clear=False,
             ),
+            # This test is about the generated config, not whether spaCy's model is installed.
+            patch("services.mem0_oss_memory._spacy_model_available", return_value=True),
             patch(
                 "services.mem0_oss_memory.memory_from_config",
                 side_effect=_fake_memory_from_config,

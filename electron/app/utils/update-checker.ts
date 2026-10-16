@@ -4,15 +4,29 @@ import { isDev } from "./constants";
 import { safeStderrWrite } from "./safe-console";
 
 /**
- * Version check URL — GitHub raw version.json (no API required).
- * Override with UPDATE_SERVER_URL for local testing.
+ * Update checks are OFF by default and make no network request unless the
+ * operator turns them on with CHATPPT_FEATURES__UPDATE_CHECK=true (the env form of
+ * `features.update_check`) AND points UPDATE_SERVER_URL at a version.json
+ * ({ version, message?, downloads?: { linux, mac, windows } }).
+ * There is deliberately no default host.
+ * TODO(owner): publish a version.json for ChatPPT releases and document its URL.
  */
-const VERSION_JSON_URL =
-  process.env.UPDATE_SERVER_URL ||
-  "https://raw.githubusercontent.com/presenton/presenton/refs/heads/main/electron/version.json";
+const VERSION_JSON_URL = (process.env.UPDATE_SERVER_URL || "").trim();
+
+function isTruthy(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes((value || "").trim().toLowerCase());
+}
+
+export function isUpdateCheckEnabled(): boolean {
+  return isTruthy(process.env.CHATPPT_FEATURES__UPDATE_CHECK) && VERSION_JSON_URL !== "";
+}
 
 const CURRENT_VERSION = app.getVersion();
-const WEBSITE_DOWNLOAD_URL = "https://presenton.ai/download";
+
+function downloadUrlFor(data: VersionResponse): string {
+  const key = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "windows" : "linux";
+  return (data.downloads?.[key] || "").trim();
+}
 
 /** Maximum number of fetch attempts (polls). */
 const MAX_ATTEMPTS = 3;
@@ -70,7 +84,7 @@ async function fetchVersionInfo(): Promise<VersionResponse | null> {
     log(`Fetching ${VERSION_JSON_URL}...`);
     const response = await net.fetch(VERSION_JSON_URL, {
       method: "GET",
-      headers: { "User-Agent": `Presenton/${CURRENT_VERSION}` },
+      headers: { "User-Agent": `ChatPPT/${CURRENT_VERSION}` },
     });
     if (!response.ok) {
       log(`Fetch failed: HTTP ${response.status}`);
@@ -199,17 +213,17 @@ function injectUpdateBanner(
   const safeMessage = hasMessage ? escapeHtml(message!.trim()) : "";
   const safeMessageJson = JSON.stringify(safeMessage);
   const viewDetailsBtnHtml = hasMessage
-    ? '<button id="__presenton_view_details_btn__" style="color:#64748b;background:none;border:none;cursor:pointer;font-size:12px;padding:4px 8px;text-decoration:underline;text-underline-offset:2px;">View details</button>'
+    ? '<button id="__chatppt_view_details_btn__" style="color:#64748b;background:none;border:none;cursor:pointer;font-size:12px;padding:4px 8px;text-decoration:underline;text-underline-offset:2px;">View details</button>'
     : "";
 
   const script = /* js */ `
     (function () {
-      if (document.getElementById('__presenton_update_banner__')) return;
+      if (document.getElementById('__chatppt_update_banner__')) return;
 
       const msgHtml = ${safeMessageJson};
 
       const banner = document.createElement('div');
-      banner.id = '__presenton_update_banner__';
+      banner.id = '__chatppt_update_banner__';
       banner.style.cssText = [
         'position:fixed',
         'bottom:16px',
@@ -238,14 +252,14 @@ function injectUpdateBanner(
         <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
           <span style="font-size:18px;">✨</span>
           <span>
-            Presenton&nbsp;<strong style="color:#5141e5">${latest}</strong>&nbsp;is available
+            ChatPPT&nbsp;<strong style="color:#5141e5">${latest}</strong>&nbsp;is available
             &mdash;&nbsp;you have&nbsp;<strong>${CURRENT_VERSION}</strong>
           </span>
         </span>
         <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
           ${viewDetailsBtnHtml}
           <a href="${downloadUrl}" target="_blank" style="color:#fff;text-decoration:none;background:#5141e5;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;white-space:nowrap;">Download update</a>
-          <button onclick="document.getElementById('__presenton_update_banner__').remove();var o=document.getElementById('__presenton_update_overlay__');if(o)o.remove();" title="Dismiss" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:20px;line-height:1;padding:0 2px;">&times;</button>
+          <button onclick="document.getElementById('__chatppt_update_banner__').remove();var o=document.getElementById('__chatppt_update_overlay__');if(o)o.remove();" title="Dismiss" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:20px;line-height:1;padding:0 2px;">&times;</button>
         </div>
       \`;
 
@@ -253,22 +267,22 @@ function injectUpdateBanner(
 
       if (msgHtml) {
         const overlay = document.createElement('div');
-        overlay.id = '__presenton_update_overlay__';
+        overlay.id = '__chatppt_update_overlay__';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:2147483647;padding:24px;';
         overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
         overlay.innerHTML = \`
           <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 24px 48px rgba(0,0,0,0.15);padding:24px;" onclick="event.stopPropagation()">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
               <h3 style="margin:0;font-size:18px;font-weight:600;color:#191919;">What's new in ${latest}</h3>
-              <button onclick="document.getElementById('__presenton_update_overlay__').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:24px;line-height:1;padding:0;">&times;</button>
+              <button onclick="document.getElementById('__chatppt_update_overlay__').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:24px;line-height:1;padding:0;">&times;</button>
             </div>
-            <div style="color:#475569;font-size:14px;line-height:1.6;" id="__presenton_overlay_content__"></div>
+            <div style="color:#475569;font-size:14px;line-height:1.6;" id="__chatppt_overlay_content__"></div>
           </div>
         \`;
         document.body.appendChild(overlay);
-        document.getElementById('__presenton_overlay_content__').innerHTML = msgHtml;
-        document.getElementById('__presenton_view_details_btn__').onclick = function() {
-          document.getElementById('__presenton_update_overlay__').style.display = 'flex';
+        document.getElementById('__chatppt_overlay_content__').innerHTML = msgHtml;
+        document.getElementById('__chatppt_view_details_btn__').onclick = function() {
+          document.getElementById('__chatppt_update_overlay__').style.display = 'flex';
         };
       }
     })();
@@ -301,8 +315,10 @@ async function checkForUpdatesWithRetry(win: BrowserWindow): Promise<void> {
     if (data) {
       const newer = isNewerVersion(CURRENT_VERSION, data.version);
       log(`Remote ${data.version} vs current ${CURRENT_VERSION} -> newer? ${newer}`);
-      if (newer) {
-        const downloadUrl = WEBSITE_DOWNLOAD_URL;
+      const downloadUrl = downloadUrlFor(data);
+      if (newer && !downloadUrl) {
+        log("Newer version found but version.json has no download URL for this platform; skipping banner");
+      } else if (newer) {
         log(`Injecting banner for ${data.version} (after ${INJECT_DELAY_MS}ms delay)`);
         scheduleBannerInjection(win, data.version, downloadUrl, data.message);
       } else {
@@ -328,6 +344,9 @@ async function checkForUpdatesWithRetry(win: BrowserWindow): Promise<void> {
  */
 export function startUpdateChecker(win: BrowserWindow): void {
   stopUpdateChecker();
+  if (!isUpdateCheckEnabled()) {
+    return;
+  }
   updateCheckerStopped = false;
   if (!hasLiveWebContents(win)) {
     updateCheckerStopped = true;

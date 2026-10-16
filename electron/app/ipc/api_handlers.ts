@@ -27,17 +27,6 @@ export function setupApiHandlers() {
     return { hasKey };
   });
 
-  // Reads persisted user config so runtime toggles from the settings page
-  // are picked up immediately without requiring an app restart.
-  ipcMain.handle("api:telemetry-status", async () => {
-    const cfg = getUserConfig();
-    const fromConfig = cfg.DISABLE_ANONYMOUS_TRACKING;
-    const fromEnv = process.env.DISABLE_ANONYMOUS_TRACKING;
-    const raw = fromConfig ?? fromEnv ?? "";
-    const isDisabled = raw === "true" || raw === "True";
-    return { telemetryEnabled: !isDisabled };
-  });
-
   // Handler for save-layout API
   ipcMain.handle("api:save-layout", async (event, { layout_name, components }) => {
     try {

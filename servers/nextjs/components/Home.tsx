@@ -9,7 +9,6 @@ import {
   pullOllamaModel,
 } from "@/utils/providerUtils";
 import { LLMConfig } from "@/types/llm_config";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePathname } from "next/navigation";
 import OnBoardingSlidebar from "./OnBoarding/OnBoardingSlidebar";
 import OnBoardingHeader from "./OnBoarding/OnBoardingHeader";

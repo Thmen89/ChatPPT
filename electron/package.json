@@ -46,7 +46,6 @@
     "build:nextjs": "node scripts/build-nextjs-resources.cjs",
     "build:fastapi": "node -e \"fs.rmSync('resources/fastapi',{recursive:true,force:true})\" && npm run build:vectorstore && cross-env MEM0_SPACY_STRICT=true node scripts/ensure-spacy-model.cjs && cd ../servers/fastapi && uv run --with pyinstaller python -m PyInstaller --distpath ../../electron/resources server.spec && cd ../../electron && node scripts/copy-fastapi-assets.cjs",
     "generate:version": "node scripts/generate-version.cjs",
-    "upload:sourcemaps": "node scripts/upload-sourcemaps.cjs",
     "build:electron": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && node build.js",
     "build:electron:mas-dev": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env CHATPPT_MAC_TARGET=mas-dev node build.js",
     "build:electron:mas": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env CHATPPT_MAC_TARGET=mas node build.js",
@@ -63,7 +62,6 @@
   "dependencies": {
     "@llamaindex/liteparse": "^1.5.2",
     "@puppeteer/browsers": "^3.0.3",
-    "@sentry/electron": "^7.10.0",
     "@tailwindcss/cli": "^4.1.5",
     "@types/uuid": "^10.0.0",
     "dotenv": "^16.5.0",

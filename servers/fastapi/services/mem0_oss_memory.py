@@ -20,6 +20,14 @@ from typing import Any, Optional
 
 LOGGER = logging.getLogger(__name__)
 
+# mem0 ships PostHog usage telemetry that is on unless MEM0_TELEMETRY is false, and its
+# embedder / spaCy helpers download models on first use. ChatPPT sends nothing and
+# downloads nothing at runtime: memory is off by default (features.memory), and when on
+# it only uses models already installed in the image.
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+
 _memory_init_lock = threading.Lock()
 _shared_client: Any | None = None
 _init_attempted = False
@@ -39,27 +47,30 @@ def _to_int(value: Optional[str], default: int) -> int:
         return default
 
 
-def _spacy_model_name() -> str:
-    return (os.getenv("MEM0_SPACY_MODEL") or "en_core_web_sm").strip() or "en_core_web_sm"
+MEM0_SPACY_MODEL = "en_core_web_sm"  # the model mem0 itself loads (and would download)
+
+
+def memory_enabled() -> bool:
+    """features.memory (legacy MEM0_ENABLED); off by default."""
+    return _to_bool(os.getenv("MEM0_ENABLED"), default=False)
 
 
 def _spacy_model_available() -> bool:
-    if not _to_bool(os.getenv("MEM0_REQUIRE_SPACY_MODEL"), default=True):
-        return True
-
-    model = _spacy_model_name()
+    """True only if mem0's spaCy model is already installed. mem0 runs `spacy download`
+    when it is missing; checking first keeps that from ever happening."""
     try:
         import spacy  # type: ignore[import-untyped]
 
-        spacy.load(model)
-        return True
+        if spacy.util.is_package(MEM0_SPACY_MODEL):
+            return True
     except Exception:
-        LOGGER.warning(
-            "Mem0 disabled: spaCy model '%s' is unavailable. Install it via `python -m spacy download %s` or set MEM0_REQUIRE_SPACY_MODEL=false.",
-            model,
-            model,
-        )
-        return False
+        pass
+    LOGGER.warning(
+        "Memory disabled: spaCy model '%s' is not installed in this image "
+        "(nothing is downloaded at runtime).",
+        MEM0_SPACY_MODEL,
+    )
+    return False
 
 
 def _normalize_openai_base_url(value: Optional[str]) -> Optional[str]:
@@ -151,7 +162,7 @@ def get_shared_mem0_client() -> Any | None:
     """Return the process-wide mem0 client, or ``None`` if disabled or init failed."""
     global _shared_client, _init_attempted
 
-    if not _to_bool(os.getenv("MEM0_ENABLED"), default=True):
+    if not memory_enabled():
         return None
     if _shared_client is not None:
         return _shared_client
@@ -191,7 +202,7 @@ def get_shared_mem0_client() -> Any | None:
             if "NoSuchFile" in type(exc).__name__ or "NO_SUCHFILE" in err:
                 LOGGER.warning(
                     "Mem0 OSS disabled: embedding model file missing (%s). "
-                    "Pre-download fastembed models, point FASTEMBED_CACHE at them, or set MEM0_ENABLED=false.",
+                    "Bake the embedding model into the image (nothing is downloaded at runtime) or turn features.memory off.",
                     err[:400],
                 )
             else:

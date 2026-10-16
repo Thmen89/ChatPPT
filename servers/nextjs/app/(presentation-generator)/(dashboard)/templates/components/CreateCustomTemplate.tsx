@@ -1,14 +1,12 @@
 import { Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation';
 import React from 'react'
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 const CreateCustomTemplate = () => {
     const router = useRouter();
     return (
         <div
             onClick={() => {
-                trackEvent(MixpanelEvent.Templates_Build_Template_Clicked);
                 router.push('/custom-template')
             }}
             className='w-full rounded-[22px] border border-[#EDEEEF] cursor-pointer font-syne'>
