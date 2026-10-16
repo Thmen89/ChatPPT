@@ -86,6 +86,4 @@ def test_process_slide_fetches_icons_with_template_weight(monkeypatch):
 
     assert assets == []
     assert captured == {"query": "success check", "weight": "thin"}
-    assert slide.content["icon"]["__icon_url__"].endswith(
-        "/static/icons/thin/checks-thin.svg"
-    )
+    assert slide.content["icon"]["__icon_url__"].endswith("/static/icons/thin/checks-thin.svg")

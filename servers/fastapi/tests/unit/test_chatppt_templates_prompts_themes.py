@@ -22,7 +22,9 @@ export default function L() {{ return null; }}
 """
 
 
-def make_template(root: Path, tid: str, files: list[str], manifest: dict | None = None, legacy: dict | None = None) -> Path:
+def make_template(
+    root: Path, tid: str, files: list[str], manifest: dict | None = None, legacy: dict | None = None
+) -> Path:
     folder = root / tid
     folder.mkdir(parents=True)
     for f in files:
@@ -50,8 +52,17 @@ def test_data_folder_replaces_builtin_and_manifest_orders_layouts(tmp_path):
     builtin = tmp_path / "builtin"
     data = tmp_path / "data"
     make_template(builtin, "house", ["B.tsx", "A.tsx"], legacy={"ordered": False, "icon_weight": "bold"})
-    make_template(data, "house", ["Two.tsx", "One.tsx", "Three.tsx"],
-                  manifest={"name": "House style", "ordered": True, "layouts": ["One.tsx", "Two.tsx", "Missing.tsx"], "icon_weight": "thin"})
+    make_template(
+        data,
+        "house",
+        ["Two.tsx", "One.tsx", "Three.tsx"],
+        manifest={
+            "name": "House style",
+            "ordered": True,
+            "layouts": ["One.tsx", "Two.tsx", "Missing.tsx"],
+            "icon_weight": "thin",
+        },
+    )
     make_template(data, "Bad Id", ["X.tsx"], manifest={"name": "bad"})
 
     found = discover_templates(builtin, data)
@@ -64,7 +75,9 @@ def test_data_folder_replaces_builtin_and_manifest_orders_layouts(tmp_path):
     fp1 = house.fingerprint()
     assert fp1.startswith("house:1:2:")
     (house.path / "One.tsx").write_text("changed")
-    import os, time
+    import os
+    import time
+
     os.utime(house.path / "One.tsx", (time.time() + 5, time.time() + 5))
     assert house.fingerprint() != fp1
 
@@ -82,7 +95,9 @@ def test_manifest_rejects_bad_ids():
 
 
 def test_prompt_override_and_render(tmp_path):
-    text = prompts.render_prompt("slide_content.user", tmp_path, current_date_time="now", language="en", content="hello")
+    text = prompts.render_prompt(
+        "slide_content.user", tmp_path, current_date_time="now", language="en", content="hello"
+    )
     assert "# Slide Language:\nen" in text and "hello" in text
     assert "{current_date_time}" not in text
 
@@ -101,10 +116,16 @@ def test_default_theme_and_user_theme(tmp_path):
     assert default.colors.accent == "#2563eb"
     assert default.css_variables()["--chatppt-color-accent"] == "#2563eb"
 
-    (tmp_path / "house.json").write_text(json.dumps({
-        "name": "House", "colors": {"primary": "#000", "accent": "#FF0000"}, "fonts": {"heading": "Georgia"},
-        "footer": "Confidential",
-    }))
+    (tmp_path / "house.json").write_text(
+        json.dumps(
+            {
+                "name": "House",
+                "colors": {"primary": "#000", "accent": "#FF0000"},
+                "fonts": {"heading": "Georgia"},
+                "footer": "Confidential",
+            }
+        )
+    )
     house = themes.load_theme("house", tmp_path)
     assert house.id == "house" and house.colors.accent == "#ff0000" and house.fonts.body == "Inter"
     assert set(themes.list_themes(tmp_path)) == {"default", "house"}

@@ -1,0 +1,41 @@
+# Container image build + scan. Not part of the PR gate: the current Dockerfile takes
+# ~15 min to build. Runs nightly and on demand.
+# TODO(agent F, packaging): when the slim/full Dockerfile lands, build both targets here,
+# record compressed sizes against the roadmap targets, and consider moving the slim
+# build into the PR gate once it builds in a few minutes.
+name: Image
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TRIVY_VERSION: "0.75.0"
+      TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+    steps:
+      - uses: actions/checkout@v6
+      - name: docker build
+        run: docker build -t chatppt:ci .
+      - name: image size
+        run: |
+          size=$(docker image inspect chatppt:ci --format '{{.Size}}')
+          echo "### Image chatppt:ci: $((size / 1000000)) MB uncompressed" >> "$GITHUB_STEP_SUMMARY"
+      - name: install trivy (pinned binary, checksum verified)
+        run: |
+          curl -sSLf -o "$RUNNER_TEMP/trivy.tgz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: trivy image (HIGH and CRITICAL, report only)
+        run: trivy image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 0 chatppt:ci
+      - name: trivy image (fixable CRITICAL, blocking)
+        run: trivy image --skip-db-update --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 chatppt:ci

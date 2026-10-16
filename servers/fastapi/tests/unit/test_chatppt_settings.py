@@ -27,7 +27,9 @@ def test_defaults_without_file(tmp_path):
 
 
 def test_toml_values_and_routing(tmp_path):
-    path = write_toml(tmp_path, """
+    path = write_toml(
+        tmp_path,
+        """
 [llm]
 provider = "openai"
 model = "gpt-4.1"
@@ -40,7 +42,8 @@ outline = { model = "gpt-4.1-mini" }
 content = { provider = "anthropic", model = "claude-sonnet-4-20250514" }
 [features]
 memory = true
-""")
+""",
+    )
     s = load_settings(path, environ={})
     assert s.source_path == str(path)
     assert s.llm.provider == "openai"
@@ -95,7 +98,9 @@ def test_file_wins_over_legacy_env(tmp_path):
 
 
 def test_legacy_round_trip(tmp_path):
-    path = write_toml(tmp_path, """
+    path = write_toml(
+        tmp_path,
+        """
 [llm]
 provider = "openai"
 thinking = false
@@ -110,7 +115,8 @@ api_key = "px"
 images = false
 [auth]
 disabled = true
-""")
+""",
+    )
     s = load_settings(path, environ={})
     legacy = to_legacy_env(s)
     assert legacy["LLM"] == "openai"
@@ -124,8 +130,16 @@ disabled = true
 
     environ: dict[str, str] = {}
     written = apply_to_environ(s, environ)
-    assert set(written) == {"LLM", "DISABLE_THINKING", "OPENAI_API_KEY", "OPENAI_MODEL", "IMAGE_PROVIDER",
-                            "PEXELS_API_KEY", "DISABLE_IMAGE_GENERATION", "DISABLE_AUTH"}
+    assert set(written) == {
+        "LLM",
+        "DISABLE_THINKING",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "IMAGE_PROVIDER",
+        "PEXELS_API_KEY",
+        "DISABLE_IMAGE_GENERATION",
+        "DISABLE_AUTH",
+    }
     # Defaults are not exported: only what the file set.
     assert "MEM0_ENABLED" not in environ
 

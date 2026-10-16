@@ -20,9 +20,9 @@ from services.database import async_session_maker, get_async_session
 from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.example import build_template_example
 from templates.get_layout_by_name import get_layout_by_name
-from templates.presentation_layout import PresentationLayoutModel
+from templates.presentation_layout import PresentationLayoutModel  # noqa: F401  (re-exported to templates.router)
 from templates.preview import (
-    FontsUploadAndSlidesPreviewResponse,
+    FontsUploadAndSlidesPreviewResponse,  # noqa: F401  (re-exported to templates.router)
     upload_fonts_and_slides_preview_handler,
 )
 from templates.prompts import (

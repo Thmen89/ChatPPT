@@ -41,9 +41,7 @@ def test_get_soffice_binary_resolves_macos_application_bundle(monkeypatch):
 
 def test_get_soffice_binary_raises_specific_message_when_missing(monkeypatch):
     monkeypatch.delenv("SOFFICE_PATH", raising=False)
-    monkeypatch.setattr(
-        pptx_convert, "_candidate_soffice_binaries", lambda: ["soffice"]
-    )
+    monkeypatch.setattr(pptx_convert, "_candidate_soffice_binaries", lambda: ["soffice"])
     monkeypatch.setattr(pptx_convert, "_existing_executable", lambda _candidate: None)
 
     with pytest.raises(FileNotFoundError, match="LibreOffice executable not found"):

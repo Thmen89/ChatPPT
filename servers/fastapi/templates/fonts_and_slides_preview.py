@@ -857,7 +857,6 @@ async def upload_fonts_and_fix_fonts_in_pptx(
     else:
         found_embedded_fonts_with_url = {}
         found_embedded_fonts_with_path = {}
-        embedded_actual_names = {}
 
     custom_font_files, font_mapping, font_variant_mapping = await _save_uploaded_fonts_to_temp(
         font_files, original_font_names, temp_dir, logger

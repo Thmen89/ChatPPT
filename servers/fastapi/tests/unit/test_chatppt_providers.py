@@ -1,7 +1,7 @@
 import pytest
 from fastapi import HTTPException
 
-from chatppt.providers import llm_providers, image_providers, resolve_llm
+from chatppt.providers import image_providers, llm_providers, resolve_llm
 from chatppt.settings import load_settings
 
 
@@ -13,14 +13,40 @@ def settings_from(tmp_path, text: str, environ: dict | None = None):
 
 def test_registry_covers_upstream_providers():
     ids = set(llm_providers())
-    assert {"openai", "anthropic", "google", "vertex", "azure", "bedrock", "openrouter", "fireworks",
-            "together", "cerebras", "litellm", "lmstudio", "ollama", "custom", "codex"} <= ids
-    assert {"pexels", "pixabay", "gemini_flash", "dall-e-3", "gpt-image-1.5", "comfyui",
-            "open_webui", "openai_compatible", "nanobanana_pro"} <= set(image_providers())
+    assert {
+        "openai",
+        "anthropic",
+        "google",
+        "vertex",
+        "azure",
+        "bedrock",
+        "openrouter",
+        "fireworks",
+        "together",
+        "cerebras",
+        "litellm",
+        "lmstudio",
+        "ollama",
+        "custom",
+        "codex",
+    } <= ids
+    assert {
+        "pexels",
+        "pixabay",
+        "gemini_flash",
+        "dall-e-3",
+        "gpt-image-1.5",
+        "comfyui",
+        "open_webui",
+        "openai_compatible",
+        "nanobanana_pro",
+    } <= set(image_providers())
 
 
 def test_resolve_default_and_routed_steps(tmp_path):
-    s = settings_from(tmp_path, """
+    s = settings_from(
+        tmp_path,
+        """
 [llm]
 provider = "openai"
 model = "gpt-4.1"
@@ -34,7 +60,8 @@ model = "llama3"
 outline = { model = "gpt-4.1-mini" }
 content = { provider = "anthropic" }
 edit = { provider = "ollama" }
-""")
+""",
+    )
     default = resolve_llm(None, s)
     assert (default.provider, default.model, default.source) == ("openai", "gpt-4.1", "settings")
     assert default.config.api_key == "sk-test"
