@@ -20,9 +20,9 @@ from models.sql.slide import SlideModel
 from models.sse_response import (
     SSECompleteResponse,
     SSEErrorResponse,
+    SSEResponse,
     SSEStatusResponse,
     SSETraceResponse,
-    SSEResponse,
 )
 from services.chat.conversation_store import ChatConversationStore
 from services.concurrent_service import ConcurrentService
@@ -90,9 +90,7 @@ def _outline_layout_structure_payloads() -> tuple[dict, dict, dict]:
         slides=[SlideLayoutModel(id="z", json_schema={"title": "t"})],
     ).model_dump(mode="json")
     structure_payload = PresentationStructureModel(slides=[0]).model_dump(mode="json")
-    outline = PresentationOutlineModel(
-        slides=[SlideOutlineModel(content="## Hello")]
-    ).model_dump(mode="json")
+    outline = PresentationOutlineModel(slides=[SlideOutlineModel(content="## Hello")]).model_dump(mode="json")
     return outline, layout_payload, structure_payload
 
 
@@ -172,9 +170,7 @@ def test_sse_typed_frames_encode_json_payloads():
     assert event == "response"
     assert data == {"type": "error", "detail": "bad"}
 
-    event, data = _parse_sse_frame(
-        SSECompleteResponse(key="k", value={"v": 1}).to_string()
-    )
+    event, data = _parse_sse_frame(SSECompleteResponse(key="k", value={"v": 1}).to_string())
     assert event == "response"
     assert data == {"type": "complete", "k": {"v": 1}}
 
@@ -352,10 +348,7 @@ def test_handle_llm_client_exceptions(monkeypatch):
         "print_exc",
         lambda: None,
     )
-    assert (
-        handle_llm_client_exceptions(HTTPException(status_code=401, detail="auth")).detail
-        == "auth"
-    )
+    assert handle_llm_client_exceptions(HTTPException(status_code=401, detail="auth")).detail == "auth"
 
     from google.genai.errors import APIError as GoogleAPIError
     from llmai.shared.errors import BaseError as LLMAIBaseError
@@ -363,17 +356,18 @@ def test_handle_llm_client_exceptions(monkeypatch):
     llmai_err = LLMAIBaseError(status_code=429, message="busy")
     assert handle_llm_client_exceptions(llmai_err).detail == "busy"
 
-    assert "OpenAI API error" in handle_llm_client_exceptions(
-        OpenAIAPIError(
-            message="boom",
-            request=httpx.Request("POST", "https://x"),
-            body=None,
-        )
-    ).detail
+    assert (
+        "OpenAI API error"
+        in handle_llm_client_exceptions(
+            OpenAIAPIError(
+                message="boom",
+                request=httpx.Request("POST", "https://x"),
+                body=None,
+            )
+        ).detail
+    )
 
-    assert "Google API error" in handle_llm_client_exceptions(
-        GoogleAPIError(503, {})
-    ).detail
+    assert "Google API error" in handle_llm_client_exceptions(GoogleAPIError(503, {})).detail
 
     generic = handle_llm_client_exceptions(ValueError("oops"))
     assert generic.detail.startswith("LLM API error")
@@ -404,14 +398,17 @@ def test_export_includes_optional_fastapi_param():
         fake_result = MagicMock(path="/exports/deck.pdf")
         dummy = uuid.uuid4()
         mock_pdf = AsyncMock(return_value=fake_result)
-        with patch.dict(
-            os.environ,
-            {
-                "NEXT_PUBLIC_URL": "https://next.example",
-                "NEXT_PUBLIC_FAST_API": "https://fast.example",
-            },
-            clear=False,
-        ), patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pdf):
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "NEXT_PUBLIC_URL": "https://next.example",
+                    "NEXT_PUBLIC_FAST_API": "https://fast.example",
+                },
+                clear=False,
+            ),
+            patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pdf),
+        ):
             await export_presentation(dummy, title="safe", export_as="pdf")
 
         pdf_call = mock_pdf.await_args.kwargs
@@ -419,9 +416,10 @@ def test_export_includes_optional_fastapi_param():
         assert pdf_call["fastapi_url"] == "https://fast.example"
 
         mock_pptx = AsyncMock(return_value=fake_result)
-        with patch.dict(
-            os.environ, {"NEXT_PUBLIC_FAST_API": ""}, clear=False
-        ), patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pptx):
+        with (
+            patch.dict(os.environ, {"NEXT_PUBLIC_FAST_API": ""}, clear=False),
+            patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pptx),
+        ):
             await export_presentation(dummy, title="two", export_as="pptx")
         pptx_call = mock_pptx.await_args.kwargs
         assert pptx_call["fastapi_url"] is None
@@ -450,9 +448,7 @@ def test_replace_and_extension_helpers():
     assert replaced == "fixed.txt"
     randomized = replace_file_name("note.txt", f"note----{uuid.uuid4()}")
     assert randomized.endswith(".txt") and "----" in randomized
-    assert (
-        get_original_file_name(os.path.join("ignored", randomized)) == "note.txt"
-    )
+    assert get_original_file_name(os.path.join("ignored", randomized)) == "note.txt"
 
 
 def test_get_file_ext_or_none():
@@ -522,15 +518,19 @@ def test_get_layout_by_name_returns_model():
     )
 
     async def runner():
-        with patch(
-            "utils.internal_http.get_configured_auth_username",
-            return_value="",
-        ), patch(
-            "utils.internal_http.create_session_token",
-            return_value="cookie",
-        ), patch(
-            "templates.get_layout_by_name.aiohttp.ClientSession",
-            return_value=_make_aio_layout_session(resp),
+        with (
+            patch(
+                "utils.internal_http.get_configured_auth_username",
+                return_value="",
+            ),
+            patch(
+                "utils.internal_http.create_session_token",
+                return_value="cookie",
+            ),
+            patch(
+                "templates.get_layout_by_name.aiohttp.ClientSession",
+                return_value=_make_aio_layout_session(resp),
+            ),
         ):
             layout = await tpl_layout_fetcher.get_layout_by_name("deck")
             assert isinstance(layout, PresentationLayoutModel)
@@ -544,12 +544,15 @@ def test_get_layout_by_name_raises_on_http_failure():
     resp.text = AsyncMock(return_value="down")
 
     async def runner():
-        with patch(
-            "utils.internal_http.get_configured_auth_username",
-            return_value="",
-        ), patch(
-            "templates.get_layout_by_name.aiohttp.ClientSession",
-            return_value=_make_aio_layout_session(resp),
+        with (
+            patch(
+                "utils.internal_http.get_configured_auth_username",
+                return_value="",
+            ),
+            patch(
+                "templates.get_layout_by_name.aiohttp.ClientSession",
+                return_value=_make_aio_layout_session(resp),
+            ),
         ):
             with pytest.raises(HTTPException):
                 await tpl_layout_fetcher.get_layout_by_name("missing")
@@ -570,12 +573,8 @@ def test_get_layout_by_name_attach_auth_cookie(monkeypatch):
 
     captured: dict[str, str | None] = {}
 
-    monkeypatch.setattr(
-        "utils.internal_http.get_configured_auth_username", lambda: "user"
-    )
-    monkeypatch.setattr(
-        "utils.internal_http.create_session_token", lambda _u: "tok123"
-    )
+    monkeypatch.setattr("utils.internal_http.get_configured_auth_username", lambda: "user")
+    monkeypatch.setattr("utils.internal_http.create_session_token", lambda _u: "tok123")
     monkeypatch.setattr("utils.internal_http.SESSION_COOKIE_NAME", "sess")
 
     def capture_session(*_a, **_k):

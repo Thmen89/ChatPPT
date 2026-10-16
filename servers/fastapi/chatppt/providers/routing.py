@@ -33,14 +33,17 @@ class ResolvedLLM:
 
 
 def _uses_settings(settings: Settings, step: str | None) -> bool:
-    if step and (settings.is_explicit(f"llm.routing.{step}.provider") or settings.is_explicit(f"llm.routing.{step}.model")):
+    if step and (
+        settings.is_explicit(f"llm.routing.{step}.provider") or settings.is_explicit(f"llm.routing.{step}.model")
+    ):
         return True
     return settings.is_explicit("llm.provider")
 
 
 def _legacy() -> ResolvedLLM:
     from utils.llm_config import get_llm_config
-    from utils.llm_provider import get_llm_provider as legacy_provider, get_model
+    from utils.llm_provider import get_llm_provider as legacy_provider
+    from utils.llm_provider import get_model
 
     return ResolvedLLM(legacy_provider().value, get_model(), get_llm_config(), "legacy")
 
@@ -62,12 +65,16 @@ def resolve_llm(step: str | None = None, settings: Settings | None = None) -> Re
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
     creds = settings.llm.providers.get(provider_id, ProviderCredentials())
-    model = (route.model
-             or (settings.llm.model if provider_id == settings.llm.provider else None)
-             or creds.model
-             or spec.default_model)
+    model = (
+        route.model
+        or (settings.llm.model if provider_id == settings.llm.provider else None)
+        or creds.model
+        or spec.default_model
+    )
     if not model:
-        raise HTTPException(status_code=400, detail=f"{provider_id}: set llm.providers.{provider_id}.model in chatppt.toml")
+        raise HTTPException(
+            status_code=400, detail=f"{provider_id}: set llm.providers.{provider_id}.model in chatppt.toml"
+        )
     try:
         config = spec.build(creds)
     except ProviderConfigError as exc:

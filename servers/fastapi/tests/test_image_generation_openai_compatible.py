@@ -1,6 +1,8 @@
-import pytest
 import os
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from services.image_generation_service import ImageGenerationService
 
 
@@ -48,18 +50,11 @@ class TestImageGenerationOpenAICompatible:
                                         os.environ,
                                         {"IMAGE_PROVIDER": "openai_compatible"},
                                     ):
-                                        service = ImageGenerationService(
-                                            mock_images_directory
-                                        )
-                                        assert (
-                                            service.image_gen_func
-                                            == service.generate_image_openai_compatible
-                                        )
+                                        service = ImageGenerationService(mock_images_directory)
+                                        assert service.image_gen_func == service.generate_image_openai_compatible
 
     @pytest.mark.anyio
-    async def test_generate_image_openai_compatible_success(
-        self, mock_images_directory
-    ):
+    async def test_generate_image_openai_compatible_success(self, mock_images_directory):
         service = ImageGenerationService(mock_images_directory)
 
         # Mock environment variables
@@ -76,9 +71,7 @@ class TestImageGenerationOpenAICompatible:
                     return_value="custom-model",
                 ):
                     # Mock AsyncOpenAI client
-                    with patch(
-                        "services.image_generation_service.AsyncOpenAI"
-                    ) as MockClient:
+                    with patch("services.image_generation_service.AsyncOpenAI") as MockClient:
                         mock_client_instance = MockClient.return_value
 
                         # Mock response with b64_json
@@ -90,18 +83,14 @@ class TestImageGenerationOpenAICompatible:
                         mock_data.url = None
                         mock_response.data = [mock_data]
 
-                        mock_client_instance.images.generate = AsyncMock(
-                            return_value=mock_response
-                        )
+                        mock_client_instance.images.generate = AsyncMock(return_value=mock_response)
 
                         image_path = await service.generate_image_openai_compatible(
                             "test prompt", mock_images_directory
                         )
 
                         # Verify client initialization
-                        MockClient.assert_called_with(
-                            base_url="https://api.example.com/v1", api_key="sk-test-key"
-                        )
+                        MockClient.assert_called_with(base_url="https://api.example.com/v1", api_key="sk-test-key")
 
                         # Verify generate call (no response_format sent)
                         mock_client_instance.images.generate.assert_called_with(
@@ -116,9 +105,7 @@ class TestImageGenerationOpenAICompatible:
                         assert image_path.startswith(mock_images_directory)
 
     @pytest.mark.anyio
-    async def test_generate_image_openai_compatible_missing_config(
-        self, mock_images_directory
-    ):
+    async def test_generate_image_openai_compatible_missing_config(self, mock_images_directory):
         service = ImageGenerationService(mock_images_directory)
 
         with patch(
@@ -129,14 +116,10 @@ class TestImageGenerationOpenAICompatible:
                 ValueError,
                 match="OPENAI_COMPAT_IMAGE_BASE_URL, OPENAI_COMPAT_IMAGE_API_KEY and OPENAI_COMPAT_IMAGE_MODEL must be set",
             ):
-                await service.generate_image_openai_compatible(
-                    "test prompt", mock_images_directory
-                )
+                await service.generate_image_openai_compatible("test prompt", mock_images_directory)
 
     @pytest.mark.anyio
-    async def test_generate_image_openai_compatible_missing_model(
-        self, mock_images_directory
-    ):
+    async def test_generate_image_openai_compatible_missing_model(self, mock_images_directory):
         service = ImageGenerationService(mock_images_directory)
 
         with patch(
@@ -155,14 +138,10 @@ class TestImageGenerationOpenAICompatible:
                         ValueError,
                         match="OPENAI_COMPAT_IMAGE_BASE_URL, OPENAI_COMPAT_IMAGE_API_KEY and OPENAI_COMPAT_IMAGE_MODEL must be set",
                     ):
-                        await service.generate_image_openai_compatible(
-                            "test prompt", mock_images_directory
-                        )
+                        await service.generate_image_openai_compatible("test prompt", mock_images_directory)
 
     @pytest.mark.anyio
-    async def test_generate_image_openai_compatible_url_response(
-        self, mock_images_directory
-    ):
+    async def test_generate_image_openai_compatible_url_response(self, mock_images_directory):
         """Providers that return a URL instead of b64_json should be handled correctly."""
         service = ImageGenerationService(mock_images_directory)
 
@@ -178,18 +157,14 @@ class TestImageGenerationOpenAICompatible:
                     "services.image_generation_service.get_openai_compat_image_model_env",
                     return_value="custom-model",
                 ):
-                    with patch(
-                        "services.image_generation_service.AsyncOpenAI"
-                    ) as MockClient:
+                    with patch("services.image_generation_service.AsyncOpenAI") as MockClient:
                         mock_client_instance = MockClient.return_value
                         mock_data = Mock()
                         mock_data.b64_json = None
                         mock_data.url = "https://api.example.com/images/result.png"
                         mock_response = Mock()
                         mock_response.data = [mock_data]
-                        mock_client_instance.images.generate = AsyncMock(
-                            return_value=mock_response
-                        )
+                        mock_client_instance.images.generate = AsyncMock(return_value=mock_response)
 
                         fake_image_bytes = b"\x89PNG\r\n\x1a\n"
                         mock_dl_resp = AsyncMock()
@@ -212,9 +187,7 @@ class TestImageGenerationOpenAICompatible:
                         assert image_path.startswith(mock_images_directory)
 
     @pytest.mark.anyio
-    async def test_generate_image_openai_compatible_relative_url_response(
-        self, mock_images_directory
-    ):
+    async def test_generate_image_openai_compatible_relative_url_response(self, mock_images_directory):
         """Relative URLs in responses are resolved against the configured base URL origin."""
         service = ImageGenerationService(mock_images_directory)
 
@@ -230,18 +203,14 @@ class TestImageGenerationOpenAICompatible:
                     "services.image_generation_service.get_openai_compat_image_model_env",
                     return_value="custom-model",
                 ):
-                    with patch(
-                        "services.image_generation_service.AsyncOpenAI"
-                    ) as MockClient:
+                    with patch("services.image_generation_service.AsyncOpenAI") as MockClient:
                         mock_client_instance = MockClient.return_value
                         mock_data = Mock()
                         mock_data.b64_json = None
                         mock_data.url = "/images/result.png"
                         mock_response = Mock()
                         mock_response.data = [mock_data]
-                        mock_client_instance.images.generate = AsyncMock(
-                            return_value=mock_response
-                        )
+                        mock_client_instance.images.generate = AsyncMock(return_value=mock_response)
 
                         fake_image_bytes = b"\x89PNG\r\n\x1a\n"
                         mock_dl_resp = AsyncMock()
@@ -255,7 +224,7 @@ class TestImageGenerationOpenAICompatible:
                         with patch(
                             "services.image_generation_service.aiohttp.ClientSession",
                             return_value=mock_session,
-                        ) as MockSession:
+                        ):
                             image_path = await service.generate_image_openai_compatible(
                                 "test prompt", mock_images_directory
                             )

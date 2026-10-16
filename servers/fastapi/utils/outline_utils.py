@@ -107,7 +107,7 @@ def get_presentation_outline_model_with_toc(
     total_toc_slides = len(sections)
     global_outline_index = 0
 
-    for section_index, section in enumerate(sections):
+    for _section_index, section in enumerate(sections):
         section_lines = [
             "## Table of Contents",
             "",

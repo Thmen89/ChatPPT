@@ -42,6 +42,4 @@ def test_ensure_array_schemas_have_items_adds_missing_items_recursively():
 
     fixed = ensure_array_schemas_have_items(schema)
 
-    assert fixed["properties"]["slides"]["items"]["properties"]["tags"]["items"] == {
-        "type": "string"
-    }
+    assert fixed["properties"]["slides"]["items"]["properties"]["tags"]["items"] == {"type": "string"}

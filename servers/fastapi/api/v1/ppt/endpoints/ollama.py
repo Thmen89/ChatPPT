@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import json
 from typing import List
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,7 +57,7 @@ async def pull_model(
     try:
         saved_pull_status = await session.get(OllamaPullStatus, model)
         saved_model_status = saved_pull_status.status
-    except Exception as e:
+    except Exception:
         pass
 
     # If the model is being pulled, return the model

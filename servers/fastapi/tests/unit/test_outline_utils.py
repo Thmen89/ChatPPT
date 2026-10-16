@@ -11,9 +11,7 @@ from utils.outline_utils import (
 
 
 def test_get_presentation_title_handles_prefixed_page_heading():
-    outline = PresentationOutlineModel(
-        slides=[SlideOutlineModel(content="## Page 1: Growth/Plan\\Roadmap\nBody")]
-    )
+    outline = PresentationOutlineModel(slides=[SlideOutlineModel(content="## Page 1: Growth/Plan\\Roadmap\nBody")])
 
     title = get_presentation_title_from_presentation_outline(outline)
     assert title == "GrowthPlanRoadmap Body"

@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import zipfile
 from typing import List, Optional

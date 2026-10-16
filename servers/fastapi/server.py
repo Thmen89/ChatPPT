@@ -1,7 +1,7 @@
 import uvicorn
 import argparse
 import os
-from api.main import app
+from api.main import app  # noqa: F401  (keeps the app in the PyInstaller bundle)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the FastAPI server")
