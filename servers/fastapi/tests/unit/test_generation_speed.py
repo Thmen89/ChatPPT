@@ -204,6 +204,77 @@ def test_api_ordered_template_needs_no_layout_choice():
     structure.assert_not_awaited()
 
 
+# --------------------------------------------------------------------------- UI path: template first
+
+
+def test_ui_create_with_template_stores_its_layout():
+    session: Any = FakeAsyncSession()
+    with patch.object(presentation_endpoint, "get_layout_by_name", new=AsyncMock(return_value=_layout(3))):
+        presentation = asyncio.run(
+            presentation_endpoint.create_presentation(content="deck", template="general", sql_session=session)
+        )
+    assert presentation.get_layout().name == "general"
+
+
+def test_ui_outline_stream_picks_layouts_when_the_template_is_known():
+    from api.v1.ppt.endpoints import outlines as outlines_endpoint
+
+    now = datetime.now()
+    presentation = PresentationModel(
+        id=uuid.uuid4(), content="deck", n_slides=2, language="English", created_at=now, updated_at=now
+    )
+    presentation.set_layout(_layout(3))
+    session = FakeAsyncSession({presentation.id: presentation})
+    seen = {}
+
+    async def fake_outline(*args, **_kwargs):
+        seen["layout"] = args[-1]
+        yield json.dumps({"slides": [{"content": "## A " + "x" * 100, "layout": 2}, {"content": "## B", "layout": 0}]})
+
+    with (
+        patch.object(outlines_endpoint, "generate_ppt_outline", side_effect=fake_outline),
+        patch.object(outlines_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE, "store_generation_context", new=AsyncMock()),
+        patch.object(outlines_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE, "store_generated_outlines", new=AsyncMock()),
+    ):
+        response = asyncio.run(outlines_endpoint.stream_outlines(presentation.id, sql_session=session))
+        events = _collect_sse(response)
+    assert seen["layout"] is not None
+    complete = next(e for e in events if e.get("type") == "complete")
+    assert complete["presentation"]["structure"] == {"slides": [2, 0]}
+
+
+def test_ui_prepare_uses_the_outline_layouts_and_skips_the_structure_call():
+    now = datetime.now()
+    presentation = PresentationModel(
+        id=uuid.uuid4(), content="deck", n_slides=2, language="English", created_at=now, updated_at=now
+    )
+    presentation.set_layout(_layout(3))
+    session = FakeAsyncSession({presentation.id: presentation})
+    structure = AsyncMock(return_value=PresentationStructureModel(slides=[0, 0]))
+    outlines = [SlideOutlineModel(content="## A"), SlideOutlineModel(content="## B")]
+    with (
+        patch.object(presentation_endpoint, "generate_presentation_structure", new=structure),
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE, "store_generated_outlines", new=AsyncMock()
+        ),
+    ):
+        asyncio.run(
+            presentation_endpoint.prepare_presentation(
+                presentation_id=presentation.id, outlines=outlines, layouts=[2, 1], sql_session=session
+            )
+        )
+        structure.assert_not_awaited()
+        assert presentation.get_structure().slides == [2, 1]
+
+        # An outline edited into a different shape (no layout per slide) falls back to the call.
+        asyncio.run(
+            presentation_endpoint.prepare_presentation(
+                presentation_id=presentation.id, outlines=outlines, layouts=[2], sql_session=session
+            )
+        )
+        structure.assert_awaited_once()
+
+
 # --------------------------------------------------------------------------- schema sent once
 
 
