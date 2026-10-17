@@ -47,6 +47,11 @@ const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
   output: "standalone",
+  // The forwarded FastAPI calls: Next.js drops a proxied request after 30 s without a
+  // byte by default, and POST /api/v1/ppt/presentation/generate answers only once the deck
+  // is exported (minutes with a real model). Same ceiling as the MCP tool calls' 10 min,
+  // with room for big decks.
+  experimental: { proxyTimeout: 30 * 60 * 1000 },
   ...(process.env.NODE_ENV !== "production"
     ? {
         allowedDevOrigins: [
