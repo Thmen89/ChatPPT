@@ -14,7 +14,7 @@ import secrets
 ITERATIONS = 600_000
 MIN_LENGTH = 8
 MAX_LENGTH = 256
-_DUMMY = f"pbkdf2_sha256${ITERATIONS}$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+_DUMMY_SALT_AND_DIGEST = "AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 
 def _b64e(data: bytes) -> str:
@@ -33,8 +33,9 @@ def check_new_password(password: str) -> None:
         raise ValueError(f"Password must be at most {MAX_LENGTH} characters")
 
 
-def hash_password(password: str, iterations: int = ITERATIONS) -> str:
+def hash_password(password: str, iterations: int | None = None) -> str:
     salt = secrets.token_bytes(16)
+    iterations = iterations or ITERATIONS
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
     return f"pbkdf2_sha256${iterations}${_b64e(salt)}${_b64e(digest)}"
 
@@ -43,7 +44,9 @@ def verify_password(password: str, encoded: str | None) -> bool:
     """Constant-time check. A missing hash still costs one derivation, so timing does not
     reveal whether a username exists."""
     try:
-        algorithm, iterations, salt, digest = (encoded or _DUMMY).split("$")
+        algorithm, iterations, salt, digest = (encoded or f"pbkdf2_sha256${ITERATIONS}${_DUMMY_SALT_AND_DIGEST}").split(
+            "$"
+        )
         if algorithm != "pbkdf2_sha256":
             return False
         actual = hashlib.pbkdf2_hmac("sha256", (password or "").encode("utf-8"), _b64d(salt), int(iterations))

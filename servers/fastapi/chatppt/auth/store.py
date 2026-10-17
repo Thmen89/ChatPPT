@@ -105,6 +105,7 @@ def _user(row: UserModel) -> User:
 
 
 _engines: dict[str, Engine] = {}
+_current_url: str | None = None
 _engine_lock = threading.Lock()
 
 
@@ -118,7 +119,11 @@ def database_url() -> str:
 def engine() -> Engine:
     """One sync engine per database URL; creates the auth tables if they are missing (the
     CLI may run before the server ever has)."""
+    global _current_url
     url = database_url()
+    if url != _current_url:  # another database (tests, CLI): cached users belong to the old one
+        invalidate()
+        _current_url = url
     existing = _engines.get(url)
     if existing is not None:
         return existing
@@ -128,8 +133,8 @@ def engine() -> Engine:
             return existing
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
         created = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
-        tables = [UserModel.__table__, ApiTokenModel.__table__, KeyValueSqlModel.__table__]
-        SQLModel.metadata.create_all(created, tables=tables)  # type: ignore[arg-type]
+        tables = [SQLModel.metadata.tables[name] for name in ("users", "api_tokens", "keyvaluesqlmodel")]
+        SQLModel.metadata.create_all(created, tables=tables)
         _engines[url] = created
         return created
 
@@ -307,6 +312,17 @@ def delete_user(user_id: int) -> None:
     invalidate()
 
 
+def delete_all_users() -> None:
+    """Remove every user and API token (``RESET_AUTH``)."""
+    with session() as s:
+        for token in s.exec(select(ApiTokenModel)):
+            s.delete(token)
+        for row in s.exec(select(UserModel)):
+            s.delete(row)
+        s.commit()
+    invalidate()
+
+
 def authenticate(username: str, password: str) -> User | None:
     """The active user these credentials belong to, or None. Upgrades old hashes."""
     with session() as s:
@@ -368,9 +384,7 @@ def create_token(user_id: int, name: str) -> tuple[str, Token]:
         owner = s.get(UserModel, user_id)
         if owner is None:
             raise AuthError("No such user")
-        row = ApiTokenModel(
-            user_id=user_id, name=label, prefix=raw[:12], token_hash=hash_token(raw), created_at=_now()
-        )
+        row = ApiTokenModel(user_id=user_id, name=label, prefix=raw[:12], token_hash=hash_token(raw), created_at=_now())
         s.add(row)
         s.commit()
         s.refresh(row)
@@ -389,7 +403,9 @@ def list_tokens(user_id: int | None = None) -> list[Token]:
         out = []
         for tok, owner in rows:
             assert tok.id is not None
-            out.append(Token(tok.id, tok.user_id, owner.username, tok.name, tok.prefix, tok.created_at, tok.last_used_at))
+            out.append(
+                Token(tok.id, tok.user_id, owner.username, tok.name, tok.prefix, tok.created_at, tok.last_used_at)
+            )
         return out
 
 

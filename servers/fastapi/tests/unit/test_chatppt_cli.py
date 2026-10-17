@@ -121,19 +121,43 @@ def test_restore_rejects_foreign_archive(data_dir: Path, tmp_path: Path) -> None
 
 
 def test_reset_password_from_stdin(data_dir: Path) -> None:
-    from utils import simple_auth
+    from chatppt.auth import store
 
-    simple_auth.setup_initial_credentials("alice", "old-secret")
+    store.create_user("alice", "old-secret", is_admin=True)
     user = cli.reset_password(
         _settings(data_dir), None, password_stdin=True, stdin=io.StringIO("new-secret\n"), out=io.StringIO()
     )
     assert user == "alice"
-    assert simple_auth.verify_credentials("alice", "new-secret")
-    assert not simple_auth.verify_credentials("alice", "old-secret")
+    assert store.authenticate("alice", "new-secret")
+    assert not store.authenticate("alice", "old-secret")
+
+
+def test_reset_password_names_the_user_when_there_are_several_admins(data_dir: Path) -> None:
+    from chatppt.auth import store
+
+    store.create_user("alice", "secret-one", is_admin=True)
+    store.create_user("bob", "secret-two", is_admin=True)
+    with pytest.raises(cli.CLIError, match="--username"):
+        cli.reset_password(_settings(data_dir), None, password_stdin=True, stdin=io.StringIO("new-secret\n"))
+    cli.reset_password(
+        _settings(data_dir), "Bob", password_stdin=True, stdin=io.StringIO("new-secret\n"), out=io.StringIO()
+    )
+    assert store.authenticate("bob", "new-secret")
+
+
+def test_reset_password_creates_an_admin_on_an_empty_install(data_dir: Path) -> None:
+    from chatppt.auth import store
+
+    user = cli.reset_password(
+        _settings(data_dir), None, password_stdin=True, stdin=io.StringIO("new-secret\n"), out=io.StringIO()
+    )
+    assert user == "admin"
+    found = store.authenticate("admin", "new-secret")
+    assert found is not None and found.is_admin
 
 
 def test_reset_password_rejects_short_password(data_dir: Path) -> None:
-    with pytest.raises(cli.CLIError, match="at least 6"):
+    with pytest.raises(cli.CLIError, match="at least 8"):
         cli.reset_password(_settings(data_dir), "bob", password_stdin=True, stdin=io.StringIO("123\n"))
 
 

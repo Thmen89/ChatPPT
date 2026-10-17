@@ -216,6 +216,22 @@ def _read_new_password(from_stdin: bool, stdin: IO[str]) -> str:
     return first
 
 
+def _reset_target(username: str | None) -> tuple[str, bool]:
+    """Which user to reset: the one named, else the only admin (or ``admin`` on an install
+    without users). Returns (username, whether that user exists)."""
+    from chatppt.auth import store
+
+    if username:
+        return store.normalize_username(username), store.get_user_by_username(username) is not None
+    admins = [u for u in store.list_users() if u.is_admin]
+    if len(admins) == 1:
+        return admins[0].username, True
+    if not admins and store.count_users() == 0:
+        return "admin", False
+    names = ", ".join(u.username for u in admins) or "none"
+    raise CLIError(f"say which user with --username (admins: {names})")
+
+
 def reset_password(
     settings: Settings,
     username: str | None,
@@ -223,19 +239,26 @@ def reset_password(
     stdin: IO[str] = sys.stdin,
     out: IO[str] = sys.stderr,
 ) -> str:
-    """Set the login to ``username`` (default: the current one) and a new password.
+    """Set a new password for ``username`` (default: the only admin). A user that does not
+    exist yet is created as an admin, which is the way back in when nobody can sign in.
 
-    Signs every existing session out. Returns the username.
+    Signs that user out everywhere and re-enables them. Returns the username.
     """
-    from utils import simple_auth
+    from chatppt.auth import store
 
-    user = username or simple_auth.get_configured_auth_username() or "admin"
+    user, exists = _reset_target(username)
     password = _read_new_password(password_stdin, stdin)
     try:
-        simple_auth.force_set_credentials(user, password)
+        if exists:
+            found = store.get_user_by_username(user)
+            assert found is not None
+            store.update_user(found.id, password=password, is_active=True)
+        else:
+            store.create_user(user, password, is_admin=True, validate=False)
     except ValueError as exc:
         raise CLIError(str(exc)) from None
-    print(f"password for '{user}' reset; existing sessions are signed out.", file=out)
+    action = "reset" if exists else "set for the new admin"
+    print(f"password for '{user}' {action}; that user's sessions are signed out.", file=out)
     if settings.auth.disabled:
         print("note: login is disabled (auth.disabled), so the password is not asked for.", file=out)
     return user
@@ -382,11 +405,19 @@ def _check_optional(settings: Settings) -> list[Check]:
 def _check_auth(settings: Settings) -> Check:
     if settings.auth.disabled:
         return Check("warn", "login", "disabled (auth.disabled): anyone who can reach the port can use ChatPPT")
-    from utils import simple_auth
+    from chatppt.auth import store
 
-    user = simple_auth.get_configured_auth_username()
-    if user:
-        return Check("ok", "login", f"user '{user}' (forgot the password? chatppt reset-password)")
+    try:
+        users = store.list_users()
+    except Exception as exc:  # database missing or unreadable: the database check says why
+        return Check("warn", "login", f"could not read users: {exc}")
+    if users:
+        admins = [u.username for u in users if u.is_admin and u.is_active]
+        return Check(
+            "ok",
+            "login",
+            f"{len(users)} user(s), admin(s): {', '.join(admins) or 'none'} (forgot a password? chatppt reset-password)",
+        )
     return Check("ok", "login", "not set up yet; the first visit asks for a username and password")
 
 
@@ -434,8 +465,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("archive", type=Path)
     p.add_argument("--force", action="store_true", help="move current files aside and restore over them")
 
-    p = sub.add_parser("reset-password", help="set a new login password (signs everyone out)")
-    p.add_argument("--username", help="login name (default: the current one, or admin)")
+    p = sub.add_parser("reset-password", help="set a user's password (signs that user out)")
+    p.add_argument("--username", help="login name (default: the only admin; a new name is created as an admin)")
     p.add_argument("--password-stdin", action="store_true", help="read the password from stdin instead of prompting")
 
     sub.add_parser("doctor", help="check the configuration and say what is wrong in plain words")

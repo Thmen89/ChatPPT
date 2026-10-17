@@ -9,6 +9,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from chatppt.auth.web import sign_app_data_urls
 from chatppt.hooks import run_hook
 from services.database import get_async_session
 from utils.asset_directory_utils import get_exports_directory
@@ -23,7 +24,9 @@ async def export_deck(id: uuid.UUID, sql_session: AsyncSession = Depends(get_asy
     from api.v1.ppt.endpoints.presentation import get_presentation
 
     deck = (await get_presentation(id, sql_session)).model_dump(mode="json")
-    return JSONResponse(await run_hook("before_export", deck), headers={"Cache-Control": "no-store"})
+    deck = await run_hook("before_export", deck)
+    # Signed /app_data links: the converter fetches slide images without a cookie.
+    return JSONResponse(sign_app_data_urls(deck), headers={"Cache-Control": "no-store"})
 
 
 @API_V1_HOOKS_ROUTER.post("/after-export", status_code=204)

@@ -75,11 +75,7 @@ from utils.process_slides import (
 )
 from utils.get_layout_by_name import get_layout_by_name
 from utils.llm_utils import message_content_to_text
-from utils.simple_auth import (
-    SESSION_COOKIE_NAME,
-    create_session_token,
-    get_session_token_from_request,
-)
+from utils.simple_auth import export_cookie_header_for
 from models.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 import uuid
 
@@ -197,25 +193,8 @@ def _start_slide_content_tasks(
 
 
 def _build_export_cookie_header(request: Request) -> Optional[str]:
-    cookie_header = (request.headers.get("cookie") or "").strip()
-    if cookie_header:
-        return cookie_header
-
-    session_token = get_session_token_from_request(request)
-    if session_token:
-        return f"{SESSION_COOKIE_NAME}={session_token}"
-
-    username = getattr(request.state, "auth_username", None)
-    if isinstance(username, str) and username.strip():
-        try:
-            session_token = create_session_token(username.strip())
-            return f"{SESSION_COOKIE_NAME}={session_token}"
-        except Exception:
-            logger.exception(
-                "[presentation.generate] failed to create export session token"
-            )
-
-    return None
+    """The exporter gets a short-lived read-only token for the caller, never their session."""
+    return export_cookie_header_for(request)
 
 
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
