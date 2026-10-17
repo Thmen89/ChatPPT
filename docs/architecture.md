@@ -11,13 +11,14 @@ what changed per workstream are in [roadmap.md](roadmap.md).
               └─ Next.js standalone server, in the same process
                    UI pages; /api/template, /api/export-presentation, ...
                    rewrites /api/v1/*, /app_data/*, /static/*, /mcp, /docs, /openapi.json
+                   export: drives one headless Chromium (launched on first export,
+                   closed after a minute idle) on /pdf-maker?id=...
                         │
                         ▼  127.0.0.1:8000 (loopback only)
               python server.py  (uvicorn, child of start.js)
                    FastAPI: generation, storage, auth, webhooks, config
                    MCP at /mcp, built on first request
-                   export: spawns presentation-export (Puppeteer + converter), which
-                   loads http://127.0.0.1:5000/pdf-maker?id=... in Chromium
+                   PPTX writer (python-pptx, in-process)
 ```
 
 - **No reverse proxy.** The rewrites live in `servers/nextjs/next.config.mjs` and are fixed at
@@ -77,12 +78,18 @@ The UI path:
 4. `GET /api/v1/ppt/presentation/stream/{id}` generates slide content, `llm.concurrency` (8)
    slides at a time, fetching icons (local fastembed index) and images as each finishes, and
    streams them to the editor. `after_slide` runs on each.
-5. Export: `POST /api/export-presentation` (Next.js) runs the export runtime, which renders
-   `/pdf-maker?id=...` in headless Chromium and converts it to PPTX or PDF. `before_export`
-   and `after_export` run around it.
+5. Export: `POST /api/export-presentation` (Next.js) opens `/pdf-maker?id=...` in its warm
+   Chromium (`lib/export/`) and waits for the page's own ready signal, then fonts, images and
+   a short DOM quiet window. PDF is Chromium's print. For PPTX one `page.evaluate` walk reads
+   every slide's boxes, text runs and styles; what PowerPoint cannot draw (svg, canvas,
+   tables, gradients) is captured as pictures; the result goes as positioned shapes to
+   FastAPI's writer (`POST /api/v1/ppt/export/pptx`, `services/pptx_writer.py`), which saves
+   it to `<data>/exports`. `before_export` and `after_export` run around it.
+   `CHATPPT_EXPORT_ENGINE=bundle` switches back to the earlier presentation-export bundle.
 
-`POST /api/v1/ppt/presentation/generate` does 2 to 5 in one call (FastAPI drives the same
-exporter). Every LLM call gets its client from `llm_for_step(step)`, and every prompt comes
+`POST /api/v1/ppt/presentation/generate` does 2 to 5 in one call: FastAPI asks Next.js to
+render (`POST /api/export-presentation/render`, models or PDF bytes, no side effects) and
+writes the file itself. Every LLM call gets its client from `llm_for_step(step)`, and every prompt comes
 from `render_prompt(name)`.
 
 Layout schemas come from Next.js (`/api/template?group=<id>`, which compiles the template's

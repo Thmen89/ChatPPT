@@ -26,7 +26,7 @@ export default defineConfig({
     timeout: 120_000,
     stdout: "pipe",
     gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
-    // The exporter drives Chromium through Puppeteer; reuse Playwright's.
+    // The exporter drives a Chromium at PUPPETEER_EXECUTABLE_PATH; reuse Playwright's.
     env: {
       PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || chromium.executablePath(),
     },
