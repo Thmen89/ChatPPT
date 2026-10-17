@@ -1,0 +1,6 @@
+# hadolint Dockerfile Dockerfile.dev
+ignored:
+  - DL3006  # base images are pinned through ARGs (PYTHON_IMAGE, NODE_IMAGE, UV_IMAGE)
+  - DL3008  # Debian packages follow the pinned base image's security updates
+  - DL3003  # cd inside one RUN keeps the npm steps readable
+  - SC2086  # $extras / $common / $full are word-split on purpose

@@ -2,8 +2,8 @@ import { chromium, defineConfig, devices } from "@playwright/test";
 
 // One flow, end to end, on mock providers: see e2e/deck.spec.ts.
 // `npm run test:e2e` starts the stack with e2e/stack.py, or reuses one already
-// answering on :80 when not in CI.
-const BASE_URL = "http://127.0.0.1";
+// answering on :5000 when not in CI.
+const BASE_URL = "http://127.0.0.1:5000";
 
 export default defineConfig({
   testDir: "./e2e",

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Run the full ChatPPT stack on mock providers until SIGTERM, for the Playwright e2e test.
 
-Reuses the benchmark's ``Stack`` (scripts/bench/run.py): nginx :80 -> Next.js :3000 and
-FastAPI :8000, MCP :8001, mock LLM :9900, auth disabled, a throwaway data folder. On top of
+Reuses the benchmark's ``Stack`` (scripts/bench/run.py): ``node start.js`` as in the
+container (Next.js on :5000 forwarding the API to FastAPI on 127.0.0.1:8000, MCP inside
+FastAPI), mock LLM :9900, auth disabled, a throwaway data folder. On top of
 that, image generation is switched on and pointed at the mock's PNG endpoint, so the flow
 covers image assets too.
 
 Needs what the bench needs: the FastAPI venv, the Next.js standalone build, the
-presentation-export runtime, nginx, and a Chromium at PUPPETEER_EXECUTABLE_PATH.
+presentation-export runtime and a Chromium at PUPPETEER_EXECUTABLE_PATH.
 Logs go to $E2E_LOGS_DIR (default: a temp dir, printed on start).
 """
 

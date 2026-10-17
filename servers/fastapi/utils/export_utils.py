@@ -8,6 +8,7 @@ from pathvalidate import sanitize_filename
 
 from models.presentation_and_path import PresentationAndPath
 from utils.filename_utils import safe_export_basename
+from utils.internal_urls import nextjs_base_url
 from services.export_task_service import EXPORT_TASK_SERVICE
 from utils.runtime_limits import log_memory
 
@@ -16,6 +17,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _get_next_public_url() -> str:
+    if os.getenv("CHATPPT_NEXTJS_URL"):
+        return nextjs_base_url()
     return (os.getenv("NEXT_PUBLIC_URL") or "").strip() or "http://127.0.0.1"
 
 
