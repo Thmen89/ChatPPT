@@ -11,10 +11,10 @@ from models.sql.template import TemplateModel
 from services.database import async_session_maker
 from templates.presentation_layout import PresentationLayoutModel
 from utils.internal_http import internal_request_headers
+from utils.internal_urls import nextjs_base_url
 
 LOGGER = logging.getLogger(__name__)
 
-_CUSTOM_COMPILE_URL = "http://localhost/api/template/custom"
 
 
 async def load_custom_presentation_layout(layout_name: str) -> PresentationLayoutModel:
@@ -100,7 +100,7 @@ async def _compile_custom_layouts_on_nextjs(
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                _CUSTOM_COMPILE_URL, json=body, headers=headers
+                f"{nextjs_base_url()}/api/template/custom", json=body, headers=headers
             ) as response:
                 if response.status == 200:
                     payload = await response.json()
