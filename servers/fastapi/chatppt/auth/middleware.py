@@ -112,6 +112,22 @@ def public_origin_netloc(settings: Settings) -> str:
     return urlsplit(settings.server.public_url).netloc.lower()
 
 
+def cors_origins(settings: Settings) -> list[str]:
+    """Origins allowed to call the API cross-origin: ChatPPT's own (``server.public_url``,
+    which covers the desktop app, whose UI and API ports differ) and the loopback Next.js
+    server the headless exporter loads (``CHATPPT_NEXTJS_URL``), whose pages call FastAPI
+    on its own port when ``NEXT_PUBLIC_FAST_API`` is set."""
+    from utils.internal_urls import nextjs_base_url
+
+    origins: list[str] = []
+    for url in (settings.server.public_url, nextjs_base_url()):
+        parts = urlsplit(url)
+        origin = f"{parts.scheme}://{parts.netloc}".lower()
+        if parts.scheme and parts.netloc and origin not in origins:
+            origins.append(origin)
+    return origins
+
+
 def _secure_public_url(settings: Settings) -> bool:
     return settings.server.public_url.lower().startswith("https://")
 

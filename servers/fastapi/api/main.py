@@ -12,7 +12,7 @@ from starlette.responses import FileResponse
 from api import mcp
 from api.lifespan import app_lifespan
 from api.observability import AccessLogMiddleware, UnbufferedStreamsMiddleware, health_router
-from chatppt.auth.middleware import SecurityMiddleware
+from chatppt.auth.middleware import SecurityMiddleware, cors_origins
 from api.v1.auth.router import API_V1_AUTH_ROUTER
 from api.v1.config.router import API_V1_CONFIG_ROUTER
 from api.v1.hooks.router import API_V1_HOOKS_ROUTER
@@ -102,12 +102,9 @@ app.add_middleware(SecurityMiddleware)
 
 
 def _cors_origins() -> list[str]:
-    """Only ChatPPT's own origin (server.public_url). Same-origin browser calls through the
-    public port need no CORS; this covers the desktop app, whose UI and API ports differ."""
-    from urllib.parse import urlsplit
-
-    parts = urlsplit(get_settings().server.public_url)
-    return [f"{parts.scheme}://{parts.netloc}"] if parts.scheme and parts.netloc else []
+    """ChatPPT's own origin and the exporter's loopback Next.js (see ``cors_origins``).
+    Same-origin browser calls through the public port need no CORS."""
+    return cors_origins(get_settings())
 
 
 app.add_middleware(

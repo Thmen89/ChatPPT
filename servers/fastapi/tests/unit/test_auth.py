@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 import chatppt.settings as settings_mod
 from api.v1.auth.router import API_V1_AUTH_ROUTER
 from chatppt.auth import bootstrap, passwords, ratelimit, signing, store
-from chatppt.auth.middleware import SESSION_COOKIE, SecurityMiddleware
+from chatppt.auth.middleware import SESSION_COOKIE, SecurityMiddleware, cors_origins
 from chatppt.auth.web import signed_path
 
 PUBLIC = "http://chatppt.test:5000"
@@ -74,7 +74,11 @@ def _app(data_dir: Path) -> FastAPI:
     app.mount("/app_data", StaticFiles(directory=data_dir), name="app_data")
     app.add_middleware(SecurityMiddleware)
     app.add_middleware(
-        CORSMiddleware, allow_origins=[PUBLIC], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+        CORSMiddleware,
+        allow_origins=cors_origins(settings_mod.get_settings()),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     return app
 
@@ -344,6 +348,17 @@ def test_cors_allows_only_the_public_url(client: TestClient) -> None:
     assert ok.headers.get("access-control-allow-origin") == PUBLIC
     bad = client.get("/api/v1/auth/status", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in bad.headers
+
+
+def test_cors_allows_the_exporters_loopback_nextjs(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # API-started exports load /pdf-maker from CHATPPT_NEXTJS_URL, which calls FastAPI on
+    # its own port (NEXT_PUBLIC_FAST_API): without this the PPTX export finds no slides.
+    monkeypatch.setenv("CHATPPT_NEXTJS_URL", "http://127.0.0.1:5000")
+    client = TestClient(_app(data))
+    ok = client.get("/api/v1/auth/status", headers={"Origin": "http://127.0.0.1:5000"})
+    assert ok.headers.get("access-control-allow-origin") == "http://127.0.0.1:5000"
+    other = client.get("/api/v1/auth/status", headers={"Origin": "http://127.0.0.1:6666"})
+    assert "access-control-allow-origin" not in other.headers
 
 
 def test_disabled_auth_keeps_working_and_still_refuses_cross_site_writes(
