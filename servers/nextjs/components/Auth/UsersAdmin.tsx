@@ -6,13 +6,13 @@ import { Trash2, UserPlus } from "lucide-react";
 import { notify } from "@/components/ui/sonner";
 import { AccountUser, ApiToken, authApi, formatWhen } from "./authApi";
 
-const card = "w-full max-w-3xl space-y-4 rounded-[20px] border border-[#EDEEEF] bg-white p-7";
+const card = "w-full max-w-3xl space-y-3 border-b border-zinc-200 pb-6";
 const input =
-  "rounded-[11px] border border-[#EDEEEF] bg-white px-4 py-2.5 font-syne text-sm text-black outline-none focus:border-[#a49cfc]";
+  "h-8 rounded-md border border-zinc-200 bg-white px-2.5 text-[13px] text-zinc-900 outline-none focus:border-zinc-400";
 const primary =
-  "inline-flex items-center justify-center gap-2 rounded-[58px] bg-[#7C51F8] px-5 py-2.5 font-syne text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:opacity-60";
+  "inline-flex h-8 items-center justify-center gap-2 rounded-md bg-zinc-900 px-3 text-[13px] font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60";
 const small =
-  "rounded-[58px] border border-[#EDEEEF] bg-white px-3 py-1.5 font-syne text-[11px] font-medium text-black transition hover:bg-[#F9FAFB]";
+  "rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50";
 
 /** Admins: add people, make admins, disable, reset passwords, revoke anyone's tokens. */
 export default function UsersAdmin({ currentUser }: { currentUser: string | null }) {
@@ -70,8 +70,8 @@ export default function UsersAdmin({ currentUser }: { currentUser: string | null
   return (
     <div className="space-y-5">
       <div className={card}>
-        <h4 className="font-unbounded text-lg font-normal text-black">Users</h4>
-        <p className="font-syne text-sm text-[#494A4D]">
+        <h4 className="text-sm font-semibold text-zinc-900">Users</h4>
+        <p className="text-sm text-zinc-500">
           Everyone shares the same decks and templates. Only admins change provider keys, settings and users.
         </p>
         <form onSubmit={add} className="flex flex-wrap items-center gap-2">
@@ -91,25 +91,25 @@ export default function UsersAdmin({ currentUser }: { currentUser: string | null
             onChange={(e) => setPassword(e.target.value)}
             aria-label="Password"
           />
-          <label className="flex items-center gap-1.5 font-syne text-xs text-black">
+          <label className="flex items-center gap-1.5 text-xs text-zinc-900">
             <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} /> Admin
           </label>
           <button type="submit" className={primary} disabled={!username.trim() || password.length < 8}>
             <UserPlus className="h-3.5 w-3.5" /> Add
           </button>
         </form>
-        <ul className="divide-y divide-[#EDEEEF]">
+        <ul className="divide-y divide-zinc-100">
           {users.map((user) => (
-            <li key={user.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 font-syne text-sm">
+            <li key={user.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
               <div>
-                <p className={user.is_active ? "text-black" : "text-[#999999] line-through"}>
+                <p className={user.is_active ? "text-zinc-900" : "text-zinc-400 line-through"}>
                   {user.username}
-                  {user.is_admin ? <span className="ml-2 text-[10px] text-[#7A5AF8]">ADMIN</span> : null}
+                  {user.is_admin ? <span className="ml-2 text-[10px] text-zinc-500">ADMIN</span> : null}
                   {user.source !== "local" ? (
-                    <span className="ml-2 text-[10px] text-[#494A4D]">{user.source.toUpperCase()}</span>
+                    <span className="ml-2 text-[10px] text-zinc-500">{user.source.toUpperCase()}</span>
                   ) : null}
                 </p>
-                <p className="text-xs text-[#494A4D]">last sign-in {formatWhen(user.last_login_at)}</p>
+                <p className="text-xs text-zinc-500">last sign-in {formatWhen(user.last_login_at)}</p>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -160,14 +160,14 @@ export default function UsersAdmin({ currentUser }: { currentUser: string | null
       </div>
 
       <div className={card}>
-        <h4 className="font-unbounded text-lg font-normal text-black">All API tokens</h4>
+        <h4 className="text-sm font-semibold text-zinc-900">All API tokens</h4>
         {tokens.length ? (
-          <ul className="divide-y divide-[#EDEEEF]">
+          <ul className="divide-y divide-zinc-100">
             {tokens.map((token) => (
-              <li key={token.id} className="flex items-center justify-between py-2.5 font-syne text-sm">
-                <p className="text-black">
+              <li key={token.id} className="flex items-center justify-between py-2.5 text-sm">
+                <p className="text-zinc-900">
                   {token.username} · {token.name}{" "}
-                  <span className="text-xs text-[#494A4D]">
+                  <span className="text-xs text-zinc-500">
                     <code>{token.prefix}…</code> · last used {formatWhen(token.last_used_at)}
                   </span>
                 </p>
@@ -184,7 +184,7 @@ export default function UsersAdmin({ currentUser }: { currentUser: string | null
             ))}
           </ul>
         ) : (
-          <p className="font-syne text-xs text-[#494A4D]">No API tokens.</p>
+          <p className="text-xs text-zinc-500">No API tokens.</p>
         )}
       </div>
     </div>

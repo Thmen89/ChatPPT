@@ -12,7 +12,7 @@ const LINKS = [
   { href: "/dashboard", label: "Decks" },
   { href: "/templates", label: "Templates" },
   { href: "/theme", label: "Themes" },
-  { href: "/settings", label: "Settings", needsKeys: true },
+  { href: "/settings", label: "Settings" },
 ];
 
 /** The one bar every screen except the editor shares. */
@@ -27,7 +27,7 @@ export default function AppNav({ children }: { children?: React.ReactNode }) {
           ChatPPT
         </Link>
         <nav aria-label="Main" className="flex items-center gap-1">
-          {LINKS.filter((l) => !l.needsKeys || canChangeKeys).map((l) => {
+          {LINKS.map((l) => {
             const active = pathname === l.href || pathname?.startsWith(`${l.href}/`);
             return (
               <Link
@@ -40,7 +40,8 @@ export default function AppNav({ children }: { children?: React.ReactNode }) {
                   active ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900"
                 )}
               >
-                {l.label}
+                {/* Without key access, Settings holds only your account and API tokens. */}
+                {l.href === "/settings" && !canChangeKeys ? "Account" : l.label}
               </Link>
             );
           })}

@@ -88,6 +88,11 @@ ChatPPT is built for one person or a small team on a host they control. Settings
   (issuer, audience, expiry, nonce) are checked, but the signature is not verified. Use an
   `https://` issuer.
 - `RESET_AUTH=true` at startup deletes every user and token.
+- The exporter renders decks in Chromium on the server, so an image URL a signed-in user puts
+  in a slide is fetched from the server's network (any `https://` host, or `http://` on
+  loopback, as the page CSP allows) and an image it gets back lands in the export. The guard
+  on server-side requests above does not cover it. Only give accounts to people you would let
+  make such requests, or run the container where internal services are out of reach.
 
 ## Upstream
 
