@@ -404,6 +404,7 @@ def test_export_includes_optional_fastapi_param():
                 {
                     "NEXT_PUBLIC_URL": "https://next.example",
                     "NEXT_PUBLIC_FAST_API": "https://fast.example",
+                    "CHATPPT_EXPORT_ENGINE": "bundle",
                 },
                 clear=False,
             ),
@@ -417,7 +418,7 @@ def test_export_includes_optional_fastapi_param():
 
         mock_pptx = AsyncMock(return_value=fake_result)
         with (
-            patch.dict(os.environ, {"NEXT_PUBLIC_FAST_API": ""}, clear=False),
+            patch.dict(os.environ, {"NEXT_PUBLIC_FAST_API": "", "CHATPPT_EXPORT_ENGINE": "bundle"}, clear=False),
             patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pptx),
         ):
             await export_presentation(dummy, title="two", export_as="pptx")

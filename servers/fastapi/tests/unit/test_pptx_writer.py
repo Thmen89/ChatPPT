@@ -1,12 +1,16 @@
-"""The in-process PPTX writer (services/pptx_writer.py) and its endpoint."""
+"""The in-process PPTX writer (services/pptx_writer.py), its endpoint, and FastAPI's export
+going through the Next.js renderer."""
 
 from __future__ import annotations
 
 import asyncio
 import base64
 import io
+import json
+import uuid
 import zipfile
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -18,6 +22,7 @@ from pptx.util import Emu
 from api.v1.ppt.endpoints.export import EXPORT_ROUTER
 from models.pptx_models import PptxObjectFitModel, PptxPresentationModel
 from services import pptx_writer
+from utils import export_utils
 
 
 def _png_data_uri(width: int = 40, height: int = 20, color: tuple[int, int, int, int] = (200, 30, 30, 255)) -> str:
@@ -204,3 +209,45 @@ def test_endpoint_writes_into_exports(data: Path) -> None:
         .status_code
         == 422
     )
+
+
+def _render_response(content: bytes, status: int = 200) -> MagicMock:
+    response = MagicMock(status_code=status, content=content, text=content.decode("latin-1"))
+    return response
+
+
+def test_export_presentation_renders_through_nextjs(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CHATPPT_EXPORT_ENGINE", raising=False)
+    monkeypatch.setenv("CHATPPT_NEXTJS_URL", "http://127.0.0.1:3999")
+    post = AsyncMock(return_value=_render_response(json.dumps(_deck("ignored")).encode()))
+    hook = AsyncMock()
+    with patch("httpx.AsyncClient.post", post), patch.object(export_utils, "run_hook", hook):
+        result = asyncio.run(
+            export_utils.export_presentation(uuid.uuid4(), "My Deck", "pptx", cookie_header="chatppt_session=t")
+        )
+    call = post.await_args
+    assert call is not None
+    url = call.args[0]
+    assert url == "http://127.0.0.1:3999/api/export-presentation/render"
+    assert call.kwargs["headers"] == {"Cookie": "chatppt_session=t"}
+    assert call.kwargs["json"]["format"] == "pptx"
+    path = Path(result.path)
+    assert path.name.startswith("My-Deck_") and len(Presentation(str(path)).slides) == 2
+    hook.assert_awaited_once_with("after_export", result.path)
+
+    pdf = AsyncMock(return_value=_render_response(b"%PDF-1.4 fake"))
+    with patch("httpx.AsyncClient.post", pdf), patch.object(export_utils, "run_hook", AsyncMock()):
+        result = asyncio.run(export_utils.export_presentation(uuid.uuid4(), "My Deck", "pdf"))
+    assert pdf.await_args is not None and pdf.await_args.kwargs["headers"] == {}
+    assert Path(result.path).read_bytes() == b"%PDF-1.4 fake" and result.path.endswith(".pdf")
+
+    failing = AsyncMock(return_value=_render_response(b'{"error": "boom"}', status=500))
+    with patch("httpx.AsyncClient.post", failing), pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(export_utils.export_presentation(uuid.uuid4(), "x", "pdf"))
+
+
+def test_bundle_engine_is_still_selectable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHATPPT_EXPORT_ENGINE", "bundle")
+    assert export_utils.export_engine() == "bundle"
+    monkeypatch.setenv("CHATPPT_EXPORT_ENGINE", "")
+    assert export_utils.export_engine() == "chromium"
