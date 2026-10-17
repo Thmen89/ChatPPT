@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import uuid
 from typing import Any
@@ -11,10 +13,13 @@ from models.sql.template import TemplateModel
 from services.database import async_session_maker
 from templates.presentation_layout import PresentationLayoutModel
 from utils.internal_http import internal_request_headers
+from utils.internal_urls import nextjs_base_url
 
 LOGGER = logging.getLogger(__name__)
 
-_CUSTOM_COMPILE_URL = "http://localhost/api/template/custom"
+# Compiled payloads keyed by a hash of the template's layout code: a template is compiled
+# once until one of its layouts changes.
+_compiled_cache: dict[str, dict[str, Any]] = {}
 
 
 async def load_custom_presentation_layout(layout_name: str) -> PresentationLayoutModel:
@@ -59,10 +64,15 @@ async def load_custom_presentation_layout(layout_name: str) -> PresentationLayou
             detail=f"No layouts found for template '{layout_name}'",
         )
 
-    payload = await _compile_custom_layouts_on_nextjs(
-        layout_name=layout_name,
-        layouts_db=layouts_db,
-    )
+    cache_key = _layouts_cache_key(layout_name, layouts_db)
+    payload = _compiled_cache.get(cache_key)
+    if payload is None:
+        payload = await _compile_custom_layouts_on_nextjs(
+            layout_name=layout_name,
+            layouts_db=layouts_db,
+        )
+        if payload.get("slides"):
+            _compiled_cache[cache_key] = payload
 
     slides = payload.get("slides") or []
     if not slides:
@@ -77,6 +87,19 @@ async def load_custom_presentation_layout(layout_name: str) -> PresentationLayou
         len(slides),
     )
     return PresentationLayoutModel(**payload)
+
+
+def _layouts_cache_key(
+    layout_name: str, layouts_db: list[PresentationLayoutCodeModel]
+) -> str:
+    digest = hashlib.sha256()
+    for layout in layouts_db:
+        digest.update(
+            json.dumps(
+                [layout.layout_id, layout.layout_name, layout.layout_code]
+            ).encode("utf-8")
+        )
+    return f"{layout_name}:{digest.hexdigest()}"
 
 
 async def _compile_custom_layouts_on_nextjs(
@@ -100,7 +123,7 @@ async def _compile_custom_layouts_on_nextjs(
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                _CUSTOM_COMPILE_URL, json=body, headers=headers
+                f"{nextjs_base_url()}/api/template/custom", json=body, headers=headers
             ) as response:
                 if response.status == 200:
                     payload = await response.json()
