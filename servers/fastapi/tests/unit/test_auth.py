@@ -420,6 +420,8 @@ def test_exporter_token_is_read_only(client: TestClient) -> None:
     assert exporter.get("/app_data/images/slide.png").status_code == 200
     assert exporter.post("/api/v1/ppt/presentation/create").status_code == 403
     assert exporter.get("/api/v1/config").status_code == 403  # never an admin
+    status = exporter.get("/api/v1/auth/status").json()
+    assert status["exporter"] is True and status["authenticated"] is False
 
 
 def test_export_token_endpoint_issues_a_short_lived_read_only_cookie(client: TestClient) -> None:

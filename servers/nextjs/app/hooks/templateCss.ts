@@ -36,8 +36,9 @@ async function flush(): Promise<void> {
     style.textContent = await response.text();
     document.head.appendChild(style);
   } catch (err) {
+    // No retry: re-requesting on every render keeps the network busy, and the exporter
+    // waits for the network to go idle.
     console.warn("Could not load styles for runtime template layouts", err);
-    sources.forEach((source) => seen.delete(hash(source)));
   }
 }
 

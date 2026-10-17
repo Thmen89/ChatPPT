@@ -58,10 +58,13 @@ def _bad_request(exc: ValueError) -> HTTPException:
     return HTTPException(status_code=400, detail=str(exc))
 
 
-def _status_payload(principal: Optional[Principal], configured: bool) -> dict:
+def _status_payload(principal: Optional[Principal], configured: bool, exporter: bool = False) -> dict:
     settings = get_settings()
     return {
         "configured": configured,
+        # The headless exporter's read-only token: not a signed-in user, but the Next.js
+        # proxy lets it read what a deck needs to render.
+        "exporter": exporter,
         "authenticated": principal is not None,
         "username": principal.username if principal else None,
         "is_admin": bool(principal and principal.is_admin),
@@ -87,7 +90,8 @@ async def get_status(request: Request):
     if auth_disabled():
         return _status_payload(principal, True)
     configured = await asyncio.to_thread(store.count_users) > 0
-    return _status_payload(principal if principal and principal.via != "export" else None, configured)
+    exporter = principal is not None and principal.via == "export"
+    return _status_payload(None if exporter else principal, configured, exporter)
 
 
 @API_V1_AUTH_ROUTER.get("/verify")
