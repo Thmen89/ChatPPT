@@ -269,8 +269,11 @@ async def create_presentation(
     include_table_of_contents: Annotated[bool, Body()] = False,
     include_title_slide: Annotated[bool, Body()] = True,
     web_search: Annotated[bool, Body()] = False,
+    template: Annotated[Optional[str], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    """With ``template``, the layouts are known before the outline, so the outline call
+    also picks each slide's layout and ``/prepare`` needs no structure call."""
 
     if n_slides is not None and n_slides < 1:
         raise HTTPException(
@@ -309,6 +312,8 @@ async def create_presentation(
         web_search=web_search,
         theme=default_presentation_theme(),
     )
+    if template:
+        presentation.set_layout(await get_layout_by_name(template))
 
     sql_session.add(presentation)
     await sql_session.commit()
@@ -320,16 +325,23 @@ async def create_presentation(
 async def prepare_presentation(
     presentation_id: Annotated[uuid.UUID, Body()],
     outlines: Annotated[List[SlideOutlineModel], Body()],
-    layout: Annotated[PresentationLayoutModel, Body()],
+    layout: Annotated[Optional[PresentationLayoutModel], Body()] = None,
     title: Annotated[Optional[str], Body()] = None,
+    layouts: Annotated[Optional[List[int]], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    """``layout`` defaults to the template given at ``/create``. ``layouts`` (one layout
+    index per outline, as the outline stream picked them) skips the structure call."""
     if not outlines:
         raise HTTPException(status_code=400, detail="Outlines are required")
 
     presentation = await sql_session.get(PresentationModel, presentation_id)
     if not presentation:
         raise HTTPException(status_code=404, detail="Presentation not found")
+    if layout is None:
+        if not presentation.layout:
+            raise HTTPException(status_code=400, detail="Layout is required")
+        layout = presentation.get_layout()
 
     presentation_outline_model = PresentationOutlineModel(slides=outlines)
 
@@ -338,13 +350,15 @@ async def prepare_presentation(
 
     if layout.ordered:
         presentation_structure = layout.to_presentation_structure()
+    elif layouts is not None and len(layouts) == total_outlines and all(
+        0 <= index < total_slide_layouts for index in layouts
+    ):
+        presentation_structure = PresentationStructureModel(slides=list(layouts))
     else:
-        presentation_structure: PresentationStructureModel = (
-            await generate_presentation_structure(
-                presentation_outline=presentation_outline_model,
-                presentation_layout=layout,
-                instructions=presentation.instructions,
-            )
+        presentation_structure = await generate_presentation_structure(
+            presentation_outline=presentation_outline_model,
+            presentation_layout=layout,
+            instructions=presentation.instructions,
         )
 
     presentation_structure.slides = presentation_structure.slides[: len(outlines)]

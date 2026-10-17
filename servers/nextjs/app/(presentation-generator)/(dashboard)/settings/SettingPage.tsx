@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Loader2, Download, CheckCircle, ChevronRight } from "lucide-react";
+import { Download, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
 import { RootState } from "@/store/store";
@@ -13,7 +13,8 @@ import {
   checkIfSelectedOllamaModelIsPulled,
   pullOllamaModel,
 } from "@/utils/providerUtils";
-import { useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { isMod } from "@/lib/keys";
 import { LLMConfig } from "@/types/llm_config";
 import SettingSideBar from "./SettingSideBar";
 import TextProvider from "./TextProvider";
@@ -38,9 +39,7 @@ interface ButtonState {
 }
 
 const SettingsPage = () => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [mode, setMode] = useState<'nanobanana' | 'template'>('template')
+  const isSetup = useSearchParams().get("setup") === "1";
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   useEffect(() => {
     authApi<AuthStatus>("/status").then(setAuthStatus).catch(() => setAuthStatus(null));
@@ -57,7 +56,7 @@ const SettingsPage = () => {
   const [buttonState, setButtonState] = useState<ButtonState>({
     isLoading: false,
     isDisabled: false,
-    text: "Save Configuration",
+    text: "Save",
     showProgress: false,
   });
 
@@ -163,7 +162,7 @@ const SettingsPage = () => {
         ...prev,
         isLoading: true,
         isDisabled: true,
-        text: "Saving Configuration...",
+        text: "Saving…",
       }));
       await handleSaveLLMConfig(llmConfig);
       let ollamaModelDownloaded = false;
@@ -197,7 +196,7 @@ const SettingsPage = () => {
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
+        text: "Save",
       }));
     } catch (error) {
       const message =
@@ -209,7 +208,7 @@ const SettingsPage = () => {
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
+        text: "Save",
       }));
     }
   };
@@ -232,7 +231,7 @@ const SettingsPage = () => {
         setButtonState({
           isLoading: false,
           isDisabled: false,
-          text: "Save Configuration",
+          text: "Save",
           showProgress: false,
         });
         notify.info(
@@ -276,12 +275,27 @@ const SettingsPage = () => {
     }
   }, [downloadingModel]);
 
+  const saveRef = React.useRef(handleSaveConfig);
+  useEffect(() => {
+    saveRef.current = handleSaveConfig;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isMod(e) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Provider keys are locked (CAN_CHANGE_KEYS=false) or you are not an admin: your
   // account and API tokens are still yours to manage.
   if (!canChangeKeys) {
     return (
-      <div className="h-screen font-syne overflow-auto px-6">
-        <h3 className="py-[28px] text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black">Account</h3>
+      <div>
+        <h1 className="mb-5 text-xl font-semibold tracking-tight text-zinc-900">Account</h1>
         <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
       </div>
     );
@@ -334,110 +348,31 @@ const SettingsPage = () => {
       : "No image provider";
 
 
-  useEffect(() => {
 
-    if (
-      (llmConfig.LLM === "codex" && !llmConfig.CODEX_MODEL) ||
-      (llmConfig.LLM === "openai" && !llmConfig.OPENAI_MODEL) ||
-      (llmConfig.LLM === "google" && !llmConfig.GOOGLE_MODEL) ||
-      (llmConfig.LLM === "vertex" && !llmConfig.VERTEX_MODEL) ||
-      (llmConfig.LLM === "azure" && !llmConfig.AZURE_OPENAI_MODEL) ||
-      (llmConfig.LLM === "bedrock" && !llmConfig.BEDROCK_MODEL) ||
-      (llmConfig.LLM === "openrouter" && !llmConfig.OPENROUTER_MODEL) ||
-      (llmConfig.LLM === "fireworks" && !llmConfig.FIREWORKS_MODEL) ||
-      (llmConfig.LLM === "together" && !llmConfig.TOGETHER_MODEL) ||
-      (llmConfig.LLM === "cerebras" && !llmConfig.CEREBRAS_MODEL) ||
-      (llmConfig.LLM === "litellm" && !llmConfig.LITELLM_MODEL) ||
-      (llmConfig.LLM === "lmstudio" && !llmConfig.LMSTUDIO_MODEL) ||
-      (llmConfig.LLM === "anthropic" && !llmConfig.ANTHROPIC_MODEL) ||
-      (llmConfig.LLM === "ollama" && !llmConfig.OLLAMA_MODEL) ||
-      (llmConfig.LLM === "custom" && !llmConfig.CUSTOM_MODEL)
-    ) {
-      notify.error("Cannot save settings", "Please select a model for the selected provider");
-
-      const currentUrl = window.location.href;
-
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        console.log("beforeunload");
-        e.preventDefault();
-        e.returnValue = "";
-      };
-
-      const handleClick = (e: MouseEvent) => {
-
-
-        const target = e.target as HTMLElement | null;
-        const link = target?.closest("a");
-
-        if (!link) return;
-
-        const href = link.getAttribute("href");
-        const targetAttr = link.getAttribute("target");
-
-        if (
-          href &&
-          href !== "#" &&
-          !href.startsWith("javascript:") &&
-          targetAttr !== "_blank"
-        ) {
-
-          // notify.error("Cannot save settings", "Please select a model for the selected provider");
-          e.preventDefault();
-          window.history.pushState(null, "", pathname);
-        }
-      };
-
-      const handlePopState = () => {
-        console.log("popstate");
-        window.history.pushState(null, "", pathname);
-      };
-
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      window.addEventListener("popstate", handlePopState);
-      document.addEventListener("click", handleClick, true);
-
-      // keep current page in history
-      window.history.pushState(null, "", currentUrl);
-
-      return () => {
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-        window.removeEventListener("popstate", handlePopState);
-        document.removeEventListener("click", handleClick, true);
-      };
-    }
-
-  }, [llmConfig, pathname]);
 
 
 
   return (
-    <div className="h-screen font-syne flex flex-col overflow-hidden relative">
-      <main className="w-full mx-auto gap-6   overflow-hidden flex ">
+    <div className="relative">
+      <div className="mb-5 flex items-baseline gap-3">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Settings</h1>
+        <p className="text-xs text-zinc-500">
+          {textSummary} · {imageSummary}
+        </p>
+      </div>
+      {isSetup && (
+        <p role="status" className="mb-5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+          Connect a text model to start making decks. Settings are saved to <code>chatppt.toml</code>.
+        </p>
+      )}
+      <div className="flex gap-8">
         <SettingSideBar
-          mode={mode}
-          setMode={setMode}
           selectedProvider={selectedProvider}
           setSelectedProvider={setSelectedProvider}
           isAdmin={Boolean(authStatus?.is_admin && !authStatus?.auth_disabled)}
         />
-        <div className="w-full">
-          <div className="sticky top-0 right-0 z-50 py-[28px]   backdrop-blur mb-4 ">
-            <div className="flex  gap-3 items-center ">
-              <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black flex items-center gap-2">
-                Settings
-              </h3>
-              <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
-                {textSummary} · {imageSummary}
-              </p>
-            </div>
-          </div>
-
-          {mode === 'nanobanana' && <div className=" w-full bg-[#F9F8F8] p-7 rounded-[20px]">
-            <h4>Nano Banana</h4>
-          </div>}
-          {mode === 'template' && selectedProvider === 'text-provider' && <TextProvider
-
-
+        <div className="min-w-0 flex-1 pb-20">
+          {selectedProvider === 'text-provider' && <TextProvider
             onInputChange={(value, field) => {
               setLlmConfig(prev => ({
                 ...prev,
@@ -446,41 +381,23 @@ const SettingsPage = () => {
             }}
             llmConfig={llmConfig}
           />}
-          {mode === 'template' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
+          {selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === "session" && (
             <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
           )}
           {selectedProvider === "users" && <UsersAdmin currentUser={authStatus?.username ?? null} />}
 
         </div>
-      </main>
+      </div>
 
-      {/* Fixed Bottom Button — hidden on the account pages; nothing to save there */}
       {!isAccountSection ? (
-        <div className=" mx-auto fixed bottom-20 right-5 ">
-          <button
-            onClick={handleSaveConfig}
-            disabled={buttonState.isDisabled}
-            style={{
-              background:
-                "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
-              color: "#101323",
-            }}
-            className={`w-full font-syne font-semibold flex items-center justify-center gap-2 py-3 px-5 rounded-[58px] transition-all duration-500 ${buttonState.isDisabled
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-200"
-              } text-white`}
-          >
-            {buttonState.isLoading ? (
-              <div className="flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {buttonState.text}
-              </div>
-            ) : (
-              buttonState.text
-            )}
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-[1200px] items-center justify-end gap-3 px-6 py-2.5">
+            <span className="text-xs text-zinc-500">Saved to chatppt.toml · applies on the next request</span>
+            <Button onClick={handleSaveConfig} disabled={buttonState.isDisabled} data-testid="save-settings">
+              {buttonState.isLoading ? buttonState.text : "Save"}
+            </Button>
+          </div>
         </div>
       ) : null}
 

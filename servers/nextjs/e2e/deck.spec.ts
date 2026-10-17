@@ -12,24 +12,16 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
   await page.goto("/");
   await page.waitForURL("**/upload");
 
+  // Template (default: general) and slide count sit next to the prompt; Enter writes the outline.
+  await page.getByTestId("slides-select").selectOption("4");
   await page.getByTestId("prompt-input").fill("Four slides about solar power for a city council");
-  await page.getByTestId("slides-select").click();
-  const customCount = page.getByPlaceholder("--");
-  await customCount.fill("4");
-  await customCount.blur();
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("slides-select")).toHaveText(/4 slides/);
-  await page.getByRole("button", { name: "Get Started" }).click();
+  await page.getByTestId("prompt-input").press("Enter");
 
   await page.waitForURL("**/outline");
-  await expect(page.getByText("Slide 4", { exact: true })).toBeVisible();
-  // The outline page ignores tab switches until the stream ends ("Loading..." -> "Select a Template").
-  await expect(page.getByRole("button", { name: "Select a Template" })).toBeVisible();
-  const templateTab = page.getByRole("tab", { name: "Select Template" });
-  await templateTab.click();
-  await expect(templateTab).toHaveAttribute("aria-selected", "true");
-  await page.locator("h3", { hasText: /^general$/i }).first().click();
-  await page.getByRole("button", { name: /Generate Presentation/ }).click();
+  await expect(page.locator("#outline-item-4")).toBeVisible();
+  // Generating is possible once the outline stream has ended.
+  await expect(page.getByTestId("generate-deck")).toBeEnabled();
+  await page.keyboard.press("ControlOrMeta+Enter");
 
   await page.waitForURL(/\/presentation\?id=/);
   const id = new URL(page.url()).searchParams.get("id");
@@ -37,7 +29,7 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
   await expect
     .poll(async () => (await (await request.get(`/api/v1/ppt/presentation/${id}`)).json()).slides?.length)
     .toBe(4);
-  const exportButton = page.getByRole("button", { name: "Export" });
+  const exportButton = page.getByRole("button", { name: "Export PPTX" });
   await expect(exportButton).toBeEnabled();
 
   const field = page.locator("#slide-0 [contenteditable=true]").first();
@@ -47,9 +39,8 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
   await page.locator("#slide-0").click({ position: { x: 5, y: 5 } }); // blur commits the edit
   await expect(field).toHaveText(EDIT);
 
-  await exportButton.click();
   const downloading = page.waitForEvent("download", { timeout: 120_000 });
-  await page.getByRole("button", { name: "PPTX", exact: true }).click();
+  await exportButton.click();
   const download = await downloading;
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);
 

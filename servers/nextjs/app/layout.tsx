@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import { Syne, Unbounded } from "next/font/google";
+import { Inter, Syne } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
-const inter = localFont({
-  src: [
-    {
-      path: "./fonts/Inter.ttf",
-      weight: "400",
-      style: "normal",
-    },
-  ],
+
+// Fonts are downloaded at build time and served by this app, never fetched at runtime.
+// Inter is the app's type; Syne stays because slide wrappers fall back to it.
+const inter = Inter({
+  subsets: ["latin"],
   variable: "--font-inter",
 });
 
@@ -21,16 +17,9 @@ const syne = Syne({
   variable: "--font-syne",
 });
 
-const unbounded = Unbounded({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-unbounded",
-});
-
 export const metadata: Metadata = {
   title: "ChatPPT",
-  description:
-    "Open-source AI presentation generator: prompt in, editable PPTX out. Bring your own model.",
+  description: "Prompt in, editable deck out. Bring your own model.",
 };
 
 export default function RootLayout({
@@ -38,14 +27,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html lang="en">
-      <body
-        className={`${inter.variable} ${syne.variable} ${unbounded.variable} antialiased`}
-      >
+      <body className={`${inter.variable} ${syne.variable} antialiased`}>
         <Providers>{children}</Providers>
-        <Toaster position="top-center" />
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );

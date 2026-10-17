@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { V1ContentRender } from '../../(presentation-generator)/components/V1ContentRender';
 
@@ -42,7 +42,8 @@ const SlideScale = ({
         return Math.min((safeWidth / BASE_WIDTH) * 0.98, 1);
     }, [fixedSize, presentMode, box.w, box.h]);
 
-    useEffect(() => {
+    // Measure before paint so a slide never flashes at the wrong size.
+    useLayoutEffect(() => {
         if (!containerRef.current) return;
 
         const el = containerRef.current;

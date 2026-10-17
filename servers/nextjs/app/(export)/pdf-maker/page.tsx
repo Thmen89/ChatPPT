@@ -1,10 +1,10 @@
 'use client'
-import React from "react";
+import React, { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import PdfMakerPage from "./PdfMakerPage";
-const page = () => {
+const PdfMaker = () => {
 
     const router = useRouter();
     const params = useSearchParams();
@@ -23,4 +23,9 @@ const page = () => {
         <PdfMakerPage presentation_id={queryId} exportCookie={exportCookie} />
     );
 };
+const page = () => (
+  <Suspense>
+    <PdfMaker />
+  </Suspense>
+);
 export default page;

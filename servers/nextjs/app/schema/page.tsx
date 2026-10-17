@@ -1,10 +1,10 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getCustomTemplateDetails, refreshRuntimeTemplates } from "../hooks/useCustomTemplates";
 import { isRuntimeTemplate } from "../hooks/runtimeTemplates";
 import { getSchemaByTemplateId, getSettingsByTemplateId } from "../presentation-templates";
-const page = () => {
+const SchemaPage = () => {
   const searchParams = useSearchParams();
   const templateID = searchParams.get("group");
   if (!templateID) {
@@ -87,4 +87,9 @@ const page = () => {
   );
 };
 
+const page = () => (
+  <Suspense>
+    <SchemaPage />
+  </Suspense>
+);
 export default page;

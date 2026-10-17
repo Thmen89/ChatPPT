@@ -25,7 +25,7 @@ export default function NotFound() {
             decoding="async"
           />
         </div>
-        <h1 className="mb-4 font-syne text-2xl font-bold text-gray-800 sm:text-3xl">
+        <h1 className="mb-4 text-2xl font-bold text-gray-800 sm:text-3xl">
           Oops! Page Not Found
         </h1>
         <p className="mb-4 text-base text-gray-600 sm:text-lg">

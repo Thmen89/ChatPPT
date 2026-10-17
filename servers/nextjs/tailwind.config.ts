@@ -82,8 +82,8 @@ const config: Config = {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
         syne: ["var(--font-syne)"],
-        unbounded: ["var(--font-unbounded)"],
         inter: ["var(--font-inter)"],
       },
     },

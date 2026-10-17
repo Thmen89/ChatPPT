@@ -112,16 +112,16 @@ const LayoutPreview = () => {
     );
 
     return (
-        <div className="min-h-screen  relative font-syne">
+        <div className="min-h-screen  relative">
             <div className="sticky top-0 right-0 z-50 py-[28px] px-6   backdrop-blur ">
                 <div className="flex xl:flex-row flex-col gap-6 xl:gap-0 items-center justify-between">
-                    <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-[#101828] flex items-center gap-2">
+                    <h3 className=" text-[28px] tracking-[-0.84px] font-normal text-[#101828] flex items-center gap-2">
                         Templates
                     </h3>
                     <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
                         <Link
                             href="/custom-template"
-                            className="inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm  shadow-sm hover:shadow-md"
+                            className="inline-flex items-center font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm  shadow-sm hover:shadow-md"
                             aria-label="Create new template"
                             style={{
                                 borderRadius: "48px",
@@ -172,7 +172,7 @@ const LayoutPreview = () => {
                         </div>
                         {neoInbuilt.length > 0 && (
                             <div>
-                                <h4 className="text-base font-semibold text-[#101828] mb-6 font-syne tracking-tight">
+                                <h4 className="text-base font-semibold text-[#101828] mb-6 tracking-tight">
                                     Report
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
