@@ -275,8 +275,11 @@ def _update_layout_id_in_code(code: str) -> tuple[str, str]:
 
 
 async def _download_image_bytes(image_url: str) -> bytes:
+    from chatppt.guards import check_outbound_url
+
+    await check_outbound_url(image_url)
     async with aiohttp.ClientSession() as session:
-        async with session.get(image_url) as response:
+        async with session.get(image_url, allow_redirects=False) as response:
             if response.status != 200:
                 raise HTTPException(
                     status_code=400,

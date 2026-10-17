@@ -11,6 +11,15 @@ type AuthStatus = {
   configured: boolean;
   authenticated: boolean;
   username: string | null;
+  oidc?: { enabled: boolean; label: string };
+};
+
+const MIN_NEW_PASSWORD = 8;
+
+const REASONS: Record<string, [string, string]> = {
+  unauthorized: ["Unauthorized", "Sign in to view this page."],
+  sso_failed: ["Single sign-on failed", "The identity provider did not complete the sign-in. Try again."],
+  sso_no_user: ["No account", "Your single sign-on account has no ChatPPT user yet. Ask an admin to add you."],
 };
 
 const initialStatus: AuthStatus = {
@@ -62,11 +71,12 @@ export default function AuthGate() {
       return;
     }
     const params = new URLSearchParams(window.location.search);
-    if (params.get("reason") === "unauthorized") {
+    const reason = REASONS[params.get("reason") ?? ""];
+    if (reason) {
       if (status.configured && !status.authenticated) {
-        notify.error("Unauthorized", "Sign in to view this page.", {
+        notify.error(reason[0], reason[1], {
           id: "auth-unauthorized-redirect",
-          duration: 5000,
+          duration: 6000,
         });
       }
       window.history.replaceState({}, "", window.location.pathname);
@@ -92,6 +102,7 @@ export default function AuthGate() {
         configured: Boolean(data.configured),
         authenticated: Boolean(data.authenticated),
         username: data.username ?? null,
+        oidc: data.oidc,
       });
     } catch (fetchError) {
       console.error(fetchError);
@@ -108,18 +119,18 @@ export default function AuthGate() {
     event.preventDefault();
 
     const cleanedUsername = username.trim();
-    if (cleanedUsername.length < 3) {
+    if (cleanedUsername.length < 2) {
       notify.warning(
         "Username too short",
-        "Your username must be at least 3 characters."
+        "Your username must be at least 2 characters."
       );
       return;
     }
 
-    if (password.length < 6) {
+    if (isSetupMode && password.length < MIN_NEW_PASSWORD) {
       notify.warning(
         "Password too short",
-        "Your password must be at least 6 characters."
+        `Your password must be at least ${MIN_NEW_PASSWORD} characters.`
       );
       return;
     }
@@ -153,7 +164,9 @@ export default function AuthGate() {
       const payload = await response.json();
       if (!response.ok) {
         const detail = formatFastApiDetail(payload?.detail);
-        if (response.status === 401) {
+        if (response.status === 429) {
+          notify.error("Too many attempts", detail);
+        } else if (response.status === 401) {
           notify.error(
             "Sign-in failed",
             detail === UNAUTHORIZED_DETAIL
@@ -295,7 +308,7 @@ export default function AuthGate() {
               autoComplete={isSetupMode ? "new-password" : "current-password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
+              placeholder={isSetupMode ? `At least ${MIN_NEW_PASSWORD} characters` : "Password"}
               className="w-full rounded-[11px] border border-[#EDEEEF] bg-white px-4 py-3 font-syne text-sm text-black outline-none transition placeholder:text-[#999999] focus:border-[#a49cfc] focus:ring-2 focus:ring-[#5146E5]/20"
               disabled={isSubmitting}
             />
@@ -339,6 +352,15 @@ export default function AuthGate() {
                 : "Sign in"}
           </button>
         </form>
+
+        {!isSetupMode && status.oidc?.enabled ? (
+          <a
+            href="/api/v1/auth/oidc/start"
+            className="mt-4 block w-full rounded-[58px] border border-[#EDEEEF] bg-white px-5 py-3 text-center font-syne text-xs font-semibold text-black transition hover:bg-[#F9FAFB]"
+          >
+            {status.oidc.label || "Sign in with SSO"}
+          </a>
+        ) : null}
       </section>
     </main>
   );

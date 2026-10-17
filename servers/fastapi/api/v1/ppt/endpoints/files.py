@@ -1,7 +1,6 @@
-from http.client import HTTPException
 import os
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Body, File, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 
 from constants.documents import UPLOAD_ACCEPTED_FILE_TYPES
 from models.decomposed_file_info import DecomposedFileInfo
@@ -9,6 +8,7 @@ from services.temp_file_service import TEMP_FILE_SERVICE
 from services.documents_loader import DocumentsLoader
 import uuid
 from utils.validators import validate_files
+from chatppt.guards import inside, safe_filename, upload_roots
 
 FILES_ROUTER = APIRouter(prefix="/files", tags=["Files"])
 
@@ -26,7 +26,7 @@ async def upload_files(files: Optional[List[UploadFile]]):
     if files:
         for each_file in files:
             temp_path = TEMP_FILE_SERVICE.create_temp_file_path(
-                each_file.filename, temp_dir
+                safe_filename(each_file.filename), temp_dir
             )
             with open(temp_path, "wb") as f:
                 content = await each_file.read()
@@ -42,6 +42,8 @@ async def decompose_files(
     file_paths: Annotated[List[str], Body(embed=True)],
     language: Annotated[Optional[str], Body()] = None,
 ):
+    # Only files uploaded through /files/upload (never e.g. chatppt.toml or /etc).
+    file_paths = [str(inside(path, upload_roots())) for path in file_paths]
     temp_dir = TEMP_FILE_SERVICE.create_temp_dir(str(uuid.uuid4()))
 
     txt_files = []
@@ -84,7 +86,10 @@ async def update_files(
     file_path: Annotated[str, Body()],
     file: Annotated[UploadFile, File()],
 ):
-    with open(file_path, "wb") as f:
+    target = inside(file_path, upload_roots())
+    if not target.is_file():
+        raise HTTPException(404, "File not found")
+    with open(target, "wb") as f:
         f.write(await file.read())
 
     return {"message": "File updated successfully"}

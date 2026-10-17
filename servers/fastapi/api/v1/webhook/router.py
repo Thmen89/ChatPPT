@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from enums.webhook_event import WebhookEvent
 from models.sql.webhook_subscription import WebhookSubscription
 from services.database import get_async_session
+from chatppt.guards import check_outbound_url
 
 API_V1_WEBHOOK_ROUTER = APIRouter(prefix="/api/v1/webhook", tags=["Webhook"])
 
@@ -27,6 +28,7 @@ async def subscribe_to_webhook(
     body: SubscribeToWebhookRequest,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    await check_outbound_url(body.url)
     webhook_subscription = WebhookSubscription(
         url=body.url,
         secret=body.secret,

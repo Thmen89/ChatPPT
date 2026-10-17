@@ -139,8 +139,11 @@ async def get_generated_images(sql_session: AsyncSession = Depends(get_async_ses
 async def upload_image(
     file: UploadFile = File(...), sql_session: AsyncSession = Depends(get_async_session)
 ):
+    from chatppt.guards import check_upload
+
+    safe_name = await check_upload(file, "image")
     try:
-        new_filename = get_file_name_with_random_uuid(file)
+        new_filename = get_file_name_with_random_uuid(safe_name)
         image_path = os.path.join(
             get_images_directory(), os.path.basename(new_filename)
         )

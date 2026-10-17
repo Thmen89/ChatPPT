@@ -1067,7 +1067,9 @@ async def _save_uploaded_fonts_to_temp(
     for i, (font_file, original_name) in enumerate(
         zip(font_files, original_font_names)
     ):
-        font_filename = getattr(font_file, "filename", f"font_{i}")
+        from chatppt.guards import safe_filename
+
+        font_filename = safe_filename(getattr(font_file, "filename", None), f"font_{i}")
         font_path = os.path.join(temp_dir, font_filename)
 
         font_content = await font_file.read()

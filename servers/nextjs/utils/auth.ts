@@ -9,7 +9,8 @@ export function getDisableAuthValue(): string | undefined {
   }
 
   if (typeof process !== "undefined") {
-    return process.env.DISABLE_AUTH;
+    // CHATPPT_AUTH__DISABLED is the chatppt.toml key's env form (auth.disabled).
+    return process.env.DISABLE_AUTH || process.env.CHATPPT_AUTH__DISABLED;
   }
 
   return undefined;

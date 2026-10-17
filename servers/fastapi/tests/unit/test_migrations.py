@@ -53,7 +53,7 @@ def test_upgrade_from_baseline_stamp_skips_existing_theme_column(tmp_path):
             version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
             columns = {row[1] for row in connection.execute(text("PRAGMA table_info(presentations)"))}
 
-        assert version == "c7b70d0f31b1"
+        assert version == "d2a1f0c8b7e6"
         assert "theme" in columns
     finally:
         engine.dispose()
@@ -92,7 +92,7 @@ def test_upgrade_from_theme_stamp_skips_existing_template_create_infos_table(tmp
             version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
             tables = {row[0] for row in connection.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
 
-        assert version == "c7b70d0f31b1"
+        assert version == "d2a1f0c8b7e6"
         assert "template_create_infos" in tables
     finally:
         engine.dispose()
@@ -133,7 +133,7 @@ def test_upgrade_from_template_stamp_skips_existing_chat_history_table(tmp_path)
             version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
             indexes = {row[1] for row in connection.execute(text("PRAGMA index_list(chat_history_messages)"))}
 
-        assert version == "c7b70d0f31b1"
+        assert version == "d2a1f0c8b7e6"
         assert {
             "ix_chat_history_messages_conversation_id",
             "ix_chat_history_messages_position",

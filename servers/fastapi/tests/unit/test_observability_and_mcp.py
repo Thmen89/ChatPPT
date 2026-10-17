@@ -129,10 +129,10 @@ def test_mcp_spec_ships_and_the_main_app_mounts_it() -> None:
     assert {"/mcp", "/mcp/", "/healthz"} <= paths
 
 
-def test_internal_auth_header_attached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_mcp_caller_authorization_forwarded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import httpx
 
-    monkeypatch.setattr(mcp, "get_internal_auth_headers", lambda: {"Authorization": "Bearer t"})
+    monkeypatch.setattr(mcp, "caller_authorization", lambda: "Bearer t")
     req = httpx.Request("GET", "http://127.0.0.1:8000/x")
     asyncio.run(mcp._attach_internal_auth_header(req))
     assert req.headers["authorization"] == "Bearer t"

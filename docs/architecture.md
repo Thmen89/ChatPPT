@@ -91,6 +91,14 @@ Auth is a single username + bcrypt-style hash + session secret stored in **`user
 (`utils/simple_auth.py`), checked by `SessionAuthMiddleware` on `/api/*` and `/app_data/*`
 except `/app_data/images/`, which is public so the exporter can fetch images without a cookie.
 
+ChatPPT replaces that: a few local users (`users` table, one or more admins) with hashed,
+revocable API tokens (`api_tokens`), optional OIDC and trusted-proxy-header login, all in
+`chatppt/auth/` and checked by one ASGI middleware (`chatppt/auth/middleware.py`) that also
+sets security headers, enforces CSRF on cookie requests and caps request bodies. `/app_data`
+serves only the media folders; the exporter gets a 15-minute read-only token and slide images
+carry signed, expiring links. An existing `userConfig.json` login becomes the first admin on
+upgrade. What is protected and how: [SECURITY.md](../SECURITY.md#how-chatppt-protects-an-install).
+
 ## Optional subsystems (upstream defaults; see roadmap for what changed)
 
 | Subsystem | Cost | Default |

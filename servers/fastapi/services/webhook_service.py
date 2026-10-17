@@ -42,11 +42,16 @@ class WebhookService:
             headers["Authorization"] = f"Bearer {subscription.secret}"
 
         try:
+            # Checked again at send time: DNS may have changed since the subscription.
+            from chatppt.guards import check_outbound_url
+
+            await check_outbound_url(subscription.url)
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     subscription.url,
                     json=data,
                     headers=headers,
+                    allow_redirects=False,
                 ) as _:
                     pass
 
