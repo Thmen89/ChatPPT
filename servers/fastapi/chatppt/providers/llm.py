@@ -1,7 +1,7 @@
 """Built-in LLM providers: how each one turns credentials into an ``llmai`` client config.
 
-Each entry is a few lines. A new backend is another ``register_llm`` call (in this file or
-a new one imported from ``registry._ensure_loaded``).
+Each entry is a few lines. A new backend is another ``register_llm`` call, here or in a
+file under ``<data>/providers/`` (see ``chatppt/providers/plugins.py``).
 """
 
 from __future__ import annotations
@@ -127,6 +127,20 @@ def _ollama(creds: ProviderCredentials) -> OpenAIClientConfig:
 def _custom(creds: ProviderCredentials) -> OpenAIClientConfig:
     _need(creds, "custom", "base_url")
     return OpenAIClientConfig(base_url=(creds.base_url or "").strip(), api_key=_strip(creds.api_key) or "null")
+
+
+def openai_compatible_spec(provider_id: str) -> LLMProviderSpec:
+    """An OpenAI-compatible endpoint declared only in chatppt.toml (``base_url``, optional
+    ``api_key`` and ``model`` under ``[llm.providers.<id>]``)."""
+
+    def build(creds: ProviderCredentials) -> OpenAIClientConfig:
+        _need(creds, provider_id, "base_url")
+        return OpenAIClientConfig(
+            base_url=(creds.base_url or "").strip(),
+            api_key=_strip(creds.api_key) or "null",
+        )
+
+    return LLMProviderSpec(provider_id, provider_id, None, build, needs=("base_url", "model"), openai_compatible=True)
 
 
 def _codex(creds: ProviderCredentials) -> Any:

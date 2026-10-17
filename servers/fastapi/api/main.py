@@ -11,6 +11,7 @@ from api.lifespan import app_lifespan
 from api.middlewares import SessionAuthMiddleware
 from api.v1.auth.router import API_V1_AUTH_ROUTER
 from api.v1.config.router import API_V1_CONFIG_ROUTER
+from api.v1.hooks.router import API_V1_HOOKS_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
@@ -63,6 +64,7 @@ app.include_router(API_V1_WEBHOOK_ROUTER)
 app.include_router(API_V1_MOCK_ROUTER)
 app.include_router(API_V1_AUTH_ROUTER)
 app.include_router(API_V1_CONFIG_ROUTER)
+app.include_router(API_V1_HOOKS_ROUTER)
 
 # Mount app_data and static assets (direct FastAPI access; nginx also serves /static in Docker).
 app_data_dir = get_app_data_directory_env()

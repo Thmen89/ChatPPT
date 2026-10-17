@@ -1,0 +1,14 @@
+{
+  "name": "Graphite",
+  "description": "Dark charcoal with an amber accent.",
+  "colors": {
+    "primary": "#f5b301",
+    "background": "#0d1117",
+    "card": "#161b22",
+    "stroke": "#30363d",
+    "primary_text": "#0d1117",
+    "background_text": "#e6edf3",
+    "graph": ["#f5b301", "#58a6ff", "#3fb950", "#f85149", "#bc8cff", "#39c5cf", "#ff7b72", "#d29922", "#8b949e", "#a5d6ff"]
+  },
+  "font": { "name": "Inter" }
+}

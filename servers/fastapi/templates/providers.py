@@ -1,10 +1,12 @@
 import asyncio
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from fastapi import HTTPException
 from llmai import get_client
 from llmai.shared import ImageContentPart, SystemMessage, TextResponse, UserMessage
 
+from chatppt.providers.routing import resolve_llm, uses_settings
+from chatppt.settings import get_settings
 from enums.llm_provider import LLMProvider
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_llm_provider, get_model
@@ -89,8 +91,9 @@ async def _call_template_provider_with_llmai(
     user_text: str,
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
+    config: Any = None,
 ) -> str:
-    client = get_client(config=get_llm_config())
+    client = get_client(config=config if config is not None else get_llm_config())
     response = await asyncio.to_thread(
         client.generate,
         model=model,
@@ -159,8 +162,16 @@ def _template_provider_label_and_call(
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
 ) -> tuple[str, Callable[[], Awaitable[str]]]:
-    provider, model = _resolve_template_provider_and_model()
-    label = _provider_label(provider)
+    config: Any = None
+    settings = get_settings()
+    if uses_settings(settings, "template"):
+        # chatppt.toml picks the model ([llm] or [llm.routing.template]), including
+        # providers declared only there or added in <data>/providers/.
+        resolved = resolve_llm("template", settings)
+        label, model, config = resolved.provider, resolved.model, resolved.config
+    else:
+        provider, model = _resolve_template_provider_and_model()
+        label = _provider_label(provider)
     return (
         label,
         lambda: _call_template_provider_with_llmai(
@@ -169,6 +180,7 @@ def _template_provider_label_and_call(
             user_text=user_text,
             image_bytes=image_bytes,
             media_type=media_type,
+            config=config,
         ),
     )
 

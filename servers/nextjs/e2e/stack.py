@@ -4,8 +4,8 @@
 Reuses the benchmark's ``Stack`` (scripts/bench/run.py): nginx :80 -> Next.js :3000 and
 FastAPI :8000, MCP :8001, mock LLM :9900, auth disabled, a throwaway data folder. On top of
 that, image generation is switched on and pointed at the mock's PNG endpoint, so the flow
-covers image assets too, and e2e/fixtures/templates/ is copied into the data folder as
-dropped-in templates.
+covers image assets too, and e2e/fixtures/ (a template folder, a theme, hooks.py) is copied
+into the data folder.
 
 Needs what the bench needs: the FastAPI venv, the Next.js standalone build, the
 presentation-export runtime, nginx, and a Chromium at PUPPETEER_EXECUTABLE_PATH.
@@ -43,8 +43,13 @@ class E2EStack(Stack):
         if logs := os.environ.get("E2E_LOGS_DIR"):
             self.logs = Path(logs)
             self.logs.mkdir(parents=True, exist_ok=True)
-        # A template dropped into <data>/templates/, for template-folder.spec.ts.
+        # Customisations dropped into the data folder, for template-folder.spec.ts: a
+        # template folder, a theme file, chatppt.toml making that theme the default, and
+        # hooks.py (acts on "desk" decks only).
         shutil.copytree(FIXTURES / "templates", self.app_data / "templates")
+        shutil.copytree(FIXTURES / "themes", self.app_data / "themes")
+        shutil.copy(FIXTURES / "hooks.py", self.app_data / "hooks.py")
+        (self.app_data / "chatppt.toml").write_text('[defaults]\ntheme = "ink"\n')
 
     def env(self) -> dict[str, str]:
         env = super().env()

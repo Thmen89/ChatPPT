@@ -1,0 +1,14 @@
+{
+  "name": "Ink",
+  "description": "e2e fixture: a dropped-in theme, applied to new decks by defaults.theme.",
+  "colors": {
+    "primary": "#3b82f6",
+    "background": "#0a0a0a",
+    "card": "#171717",
+    "stroke": "#262626",
+    "primary_text": "#ffffff",
+    "background_text": "#fafafa",
+    "graph": ["#3b82f6", "#22c55e", "#eab308"]
+  },
+  "font": { "name": "Inter" }
+}

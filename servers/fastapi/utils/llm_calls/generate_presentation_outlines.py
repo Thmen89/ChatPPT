@@ -13,6 +13,7 @@ from llmai.shared import (
 from models.presentation_outline_model import PresentationOutlineModel
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from chatppt import hooks
 from chatppt.providers import llm_for_step
 from utils.llm_utils import (
     get_generate_kwargs,
@@ -167,6 +168,7 @@ def get_messages(
     ]
 
 
+@hooks.before_outline
 async def generate_ppt_outline(
     content: str,
     n_slides: Optional[int],

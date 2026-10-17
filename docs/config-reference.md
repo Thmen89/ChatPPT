@@ -59,7 +59,7 @@ ChatPPT reads `chatppt.toml` from the data directory (or `CHATPPT_CONFIG`). Ever
 | `paths.prompts` | str |  | `CHATPPT_PATHS__PROMPTS` | Prompt overrides. Default <data>/prompts. |
 | `paths.themes` | str |  | `CHATPPT_PATHS__THEMES` | Theme files. Default <data>/themes. |
 | `defaults.template` | str | `'general'` | `CHATPPT_DEFAULTS__TEMPLATE` | Template used when a request names none. |
-| `defaults.theme` | str |  | `CHATPPT_DEFAULTS__THEME` | Theme id applied when a request names none. |
+| `defaults.theme` | str |  | `CHATPPT_DEFAULTS__THEME` | Theme applied to new decks (<data>/themes/<id>.json); unset keeps each template's colours. |
 | `defaults.n_slides` | int | `10` | `CHATPPT_DEFAULTS__N_SLIDES` |  |
 | `defaults.language` | str |  | `CHATPPT_DEFAULTS__LANGUAGE` | Default output language; unset lets the model detect it. |
 | `defaults.tone` | str | `'default'` | `CHATPPT_DEFAULTS__TONE` |  |

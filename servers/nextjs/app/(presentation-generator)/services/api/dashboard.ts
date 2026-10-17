@@ -64,6 +64,15 @@ export class DashboardApi {
     }
   }
 
+  /** The deck as the exporter renders it: the presentation after `<data>/hooks.py` before_export. */
+  static async getExportDeck(id: string) {
+    const response = await fetch(getApiUrl(`/api/v1/hooks/export-deck/${id}`), {
+      method: "GET",
+      credentials: "include",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Presentation not found");
+  }
+
   static async deletePresentation(presentation_id: string) {
     try {
       const response = await fetch(

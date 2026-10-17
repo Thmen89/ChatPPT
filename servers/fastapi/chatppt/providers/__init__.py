@@ -1,8 +1,8 @@
 """Provider registry and per-step model routing.
 
-Adding an LLM backend is one file that calls ``register_llm(LLMProviderSpec(...))`` and is
-imported from ``chatppt/providers/llm.py``. Image backends register an
-``ImageProviderSpec`` the same way (``chatppt/providers/images.py``).
+An OpenAI-compatible backend needs only a ``[llm.providers.<id>]`` table with ``base_url``
+in chatppt.toml. Any other backend is one file in ``<data>/providers/`` that calls
+``register_llm(LLMProviderSpec(...))`` or ``register_image(ImageProviderSpec(..., generate=...))``.
 """
 
 from chatppt.providers.base import ImageProviderSpec, LLMProviderSpec, ProviderConfigError

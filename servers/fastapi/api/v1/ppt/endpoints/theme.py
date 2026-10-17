@@ -98,10 +98,13 @@ async def _resolve_logo_url(
     return normalize_slide_asset_url(image_asset.path)
 
 
-@THEMES_ROUTER.get("/default", response_model=List[dict[str, Any]])
+@THEMES_ROUTER.get("/default", response_model=List[ThemeResponse])
 async def get_default_themes():
-    # Built-in themes are provided by Next.js constants in this project.
-    return []
+    """Theme files: shipped ones and ``<data>/themes/<id>.json`` (read on every call, so a
+    dropped-in file shows up without a restart). The editor lists them with its built-ins."""
+    from chatppt.themes import list_themes
+
+    return [ThemeResponse(**theme.presentation_theme()) for theme in list_themes().values()]
 
 
 @THEMES_ROUTER.get("/all", response_model=List[ThemeResponse])
