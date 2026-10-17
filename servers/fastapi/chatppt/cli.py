@@ -358,6 +358,13 @@ def _check_images(settings: Settings) -> Check:
 
 
 def _check_export(environ: dict[str, str]) -> Check:
+    chromium = environ.get("CHATPPT_CHROMIUM_PATH") or environ.get("PUPPETEER_EXECUTABLE_PATH") or ""
+    if (environ.get("CHATPPT_EXPORT_ENGINE") or "").strip().lower() != "bundle":
+        if not chromium or not os.access(chromium, os.X_OK):
+            return Check(
+                "fail", "export (PPTX/PDF)", f"no Chromium at PUPPETEER_EXECUTABLE_PATH ({chromium or 'unset'})"
+            )
+        return Check("ok", "export (PPTX/PDF)", f"built-in exporter, Chromium {chromium}")
     try:
         from services.export_task_service import ExportTaskService
 
@@ -370,7 +377,6 @@ def _check_export(environ: dict[str, str]) -> Check:
         return Check("fail", "export (PPTX/PDF)", f"runtime missing at {entrypoint}; this image cannot export")
     if not os.access(converter, os.X_OK):
         return Check("fail", "export (PPTX/PDF)", f"converter missing or not executable at {converter}")
-    chromium = environ.get("PUPPETEER_EXECUTABLE_PATH") or ""
     if not chromium or not os.access(chromium, os.X_OK):
         return Check("fail", "export (PPTX/PDF)", f"no Chromium at PUPPETEER_EXECUTABLE_PATH ({chromium or 'unset'})")
     return Check("ok", "export (PPTX/PDF)", f"runtime {entrypoint.parent}, Chromium {chromium}")
