@@ -1,52 +1,44 @@
-/**
- * UploadPage Component
- * 
- * This component handles the presentation generation upload process, allowing users to:
- * - Configure presentation settings (slides, language)
- * - Input prompts
- * - Upload supporting documents
- * 
- * @component
- */
-
 "use client";
-import React, { useState } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
+import { Paperclip, SlidersHorizontal, X } from "lucide-react";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
-import { PromptInput } from "./PromptInput";
-import { LanguageType, PresentationConfig, ToneType, VerbosityType } from "../type";
-import SupportingDoc from "./SupportingDoc";
-import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
-import { notify } from "@/components/ui/sonner";
-import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import { OverlayLoader } from "@/components/ui/overlay-loader";
-import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
-import { ConfigurationSelects } from "./ConfigurationSelects";
-import { RootState } from "@/store/store";
-import { ImagesApi } from "../../services/api/images";
-import CurrentConfig from "./CurrentConfig";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { notify } from "@/components/ui/sonner";
+import { useTemplateList } from "@/app/hooks/useTemplateList";
+import { isMod, useModLabel } from "@/lib/keys";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
+import { LanguageType, PresentationConfig, ToneType, VerbosityType } from "../type";
 
-const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
+const SLIDE_COUNTS = ["3", "4", "5", "6", "8", "10", "12", "15", "20", "25", "30"];
+const MAX_FILES = 8;
+const ACCEPT =
+  ".pdf,.txt,.doc,.docx,.docm,.odt,.rtf,.ppt,.pptx,.pptm,.odp,.xls,.xlsx,.xlsm,.ods,.csv,.tsv,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp";
+const TEMPLATE_KEY = "chatppt:template";
 
-// Types for loading state
-interface LoadingState {
-  isLoading: boolean;
-  message: string;
-  duration?: number;
-  showProgress?: boolean;
-  extra_info?: string;
-}
+type Mode = "outline" | "deck";
 
+/**
+ * The home screen: one prompt box. Enter writes the outline (review it, then generate);
+ * ⌘/Ctrl+Enter goes straight to the deck. The template is chosen here, so the outline call
+ * also picks each slide's layout.
+ */
 const UploadPage = () => {
   const router = useRouter();
   const dispatch = useDispatch();
-  const llmConfig = useSelector((state: RootState) => state.userConfig.llm_config);
+  const templates = useTemplateList();
+  const mod = useModLabel();
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const [config, setConfig] = useState<PresentationConfig>({
+    template: "general",
     slides: null,
     language: LanguageType.Auto,
     prompt: "",
@@ -57,238 +49,305 @@ const UploadPage = () => {
     includeTitleSlide: false,
     webSearch: false,
   });
+  const set = <K extends keyof PresentationConfig>(key: K, value: PresentationConfig[K]) =>
+    setConfig((prev) => ({ ...prev, [key]: value }));
 
-  const [loadingState, setLoadingState] = useState<LoadingState>({
-    isLoading: false,
-    message: "",
-    duration: 4,
-    showProgress: false,
-    extra_info: "",
-  });
-
-  const handleConfigChange = (key: keyof PresentationConfig, value: unknown) => {
-    setConfig((prev) => ({ ...prev, [key]: value } as PresentationConfig));
-  };
-
-  const ensureStockImageProviderReady = async (): Promise<boolean> => {
-    if (llmConfig?.DISABLE_IMAGE_GENERATION) {
-      return true;
-    }
-
-    const selectedProvider = (llmConfig?.IMAGE_PROVIDER || "").toLowerCase();
-    if (!STOCK_IMAGE_PROVIDERS.has(selectedProvider)) {
-      return true;
-    }
-
+  // Remember the last template (a per-browser convenience).
+  useEffect(() => {
     try {
-      const providerApiKey =
-        selectedProvider === "pexels"
-          ? llmConfig?.PEXELS_API_KEY
-          : llmConfig?.PIXABAY_API_KEY;
-      await ImagesApi.searchStockImages("business", 1, {
-        provider: selectedProvider,
-        apiKey: providerApiKey,
-        strictApiKey: true,
-      });
-      return true;
-    } catch (error: any) {
-      notify.error(
-        "Image provider unavailable",
-        error?.message ||
-        `Unable to reach ${selectedProvider} right now. Please check your API key/settings and try again.`
-      );
-      return false;
-    }
+      const saved = localStorage.getItem(TEMPLATE_KEY);
+      if (saved) set("template", saved);
+    } catch {}
+  }, []);
+  const chooseTemplate = (id: string) => {
+    set("template", id);
+    try {
+      localStorage.setItem(TEMPLATE_KEY, id);
+    } catch {}
   };
 
-  /**
-   * Validates the current configuration and files
-   * @returns boolean indicating if the configuration is valid
-   */
-  const validateConfiguration = (): boolean => {
-    if (!config.language) {
-      notify.warning("Language required", "Please select a language.");
-      return false;
-    }
+  const addFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+    const next = [...files, ...incoming];
+    if (next.length > MAX_FILES) notify.warning("Too many files", `Up to ${MAX_FILES} documents.`);
+    setFiles(next.slice(0, MAX_FILES));
+  };
 
-    if (files.length > 0 && config.language === LanguageType.Auto) {
-      notify.warning("Language required", "Please choose a language before processing uploaded documents.");
-      return false;
-    }
-
+  const start = async (mode: Mode) => {
+    if (busy) return;
     if (!config.prompt.trim() && files.length === 0) {
-      notify.warning("Input required", "Provide a prompt or upload at least one document.");
-      return false;
-    }
-    return true;
-  };
-
-  /**
-   * Handles the presentation generation process
-   */
-  const handleGeneratePresentation = async () => {
-    if (!validateConfiguration()) return;
-
-
-    const isStockProviderReady = await ensureStockImageProviderReady();
-    if (!isStockProviderReady) {
+      notify.warning("Nothing to work from", "Write a prompt or attach a document.");
       return;
     }
-
+    if (files.length > 0 && config.language === LanguageType.Auto) {
+      notify.warning("Pick a language", "Documents need a language (Options).");
+      return;
+    }
     try {
-      const hasUploadedAssets = files.length > 0;
-
-      if (hasUploadedAssets) {
-        await handleDocumentProcessing();
-      } else {
-        await handleDirectPresentationGeneration();
+      if (files.length > 0) {
+        setBusy("Reading documents…");
+        const uploaded = await PresentationGenerationApi.uploadDoc(files);
+        const decomposed = await PresentationGenerationApi.decomposeDocuments(uploaded, config.language);
+        dispatch(setPptGenUploadState({ config, files: [decomposed] }));
+        dispatch(clearOutlines());
+        router.push("/documents-preview");
+        return;
       }
-    } catch (error) {
-      handleGenerationError(error);
+      setBusy("Starting…");
+      const created = await PresentationGenerationApi.createPresentation({
+        content: config.prompt,
+        n_slides: config.slides ? parseInt(config.slides, 10) : null,
+        file_paths: [],
+        language: config.language ?? "",
+        tone: config.tone,
+        verbosity: config.verbosity,
+        instructions: config.instructions || null,
+        include_table_of_contents: config.includeTableOfContents,
+        include_title_slide: config.includeTitleSlide,
+        web_search: config.webSearch,
+        template: config.template,
+      });
+      dispatch(setPresentationId(created.id));
+      dispatch(clearOutlines());
+      router.push(mode === "deck" ? "/outline?auto=1" : "/outline");
+    } catch (error: any) {
+      console.error("Could not start the deck", error);
+      notify.error("Could not start", error?.message || "Something went wrong.");
+      setBusy(null);
     }
   };
 
-  /**
-   * Handles document processing
-   */
-  const handleDocumentProcessing = async () => {
-    setLoadingState({
-      isLoading: true,
-      message: "Processing documents...",
-      showProgress: true,
-      duration: 90,
-      extra_info: files.length > 0 ? "It might take a few minutes for large documents." : "",
-    });
-
-    let documents = [];
-
-    if (files.length > 0) {
-      const uploadResponse = await PresentationGenerationApi.uploadDoc(files);
-      documents = uploadResponse;
-    }
-
-    const selectedLanguage = config?.language ?? "";
-
-    const promises: Promise<any>[] = [];
-
-    if (documents.length > 0) {
-      promises.push(
-        PresentationGenerationApi.decomposeDocuments(
-          documents,
-          selectedLanguage
-        )
-      );
-    }
-    const responses = await Promise.all(promises);
-    dispatch(setPptGenUploadState({
-      config,
-      files: responses,
-    }));
-    dispatch(clearOutlines())
-    router.push("/documents-preview");
-  };
-
-  /**
-   * Handles direct presentation generation without documents
-   */
-  const handleDirectPresentationGeneration = async () => {
-    setLoadingState({
-      isLoading: true,
-      message: "Generating outlines...",
-      showProgress: true,
-      duration: 30,
-    });
-
-    const selectedLanguage = config?.language ?? "";
-
-    // Use the first available layout group for direct generation
-    const createResponse = await PresentationGenerationApi.createPresentation({
-      content: config?.prompt ?? "",
-      n_slides: config?.slides ? parseInt(config.slides, 10) : null,
-      file_paths: [],
-      language: selectedLanguage,
-      tone: config?.tone,
-      verbosity: config?.verbosity,
-      instructions: config?.instructions || null,
-      include_table_of_contents: !!config?.includeTableOfContents,
-      include_title_slide: !!config?.includeTitleSlide,
-      web_search: !!config?.webSearch,
-    });
-
-
-    dispatch(setPresentationId(createResponse.id));
-    dispatch(clearOutlines())
-    router.push("/outline");
-  };
-
-  /**
-   * Handles errors during presentation generation
-   */
-  const handleGenerationError = (error: any) => {
-    console.error("Error in upload page", error);
-    setLoadingState({
-      isLoading: false,
-      message: "",
-      duration: 0,
-      showProgress: false,
-    });
-    notify.error(
-      "Generation failed",
-      error.message || "Something went wrong while starting your presentation."
-    );
+  const onPromptKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    start(isMod(e) ? "deck" : "outline");
   };
 
   return (
-    <Wrapper className="pb-10 lg:max-w-[65%] xl:max-w-[60%]">
-      <OverlayLoader
-        show={loadingState.isLoading}
-        text={loadingState.message}
-        showProgress={loadingState.showProgress}
-        duration={loadingState.duration}
-        extra_info={loadingState.extra_info}
-      />
-      <div className="rounded-2xl " >
-        <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between px-4 ">
-          <CurrentConfig />
-          <ConfigurationSelects
-            config={config}
-            onConfigChange={handleConfigChange}
+    <div className="mx-auto w-full max-w-[760px] px-6 pt-[12vh] pb-16">
+      <h1 className="mb-3 text-xl font-semibold tracking-tight text-zinc-900">New deck</h1>
+      <div
+        className="rounded-lg border border-zinc-200 bg-white focus-within:border-zinc-400"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          addFiles(Array.from(e.dataTransfer.files));
+        }}
+      >
+        <label htmlFor="prompt" className="sr-only">
+          What is the deck about?
+        </label>
+        <textarea
+          id="prompt"
+          data-testid="prompt-input"
+          autoFocus
+          rows={5}
+          value={config.prompt}
+          onChange={(e) => set("prompt", e.target.value)}
+          onKeyDown={onPromptKey}
+          placeholder="What is the deck about? Audience, key numbers, the point you want to land."
+          className="block max-h-[320px] min-h-[132px] w-full resize-y rounded-t-lg bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
+        />
+
+        {files.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5 px-4 pb-2" aria-label="Attached documents">
+            {files.map((file, i) => (
+              <li
+                key={`${file.name}-${i}`}
+                className="flex items-center gap-1 rounded border border-zinc-200 bg-zinc-50 py-0.5 pl-2 pr-1 text-xs text-zinc-700"
+              >
+                <span className="max-w-[220px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                  className="rounded p-0.5 text-zinc-400 hover:text-zinc-900"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-3 py-2">
+          <NativeSelect
+            aria-label="Template"
+            data-testid="template-select"
+            value={config.template}
+            onChange={(e) => chooseTemplate(e.target.value)}
+            className="w-[150px]"
+          >
+            {!templates.some((t) => t.id === config.template) && (
+              <option value={config.template}>{config.template}</option>
+            )}
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Number of slides"
+            data-testid="slides-select"
+            value={config.slides ?? ""}
+            onChange={(e) => set("slides", e.target.value || null)}
+            className="w-[112px]"
+          >
+            <option value="">Auto slides</option>
+            {SLIDE_COUNTS.map((n) => (
+              <option key={n} value={n}>
+                {n} slides
+              </option>
+            ))}
+          </NativeSelect>
+          <OptionsPopover config={config} set={set} />
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            accept={ACCEPT}
+            className="hidden"
+            onChange={(e) => {
+              addFiles(Array.from(e.target.files ?? []));
+              e.currentTarget.value = "";
+            }}
           />
-        </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()}>
+            <Paperclip /> Attach
+          </Button>
 
-        <div className="p-4 ">
-
-          <div className="relative">
-            <PromptInput
-              value={config.prompt}
-              onChange={(value) => handleConfigChange("prompt", value)}
-
-            />
+          <div className="ml-auto flex items-center gap-2">
+            {busy && (
+              <span role="status" className="text-xs text-zinc-500">
+                {busy}
+              </span>
+            )}
+            <Button type="button" variant="outline" size="sm" disabled={!!busy} onClick={() => start("deck")}>
+              Straight to deck <Kbd>{mod}↵</Kbd>
+            </Button>
+            <Button type="button" size="sm" disabled={!!busy} onClick={() => start("outline")}>
+              Outline <Kbd dark>↵</Kbd>
+            </Button>
           </div>
         </div>
-        <div className="p-4 ">
-          <h3 className="text-sm font-medium text-[#333333] mb-2">Attachments (optional)</h3>
-          <SupportingDoc
-            files={[...files]}
-            onFilesChange={setFiles}
-          />
-        </div>
-
-        <div className="p-4">
-          <Button
-            onClick={handleGeneratePresentation}
-            style={{
-              background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)"
-            }}
-            className="w-fit mr-0 ml-auto rounded-[28px] flex items-center justify-center py-5 px-4  text-[#101323] font-syne font-semibold text-xs  "
-          >
-            <span>Get Started</span>
-            <ChevronRight className="!w-5 !h-5 " />
-          </Button>
-        </div>
       </div>
-    </Wrapper>
+      <p className="mt-2 text-xs text-zinc-500">
+        Enter writes an outline to review. {mod}+Enter skips it. Shift+Enter for a new line. Drop documents on
+        the box to use them as sources.
+      </p>
+    </div>
   );
 };
+
+function Kbd({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  return (
+    <kbd
+      className={`ml-0.5 rounded px-1 font-mono text-[11px] ${dark ? "bg-white/15 text-white/80" : "bg-zinc-100 text-zinc-500"}`}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+function OptionsPopover({
+  config,
+  set,
+}: {
+  config: PresentationConfig;
+  set: <K extends keyof PresentationConfig>(key: K, value: PresentationConfig[K]) => void;
+}) {
+  const toggles: [keyof PresentationConfig, string][] = [
+    ["includeTitleSlide", "Title slide"],
+    ["includeTableOfContents", "Table of contents"],
+    ["webSearch", "Web search"],
+  ];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" data-testid="options-button">
+          <SlidersHorizontal /> Options
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[320px] space-y-3 p-4 text-[13px]">
+        <Row label="Language">
+          <NativeSelect
+            aria-label="Language"
+            value={config.language ?? LanguageType.Auto}
+            onChange={(e) => set("language", e.target.value as LanguageType)}
+            className="w-[170px]"
+          >
+            {Object.values(LanguageType).map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </NativeSelect>
+        </Row>
+        <Row label="Tone">
+          <NativeSelect
+            aria-label="Tone"
+            value={config.tone}
+            onChange={(e) => set("tone", e.target.value as ToneType)}
+            className="w-[170px]"
+          >
+            {Object.values(ToneType).map((t) => (
+              <option key={t} value={t}>
+                {t.replace("_", " ")}
+              </option>
+            ))}
+          </NativeSelect>
+        </Row>
+        <Row label="Text per slide">
+          <NativeSelect
+            aria-label="Text per slide"
+            value={config.verbosity}
+            onChange={(e) => set("verbosity", e.target.value as VerbosityType)}
+            className="w-[170px]"
+          >
+            {Object.values(VerbosityType).map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </NativeSelect>
+        </Row>
+        {toggles.map(([key, label]) => (
+          <label key={key} className="flex cursor-pointer items-center justify-between">
+            <span className="text-zinc-700">{label}</span>
+            <input
+              type="checkbox"
+              checked={Boolean(config[key])}
+              onChange={(e) => set(key, e.target.checked as never)}
+              className="h-4 w-4 accent-zinc-900"
+            />
+          </label>
+        ))}
+        <div>
+          <label htmlFor="instructions" className="mb-1 block text-zinc-700">
+            Instructions
+          </label>
+          <textarea
+            id="instructions"
+            rows={3}
+            value={config.instructions}
+            onChange={(e) => set("instructions", e.target.value)}
+            placeholder="House style, audience, things to avoid."
+            className="w-full resize-none rounded-md border border-zinc-200 px-2.5 py-1.5 text-[13px] placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-zinc-700">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 export default UploadPage;

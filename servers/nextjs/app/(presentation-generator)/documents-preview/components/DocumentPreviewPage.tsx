@@ -26,7 +26,7 @@ import { notify } from "@/components/ui/sonner";
 import { getIconFromFile } from "../../utils/others";
 import { ChevronRight, PanelRightOpen, X } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
-import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
+import AppNav from "@/components/AppNav";
 
 // Types
 interface LoadingState {
@@ -159,6 +159,7 @@ const DocumentsPreviewPage: React.FC = () => {
           include_table_of_contents: !!config?.includeTableOfContents,
           include_title_slide: !!config?.includeTitleSlide,
           web_search: !!config?.webSearch,
+          template: config?.template,
         }
       );
 
@@ -265,16 +266,16 @@ const DocumentsPreviewPage: React.FC = () => {
         showProgress={showLoading.progress}
         duration={showLoading.duration}
       />
-      <Header />
-      <div className="flex mt-6 gap-4 font-instrument_sans">
+      <AppNav />
+      <div className="flex mt-6 gap-4 ">
         {!isOpen && (
           <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
             <ToolTip content="Open Panel">
               <Button
                 onClick={() => setIsOpen(true)}
-                className="bg-[#5146E5] text-white p-3 shadow-lg"
+                aria-label="Open panel" className="p-2"
               >
-                <PanelRightOpen className="text-white" size={20} />
+                <PanelRightOpen />
               </Button>
             </ToolTip>
           </div>
@@ -289,9 +290,9 @@ const DocumentsPreviewPage: React.FC = () => {
         <div className="fixed bottom-5 right-5">
           <Button
             onClick={handleCreatePresentation}
-            className="flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#5146E5] hover:bg-[#5146E5]/90"
+            size="lg"
           >
-            <span className="text-white font-semibold">Next</span>
+            <span>Write outline</span>
             <ChevronRight />
           </Button>
         </div>

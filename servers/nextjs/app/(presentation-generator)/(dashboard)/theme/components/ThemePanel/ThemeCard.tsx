@@ -86,21 +86,21 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({ theme, onSelect, onDelete,
       <div className=" absolute top-0 left-0 flex items-center justify-between gap-2  z-[2] p-2">
         <ToolTip content='Font' >
 
-          <p className=" text-xs font-syne  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
+          <p className=" text-xs  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
 
             {theme.data.fonts.textFont.name}
           </p>
         </ToolTip>
         {theme.company_name && <ToolTip content='COMPANY'>
 
-          <p className=" text-xs font-syne  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  text-ellipsis overflow-hidden whitespace-nowrap z-40 ">
+          <p className=" text-xs  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  text-ellipsis overflow-hidden whitespace-nowrap z-40 ">
 
             {theme.company_name}
           </p>
         </ToolTip>}
         {theme.logo_url && <ToolTip content='LOGO'>
 
-          <p className=" text-xs font-syne  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
+          <p className=" text-xs  flex gap-1 capitalize  items-center  rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
 
             <img src={theme.logo_url} alt={theme.name} className="w-full max-w-6 h-4 rounded-full object-cover" />
           </p>

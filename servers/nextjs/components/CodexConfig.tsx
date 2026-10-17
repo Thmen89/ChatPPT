@@ -252,7 +252,7 @@ export default function CodexConfig({
 
   if (authStatus === "checking") {
     return (
-      <div className="mb-5 w-full p-3 border border-[#EDEEEF] font-syne rounded-[8px] flex items-center gap-6">
+      <div className="mb-5 w-full p-3 border border-[#EDEEEF] rounded-[8px] flex items-center gap-6">
         <div className="w-[74px] h-[74px] bg-[#333333] rounded-full flex items-center justify-center shrink-0">
           <Loader2 className="w-10 h-10 text-[#191919] animate-spin" />
         </div>
@@ -268,7 +268,7 @@ export default function CodexConfig({
 
   if (authStatus === "polling") {
     return (
-      <div className="mb-5 space-y-4 font-syne">
+      <div className="mb-5 space-y-4">
         <div className="w-full p-3 border border-[#EDEEEF] rounded-[8px] flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 min-w-0 flex-1">
             <div className="w-[40px] h-[40px] bg-[#EDEEEF] rounded-full flex items-center justify-center shrink-0">
@@ -383,7 +383,7 @@ export default function CodexConfig({
   return (
     <button
       onClick={handleSignIn}
-      className=" w-full  p-5 border border-[#EDEEEF] font-syne  hover:bg-[#F7F6F9] transition-colors duration-300   rounded-[12px] flex items-center   justify-between  "
+      className=" w-full  p-5 border border-[#EDEEEF]  hover:bg-[#F7F6F9] transition-colors duration-300   rounded-[12px] flex items-center   justify-between  "
     >
       <div className="flex items-center gap-2 flex-1">
         <div className="w-[40px] h-[40px] bg-[#333333] rounded-full flex items-center justify-center" >

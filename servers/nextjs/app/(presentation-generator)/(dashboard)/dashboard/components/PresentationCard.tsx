@@ -1,209 +1,123 @@
 'use client'
-import React, { useEffect } from "react";
-
-import { Card } from "@/components/ui/card";
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
-import { AlertTriangle, EllipsisVertical, Loader2, Trash } from "lucide-react";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-import { useRouter } from "next/navigation";
 import { notify } from "@/components/ui/sonner";
-
-import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoad";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useFontLoader as loadFonts } from "@/app/(presentation-generator)/hooks/useFontLoad";
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
 import MarkdownRenderer from "@/components/MarkDownRender";
 
+const COLOR_VARS: [string, string][] = [
+  ["--primary-color", "primary"],
+  ["--background-color", "background"],
+  ["--card-color", "card"],
+  ["--stroke", "stroke"],
+  ["--primary-text", "primary_text"],
+  ["--background-text", "background_text"],
+  ...Array.from({ length: 10 }, (_, i) => [`--graph-${i}`, `graph_${i}`] as [string, string]),
+];
+
+/** A deck in the list: first-slide thumbnail, title, date. The whole card is one link. */
 export const PresentationCard = ({
   id,
   title,
   presentation,
-  onDeleted
+  onDeleted,
 }: {
   id: string;
   title: string;
   presentation: any;
   onDeleted?: (presentationId: string) => void;
 }) => {
-  const router = useRouter();
-  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
-  const [isDeleting, setIsDeleting] = React.useState(false);
+  const thumb = useRef<HTMLDivElement>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handlePreview = (e: React.MouseEvent) => {
-    e.preventDefault();
-    router.push(`/presentation?id=${id}&type=standard`);
-  };
+  // Draw the thumbnail in the deck's own theme.
   useEffect(() => {
-    applyTheme(presentation.theme)
-  }, [])
-  const applyTheme = async (theme: any) => {
-    const element = document.getElementById(`dashboard-presentation-card-${id}`)
-    if (!element) return;
-
-    if (!theme || !theme.data || !theme.data.colors['graph_0']) { return; }
-    const cssVariables = {
-      '--primary-color': theme.data.colors['primary'],
-      '--background-color': theme.data.colors['background'],
-      '--card-color': theme.data.colors['card'],
-      '--stroke': theme.data.colors['stroke'],
-      '--primary-text': theme.data.colors['primary_text'],
-      '--background-text': theme.data.colors['background_text'],
-      '--graph-0': theme.data.colors['graph_0'],
-      '--graph-1': theme.data.colors['graph_1'],
-      '--graph-2': theme.data.colors['graph_2'],
-      '--graph-3': theme.data.colors['graph_3'],
-      '--graph-4': theme.data.colors['graph_4'],
-      '--graph-5': theme.data.colors['graph_5'],
-      '--graph-6': theme.data.colors['graph_6'],
-      '--graph-7': theme.data.colors['graph_7'],
-      '--graph-8': theme.data.colors['graph_8'],
-      '--graph-9': theme.data.colors['graph_9'],
+    const el = thumb.current;
+    const theme = presentation?.theme;
+    if (!el || !theme?.data?.colors?.graph_0) return;
+    for (const [cssVar, key] of COLOR_VARS) el.style.setProperty(cssVar, theme.data.colors[key]);
+    const font = theme.data.fonts?.textFont;
+    if (font?.name) {
+      if (font.url) loadFonts({ [font.name]: font.url });
+      for (const p of ["font-family", "--heading-font-family", "--body-font-family"]) {
+        el.style.setProperty(p, `"${font.name}"`);
+      }
     }
-    Object.entries(cssVariables).forEach(([key, value]) => {
-      element.style.setProperty(key, value)
-    })
-    // 
-    if (theme.data.fonts.textFont.url && theme.data.fonts.textFont.name) {
-      useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
-    }
-
-    // Apply fonts to preview container
-    element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)
-    element.style.setProperty('--heading-font-family', `"${theme.data.fonts.textFont.name}"`)
-    element.style.setProperty('--body-font-family', `"${theme.data.fonts.textFont.name}"`)
-
-
-  }
+  }, [presentation?.theme]);
 
   const handleDelete = async () => {
     if (isDeleting) return;
     setIsDeleting(true);
     const response = await DashboardApi.deletePresentation(id);
-
     if (response?.success) {
-      notify.success("Presentation deleted", "The presentation was removed from your dashboard.");
-      setShowDeleteDialog(false);
-      if (onDeleted) {
-        onDeleted(id);
-      }
+      setConfirming(false);
+      onDeleted?.(id);
     } else {
-      notify.error("Could not delete presentation", response?.message || "Something went wrong while deleting the presentation.");
+      notify.error("Could not delete", response?.message || "Something went wrong.");
     }
     setIsDeleting(false);
   };
+
   const firstSlide = presentation?.slides?.[0];
   return (
-    <Card
-      suppressHydrationWarning={true}
-      onClick={handlePreview}
-      className="bg-[#F8FBFB] font-syne shadow-none sm:shadow-none  presentation-card rounded-[12px] p-0 group hover:shadow-md transition-all duration-500 slide-theme cursor-pointer overflow-hidden flex flex-col"
-    >
-      <div
-        id={`dashboard-presentation-card-${id}`}
-        suppressHydrationWarning={true} className="flex flex-col flex-1 relative z-40">
-        {/* <p className=" text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
-
-          {presentation.type}
-        </p> */}
-
-        <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-        <div className="scale-[0.75] mt-4  border border-gray-300 rounded-lg overflow-hidden">
-
-          <SlideScale slide={firstSlide} isClickable={false} />
-        </div>
-
-        <div className="w-full py-3 px-5 mt-auto z-40 relative bg-white  border-t border-[#EDEEEF]">
-          <div className="flex items-center justify-between gap-7 w-full">
-            <div className="flex flex-col items-start gap-1">
-              <div className="text-sm text-[#191919] font-semibold  overflow-hidden line-clamp-1">
-                <MarkdownRenderer content={title} className="text-sm mb-0  font-syne text-[#191919] font-semibold  overflow-hidden line-clamp-1" />
-              </div>
-              <p className="text-[#808080] text-sm font-syne">
-                {new Date(presentation?.created_at).toLocaleDateString()}
-              </p>
-
-            </div>
-            <Popover>
-              <PopoverTrigger className="w-6 h-6 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700" onClick={(e) => e.stopPropagation()}>
-                <EllipsisVertical className="w-6 h-6 text-gray-500" />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="bg-white w-[200px]">
-                <button
-                  className="flex items-center justify-between w-full px-2 py-1 hover:bg-gray-100"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowDeleteDialog(true);
-                  }}
-                >
-                  <p>Delete</p>
-                  <Trash className="w- h-4 text-red-500" />
-                </button>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-        </div>
-      </div>
-      {showDeleteDialog && (
+    <div className="group relative">
+      <Link
+        href={`/presentation?id=${id}&type=standard`}
+        className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center animate-[fadeIn_150ms_ease-out]"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (isDeleting) return;
-            setShowDeleteDialog(false);
-          }}
+          ref={thumb}
+          className="pointer-events-none aspect-video overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 font-syne"
         >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-          <div
-            className="relative w-[360px] rounded-2xl bg-white shadow-2xl animate-[scaleIn_200ms_ease-out]"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <div className="flex flex-col items-center p-6 pb-4 text-center">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-                <AlertTriangle className="h-6 w-6 text-red-500" />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold text-[#191919]">
-                Delete Presentation?
-              </h3>
-              <p className="text-sm leading-relaxed text-gray-500">
-                You are about to delete{" "}
-                <span className="font-medium text-gray-700">&quot;{title}&quot;</span>.
-                This action cannot be undone.
-              </p>
-            </div>
-            <div className="flex border-t border-gray-100">
-              <button
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleDelete()}
-                disabled={isDeleting}
-                className="flex flex-1 items-center justify-center gap-2 border-l border-gray-100 px-4 py-3.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </button>
-            </div>
-          </div>
+          {firstSlide && <SlideScale slide={firstSlide} isClickable={false} />}
         </div>
-      )}
-    </Card>
+        <div className="mt-2 pr-8">
+          <MarkdownRenderer
+            content={title || "Untitled"}
+            className="mb-0 line-clamp-1 text-[13px] font-medium text-zinc-900 prose-p:my-0"
+          />
+          <p className="text-xs text-zinc-500">
+            {new Date(presentation?.updated_at ?? presentation?.created_at).toLocaleDateString()}
+            {presentation?.slides?.length ? ` · ${presentation.slides.length} slides` : ""}
+          </p>
+        </div>
+      </Link>
+      <button
+        type="button"
+        aria-label={`Delete ${title || "deck"}`}
+        onClick={() => setConfirming(true)}
+        className="absolute bottom-1 right-0 rounded p-1.5 text-zinc-400 opacity-0 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+      <Dialog open={confirming} onOpenChange={(open) => !isDeleting && setConfirming(open)}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle className="text-sm font-semibold">Delete this deck?</DialogTitle>
+          <DialogDescription className="text-[13px]">
+            &ldquo;{title}&rdquo; will be removed. This cannot be undone.
+          </DialogDescription>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirming(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
+              {isDeleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };

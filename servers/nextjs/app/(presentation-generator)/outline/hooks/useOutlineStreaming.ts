@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { notify } from "@/components/ui/sonner";
-import { setOutlines } from "@/store/slices/presentationGeneration";
+import { OutlineSlide, setOutlines } from "@/store/slices/presentationGeneration";
 import { jsonrepair } from "jsonrepair";
 import { RootState } from "@/store/store";
 import { getApiUrl } from "@/utils/api";
@@ -14,11 +14,12 @@ const STREAM_RETRY_DELAY_MS = 1_000;
 export const useOutlineStreaming = (presentationId: string | null) => {
   const dispatch = useDispatch();
   const { outlines } = useSelector((state: RootState) => state.presentationGeneration);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  // Outlines already in the store (back from the editor) are not streamed again.
+  const [isStreaming, setIsStreaming] = useState(() => outlines.length === 0);
+  const [isLoading, setIsLoading] = useState(() => outlines.length === 0);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number | null>(null);
   const [highestActiveIndex, setHighestActiveIndex] = useState<number>(-1);
-  const prevSlidesRef = useRef<{ content: string }[]>([]);
+  const prevSlidesRef = useRef<OutlineSlide[]>([]);
   const activeIndexRef = useRef<number>(-1);
   const highestIndexRef = useRef<number>(-1);
 
@@ -107,7 +108,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               const partialData = JSON.parse(repairedJson);
 
               if (partialData.slides) {
-                const nextSlides: { content: string }[] = partialData.slides || [];
+                const nextSlides: OutlineSlide[] = partialData.slides || [];
                 try {
                   const prev = prevSlidesRef.current || [];
                   let changedIndex: number | null = null;
@@ -144,8 +145,12 @@ export const useOutlineStreaming = (presentationId: string | null) => {
 
           case "complete":
             try {
-              const outlinesData: { content: string }[] =
-                data.presentation.outlines.slides;
+              // Layout indices the outline call picked (template chosen up front).
+              const layouts: unknown[] = data.presentation.structure?.slides ?? [];
+              const outlinesData: OutlineSlide[] = data.presentation.outlines.slides.map(
+                (slide: OutlineSlide, i: number) =>
+                  typeof layouts[i] === "number" ? { ...slide, layout: layouts[i] as number } : { content: slide.content }
+              );
               dispatch(setOutlines(outlinesData));
               setIsStreaming(false);
               setIsLoading(false);
