@@ -1,0 +1,21 @@
+# Development: the repository mounted into the container, both servers reloading on change.
+#
+#   docker compose -f deploy/compose.dev.yml up
+services:
+  chatppt-dev:
+    build:
+      context: ..
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ..:/app
+      - ../data:/data
+      - nextjs-node-modules:/app/servers/nextjs/node_modules
+    environment:
+      - CHATPPT_LLM__PROVIDER
+      - CHATPPT_LLM__PROVIDERS__OPENAI__API_KEY
+      - CHATPPT_LLM__PROVIDERS__ANTHROPIC__API_KEY
+
+volumes:
+  nextjs-node-modules:

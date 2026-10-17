@@ -9,6 +9,12 @@ node_modules
 out
 user_data
 app_data
+# Data folders created by docker-compose.yml and deploy/ next to the repo
+/chatppt/
+/data/
+/postgres/
+/deploy/chatppt/
+/deploy/postgres/
 tmp
 debug
 .fastembed_cache
