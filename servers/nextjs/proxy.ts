@@ -22,6 +22,7 @@ function getFastApiBaseUrl(): string {
 }
 
 type AuthStatus = {
+  exporter?: boolean;
   configured: boolean;
   authenticated: boolean;
 };
@@ -47,10 +48,17 @@ async function getAuthStatus(request: NextRequest): Promise<AuthStatus> {
     return {
       configured: Boolean(payload.configured),
       authenticated: Boolean(payload.authenticated),
+      exporter: Boolean(payload.exporter),
     };
   } catch {
     return { configured: true, authenticated: false };
   }
+}
+
+/** What the exporter's read-only token may reach here: reads, and compiling the CSS of
+ * folder templates (a POST with no side effects). */
+function isExporterAllowed(request: NextRequest): boolean {
+  return request.method === "GET" || request.nextUrl.pathname === "/api/template/css";
 }
 
 function isApiAuthExempt(pathname: string): boolean {
@@ -98,7 +106,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const authStatus = await getAuthStatus(request);
-  if (authStatus.authenticated) {
+  if (authStatus.authenticated || (authStatus.exporter && isExporterAllowed(request))) {
     return NextResponse.next();
   }
   if (!authStatus.configured) {
