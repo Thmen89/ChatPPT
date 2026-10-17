@@ -6,6 +6,7 @@ from api.v1.ppt.endpoints.anthropic import ANTHROPIC_ROUTER
 from api.v1.ppt.endpoints.codex_auth import CODEX_AUTH_ROUTER
 from api.v1.ppt.endpoints.google import GOOGLE_ROUTER
 from api.v1.ppt.endpoints.openai import OPENAI_ROUTER
+from api.v1.ppt.endpoints.export import EXPORT_ROUTER
 from api.v1.ppt.endpoints.files import FILES_ROUTER
 from api.v1.ppt.endpoints.pptx_slides import PPTX_SLIDES_ROUTER
 from api.v1.ppt.endpoints.pdf_slides import PDF_SLIDES_ROUTER
@@ -25,6 +26,7 @@ from templates.router import TEMPLATE_ROUTER
 API_V1_PPT_ROUTER = APIRouter(prefix="/api/v1/ppt")
 
 API_V1_PPT_ROUTER.include_router(FILES_ROUTER)
+API_V1_PPT_ROUTER.include_router(EXPORT_ROUTER)
 API_V1_PPT_ROUTER.include_router(FONTS_ROUTER)
 API_V1_PPT_ROUTER.include_router(OUTLINES_ROUTER)
 API_V1_PPT_ROUTER.include_router(PRESENTATION_ROUTER)
