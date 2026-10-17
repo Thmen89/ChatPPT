@@ -12,6 +12,7 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from chatppt.hooks import run_hook
+from chatppt.templates import get_template
 from chatppt.themes import default_presentation_theme
 from constants.presentation import DEFAULT_TEMPLATES, MAX_NUMBER_OF_SLIDES
 from enums.webhook_event import WebhookEvent
@@ -649,9 +650,12 @@ async def check_if_api_request_is_valid(
             detail="Number of slides cannot be less than 3 if table of contents is included",
         )
 
-    # Checking if template is valid
+    # Checking if template is valid: a built-in, a <data>/templates folder, or an
+    # imported template still in the database.
     if request.template not in DEFAULT_TEMPLATES:
         request.template = request.template.lower()
+        if get_template(request.template) is not None:
+            return (presentation_id,)
         if not request.template.startswith("custom-"):
             raise HTTPException(
                 status_code=400,

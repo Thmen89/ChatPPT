@@ -99,3 +99,27 @@ def test_invalid_llm_payload_raises_structured_http_error(fake_async_session):
 
     assert exc.value.status_code == 408
     assert exc.value.detail == "LLM timed out"
+
+
+def test_folder_templates_pass_api_validation(fake_async_session, tmp_path):
+    """The API and MCP accept every template the picker shows: built-ins beyond the first
+    four and folders dropped into <data>/templates, not only database imports."""
+    folder = tmp_path / "desk"
+    folder.mkdir()
+    (folder / "template.json").write_text('{"id": "desk", "name": "Desk"}')
+    (folder / "Title.tsx").write_text('export const layoutId = "desk-title";\n')
+
+    def found(template_id):
+        from chatppt.templates import get_template
+
+        return get_template(template_id, data_dir=tmp_path)
+
+    with patch.object(presentation_endpoint, "get_template", side_effect=found):
+        for template in ("Desk", "neo-general"):
+            request = GeneratePresentationRequest(content="Q3 review", n_slides=3, template=template)
+            (pid,) = _run(presentation_endpoint.check_if_api_request_is_valid(request, fake_async_session))
+            assert isinstance(pid, uuid.UUID)
+        request = GeneratePresentationRequest(content="Q3 review", n_slides=3, template="nope")
+        with pytest.raises(HTTPException) as exc:
+            _run(presentation_endpoint.check_if_api_request_is_valid(request, fake_async_session))
+        assert exc.value.status_code == 400
