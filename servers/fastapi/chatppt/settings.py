@@ -127,10 +127,40 @@ class ServerSettings(BaseModel):
     error_reporting_dsn: str | None = Field(
         default=None, description="Sentry-compatible DSN. Unset means no error reporting at all."
     )
+    max_upload_mb: int = Field(default=100, ge=1, le=2048, description="Largest upload (request body) accepted, in MB.")
+
+
+class OIDCSettings(BaseModel):
+    issuer: str | None = Field(
+        default=None, description="OpenID Connect issuer URL; set it (with client_id) to show a single sign-on button."
+    )
+    client_id: str | None = Field(default=None, description="OIDC client id registered for ChatPPT.")
+    client_secret: str | None = Field(default=None, description="OIDC client secret (confidential client).")
+    scopes: str = Field(default="openid email profile", description="Scopes requested at sign-in.")
+    username_claim: str = Field(
+        default="preferred_username", description="ID-token claim used as the username (falls back to email, then sub)."
+    )
+    label: str = Field(default="Sign in with SSO", description="Text on the single sign-on button.")
+    create_users: bool = Field(
+        default=True, description="Create a user on first SSO sign-in; off means an admin must add the user first."
+    )
 
 
 class AuthSettings(BaseModel):
     disabled: bool = Field(default=False, description="Turn login off entirely (single-user, trusted network).")
+    session_days: int = Field(default=30, ge=1, le=365, description="How long a browser sign-in lasts.")
+    signed_url_minutes: int = Field(
+        default=60, ge=1, le=10080, description="How long signed links to exported files and slide images stay valid."
+    )
+    proxy_header: str | None = Field(
+        default=None,
+        description="Header (e.g. Remote-User) your SSO reverse proxy sets to the signed-in username; only set it when ChatPPT is reachable solely through that proxy.",
+    )
+    proxy_secret: str | None = Field(
+        default=None,
+        description="When set, proxy_header is trusted only on requests that also carry X-ChatPPT-Proxy-Secret with this value.",
+    )
+    oidc: OIDCSettings = Field(default_factory=OIDCSettings)
 
 
 class PathSettings(BaseModel):
