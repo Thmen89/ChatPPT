@@ -44,11 +44,10 @@ test("a dropped-in template folder generates, renders and exports", async ({ pag
     .poll(() => wrapper.evaluate((el) => el.style.getPropertyValue("--background-color")))
     .toBe("#0a0a0a");
 
-  const exportButton = page.getByRole("button", { name: "Export" });
+  const exportButton = page.getByRole("button", { name: "Export PPTX" });
   await expect(exportButton).toBeEnabled();
-  await exportButton.click();
   const downloading = page.waitForEvent("download", { timeout: 120_000 });
-  await page.getByRole("button", { name: "PPTX", exact: true }).click();
+  await exportButton.click();
   const pptx = readFileSync(await (await downloading).path());
   const slideXml = zipEntries(pptx).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
   expect(slideXml).toHaveLength(3);

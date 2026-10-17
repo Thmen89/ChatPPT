@@ -10,12 +10,11 @@ import React, {
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import "../../utils/prism-languages";
-import { Skeleton } from "@/components/ui/skeleton";
 import PresentationMode from "./PresentationMode";
 import SidePanel from "./SidePanel";
 import SlideContent from "./SlideContent";
 import { Button } from "@/components/ui/button";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import {
   usePresentationStreaming,
@@ -24,16 +23,24 @@ import {
   useAutoSave,
 } from "../hooks";
 import { PresentationPageProps } from "../types";
-import LoadingState from "./LoadingState";
 import { applyPresentationThemeToElement } from "../utils/applyPresentationThemeDom";
 
 import PresentationHeader from "./PresentationHeader";
 import Chat from "./Chat";
+import { isMod, isTyping } from "@/lib/keys";
+
+/** Same box as a rendered slide, for one that is still being written. */
+const SlidePlaceholder = ({ index }: { index: number }) => (
+  <div
+    id={`slide-${index}`}
+    aria-label={`Slide ${index + 1}, writing`}
+    className="aspect-video w-full animate-pulse rounded-sm bg-white/70 shadow-md"
+  />
+);
 
 const PresentationPage: React.FC<PresentationPageProps> = ({
   presentation_id,
 }) => {
-  const pathname = usePathname();
   // State management
   const [loading, setLoading] = useState(true);
   const [selectedSlide, setSelectedSlide] = useState(0);
@@ -45,22 +52,14 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   const [glowingSlideIndex, setGlowingSlideIndex] = useState<number | null>(null);
   const [chatTargetedSlides, setChatTargetedSlides] = useState<number[]>([]);
   const [error, setError] = useState(false);
-  const slidesScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-
-
-
+  /** Slide count from the outline (`n`), so every slide has a placeholder before it streams in. */
+  const expected = Number(useSearchParams().get("n")) || 0;
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
-  const slidesLength = presentationData?.slides?.length ?? 0;
-  const lastStreamingSlideIndex =
-    slidesLength > 0
-      ? presentationData?.slides?.[slidesLength - 1]?.index
-      : undefined;
-
   // Auto-save functionality
-  const { isSaving } = useAutoSave({
+  const { status: saveStatus, saveNow } = useAutoSave({
     debounceMs: 2000,
     enabled: !!presentationData && !isStreaming,
   });
@@ -95,42 +94,6 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     setError,
     fetchUserSlides
   );
-
-  useEffect(() => {
-    if (!isStreaming) return;
-
-    const scrollContainer = slidesScrollContainerRef.current;
-    if (!scrollContainer) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      if (slidesLength <= 1) {
-        scrollContainer.scrollTo({ top: 0, behavior: "auto" });
-        return;
-      }
-
-      if (lastStreamingSlideIndex === undefined) return;
-
-      const slideElement = document.getElementById(
-        `slide-${lastStreamingSlideIndex}`
-      );
-      if (!slideElement) return;
-
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const slideRect = slideElement.getBoundingClientRect();
-      const slideTop =
-        slideRect.top - containerRect.top + scrollContainer.scrollTop;
-
-      scrollContainer.scrollTo({
-        top: Math.max(slideTop, 0),
-        behavior: "smooth",
-      });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [isStreaming, lastStreamingSlideIndex, slidesLength]);
-
-  useEffect(() => {
-  }, [pathname, presentation_id, stream, isPresentMode]);
 
   /** Editor tree unmounts in present mode; remount loses inline theme CSS — re-apply from Redux. */
   useLayoutEffect(() => {
@@ -174,6 +137,50 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   );
 
   const totalSlides = presentationData?.slides?.length ?? 0;
+
+  // J/K or arrows move between slides; E or Enter edits the slide's first field; Esc leaves it.
+  const navRef = useRef({ selectedSlide, totalSlides, handleSlideClick });
+  useEffect(() => {
+    navRef.current = { selectedSlide, totalSlides, handleSlideClick };
+  });
+  useEffect(() => {
+    if (isPresentMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const { selectedSlide: current, totalSlides: total, handleSlideClick: go } = navRef.current;
+      const slideEl = (i: number) => document.getElementById(`slide-${i}`);
+      if (e.defaultPrevented || isMod(e) || e.altKey) return;
+      if (isTyping(e) || total === 0 || document.querySelector("[role=dialog]")) return;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const steps: Record<string, number> = { j: 1, ArrowDown: 1, ArrowRight: 1, k: -1, ArrowUp: -1, ArrowLeft: -1 };
+      const step = steps[key];
+      if (step) {
+        e.preventDefault();
+        go(Math.min(Math.max(current + step, 0), total - 1));
+      } else if (key === "e" || (key === "Enter" && !target.closest("button, a, [role=button], [role=option]"))) {
+        const field = slideEl(current)?.querySelector<HTMLElement>("[contenteditable=true]");
+        if (field) {
+          e.preventDefault();
+          field.focus();
+        }
+      }
+    };
+    // Esc leaves a slide field; captured, because the editor swallows it.
+    const onEscape = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (e.key !== "Escape" || !target.isContentEditable) return;
+      const slide = target.closest<HTMLElement>(".main-slide");
+      if (!slide) return;
+      target.blur();
+      slide.focus({ preventScroll: true });
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onEscape, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onEscape, true);
+    };
+  }, [isPresentMode]);
   const highlightedSlideIndex = glowingSlideIndex;
   const targetedSlidesSet = useMemo(
     () => new Set(chatTargetedSlides),
@@ -259,7 +266,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 font-syne">
+      <div className="flex flex-col items-center justify-center h-screen bg-zinc-100">
         <div
           className="bg-white border border-red-300 text-red-700 px-6 py-8 rounded-lg shadow-lg flex flex-col items-center"
           role="alert"
@@ -279,73 +286,68 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     );
   }
 
+  const slides: any[] = presentationData?.slides ?? [];
+  const writing = isStreaming || loading;
+  const count = writing ? Math.max(expected, slides.length, slides.length ? 0 : 2) : slides.length;
+
   return (
-    <div className="h-screen overflow-hidden font-syne">
+    <div className="h-screen overflow-hidden">
       <div
-        style={{
-          background: "#EDEEEF",
-        }}
         id="presentation-slides-wrapper"
-        className="relative flex h-full flex-col overflow-hidden"
+        className="relative flex h-full flex-col overflow-hidden bg-zinc-100"
       >
-        <PresentationHeader presentation_id={presentation_id} isPresentationSaving={isSaving} currentSlide={selectedSlide} />
+        <PresentationHeader
+          presentation_id={presentation_id}
+          saveStatus={saveStatus}
+          onSaveNow={saveNow}
+          currentSlide={selectedSlide}
+        />
         <div className="flex flex-1 min-h-0 gap-6 overflow-hidden">
-          <div className="w-[120px] h-full shrink-0 self-start sticky top-0 pt-[18px]">
+          <div className="w-[120px] h-full shrink-0 self-start sticky top-0 pt-4">
             <SidePanel
               selectedSlide={selectedSlide}
               onSlideClick={handleSlideClick}
               presentationId={presentation_id}
+              expected={expected}
               loading={loading}
             />
           </div>
-          <div className="w-full min-w-0 h-full flex-1 pt-[18px]">
-            <div
-              ref={slidesScrollContainerRef}
-              className="font-inter h-full overflow-y-auto hide-scrollbar scroll-pt-[18px]"
-            >
-              <div className="w-full max-w-[1280px] min-h-full mx-auto flex flex-col items-center pb-8">
-                {!presentationData ||
-                  loading ||
-                  !presentationData?.slides ||
-                  presentationData?.slides.length === 0 ? (
-                  <div className="relative w-full h-[calc(100vh-120px)] mx-auto hide-scrollbar">
-                    <div className="">
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <Skeleton
-                          key={index}
-                          className="aspect-video bg-gray-400 my-4 w-full mx-auto "
-                        />
-                      ))}
-                    </div>
-                    {stream && <LoadingState />}
-                  </div>
-                ) : (
-                  <>
-                    {presentationData &&
-                      presentationData.slides &&
-                      presentationData.slides.length > 0 &&
-                      presentationData.slides.map((slide: any, index: number) => (
+          <main className="w-full min-w-0 h-full flex-1 pt-4" aria-busy={writing}>
+            <div className="h-full overflow-y-auto hide-scrollbar scroll-pt-4">
+              <div className="w-full max-w-[1280px] min-h-full mx-auto flex flex-col items-center gap-8 px-1 pb-8">
+                {writing
+                  ? Array.from({ length: count }, (_, index) => {
+                      const slide = slides.find((s) => s?.index === index);
+                      return slide ? (
                         <SlideContent
                           key={`${slide.type}-${index}-${slide.index}`}
                           slide={slide}
                           index={index}
                           presentationId={presentation_id}
-                          isChatEditing={
-                            highlightedSlideIndex !== null &&
-                            index === highlightedSlideIndex
-                          }
-                          isChatTargeted={
-                            isChatSending &&
-                            highlightedSlideIndex !== index &&
-                            targetedSlidesSet.has(index)
-                          }
+                          selected={index === selectedSlide}
+                          onSelect={() => setSelectedSlide(index)}
                         />
-                      ))}
-                  </>
-                )}
+                      ) : (
+                        <SlidePlaceholder key={`pending-${index}`} index={index} />
+                      );
+                    })
+                  : slides.map((slide: any, index: number) => (
+                      <SlideContent
+                        key={`${slide.type}-${index}-${slide.index}`}
+                        slide={slide}
+                        index={index}
+                        presentationId={presentation_id}
+                        selected={index === selectedSlide}
+                        onSelect={() => setSelectedSlide(index)}
+                        isChatEditing={highlightedSlideIndex !== null && index === highlightedSlideIndex}
+                        isChatTargeted={
+                          isChatSending && highlightedSlideIndex !== index && targetedSlidesSet.has(index)
+                        }
+                      />
+                    ))}
               </div>
             </div>
-          </div>
+          </main>
           <div className="w-full max-w-[370px] h-full shrink-0 self-start sticky top-0">
             <Chat
               presentationId={presentation_id}
