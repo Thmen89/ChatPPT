@@ -4,6 +4,8 @@ Precedence, highest first:
 
 1. ``CHATPPT_*`` environment variables (``CHATPPT_LLM__PROVIDER=openai``,
    ``CHATPPT_LLM__PROVIDERS__OPENAI__API_KEY=sk-...``; ``__`` separates levels).
+   ``CHATPPT_LLM_API_KEY`` is a shorthand for the key of ``llm.provider``; with no
+   provider set anywhere, the provider is told from the key's prefix.
 2. ``chatppt.toml`` (path from ``CHATPPT_CONFIG`` or ``<data>/chatppt.toml``).
 3. Legacy Presenton environment variables (``LLM``, ``OPENAI_API_KEY``, ...). They keep
    working and log one warning naming the new key.
@@ -29,6 +31,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 LOGGER = logging.getLogger(__name__)
 
 ENV_PREFIX = "CHATPPT_"
+API_KEY_SHORTHAND_ENV = "CHATPPT_LLM_API_KEY"
+"""One key for the default provider: ``docker run -e CHATPPT_LLM_API_KEY=sk-... chatppt``."""
+API_KEY_PREFIXES = (("sk-ant-", "anthropic"), ("sk-or-", "openrouter"), ("AIza", "google"), ("sk-", "openai"))
 CONFIG_FILE_NAME = "chatppt.toml"
 STEPS = ("outline", "structure", "content", "edit", "chat", "template")
 IconWeight = Literal["bold", "duotone", "fill", "light", "regular", "thin"]
@@ -362,13 +367,46 @@ def _flatten(raw: Mapping[str, Any], prefix: str = "") -> set[str]:
     return keys
 
 
-def _apply_env_overrides(raw: dict[str, Any], environ: Mapping[str, str]) -> None:
+def _apply_env_overrides(raw: dict[str, Any], environ: Mapping[str, str]) -> set[str]:
+    """Apply ``CHATPPT_*`` variables; returns the dotted keys they set."""
+    keys: set[str] = set()
     for name, value in environ.items():
-        if not name.startswith(ENV_PREFIX) or name in {"CHATPPT_CONFIG"}:
+        if not name.startswith(ENV_PREFIX) or name in {"CHATPPT_CONFIG", API_KEY_SHORTHAND_ENV}:
             continue
         dotted = ".".join(part.lower() for part in name[len(ENV_PREFIX) :].split("__"))
         if dotted:
             _set_path(raw, dotted, value)
+            keys.add(dotted)
+    return keys
+
+
+def provider_for_key(key: str) -> str | None:
+    """The provider an API key belongs to, from its prefix (None when it does not say)."""
+    return next((provider for prefix, provider in API_KEY_PREFIXES if key.startswith(prefix)), None)
+
+
+def _apply_api_key_shorthand(raw: dict[str, Any], environ: Mapping[str, str], env_keys: set[str]) -> None:
+    """``CHATPPT_LLM_API_KEY``: the key for ``llm.provider`` (from env, toml or legacy ``LLM``),
+    or, when none is set, for the provider the key's prefix names, which then becomes
+    ``llm.provider``. It beats ``chatppt.toml`` but not the provider's own
+    ``CHATPPT_LLM__PROVIDERS__<ID>__API_KEY``."""
+    key = (environ.get(API_KEY_SHORTHAND_ENV) or "").strip()
+    if not key:
+        return
+    provider = _get_path(raw, "llm.provider") or (environ.get("LLM") or "").strip()
+    if not provider:
+        provider = provider_for_key(key)
+        if not provider:
+            LOGGER.warning(
+                "%s is set but no llm.provider is configured and the key's prefix does not name one; "
+                "set CHATPPT_LLM__PROVIDER too",
+                API_KEY_SHORTHAND_ENV,
+            )
+            return
+        _set_path(raw, "llm.provider", provider)
+    path = f"llm.providers.{provider}.api_key"
+    if path not in env_keys:
+        _set_path(raw, path, key)
 
 
 def _apply_legacy_env(raw: dict[str, Any], environ: Mapping[str, str], explicit: set[str]) -> list[str]:
@@ -410,7 +448,8 @@ def load_settings(path: str | os.PathLike[str] | None = None, environ: Mapping[s
     if file_path.is_file():
         with open(file_path, "rb") as fh:
             raw = tomllib.load(fh)
-    _apply_env_overrides(raw, environ)
+    env_keys = _apply_env_overrides(raw, environ)
+    _apply_api_key_shorthand(raw, environ, env_keys)
     explicit = _flatten(raw)
 
     raw.setdefault("server", {})
@@ -620,6 +659,10 @@ def render_reference() -> str:
         "Every key can be set by environment variable instead: `CHATPPT_` + the key path upper-cased "
         "with `__` between levels. Environment wins over the file. Legacy Presenton variable names "
         "still work and log a warning.",
+        "",
+        f"`{API_KEY_SHORTHAND_ENV}` is a shorthand for the API key of `llm.provider`. When no provider "
+        "is set anywhere, the key's prefix picks one (`sk-ant-` Anthropic, `sk-or-` OpenRouter, "
+        "`AIza` Google, other `sk-` OpenAI) and that becomes `llm.provider`.",
         "",
         "| Key | Type | Default | Environment | Description |",
         "|---|---|---|---|---|",

@@ -152,3 +152,35 @@ def test_reference_lists_every_leaf_and_legacy_name():
     for field in Settings.model_fields:
         if field not in {"source_path", "explicit"}:
             assert f"`{field}." in text
+
+
+def test_api_key_shorthand_guesses_provider_from_prefix(tmp_path):
+    s = load_settings(tmp_path / "missing.toml", environ={"CHATPPT_LLM_API_KEY": "sk-ant-abc"})
+    assert s.llm.provider == "anthropic"
+    assert s.llm.providers["anthropic"].api_key == "sk-ant-abc"
+    assert s.is_explicit("llm.provider") and s.is_explicit("llm.providers.anthropic.api_key")
+    s = load_settings(tmp_path / "missing.toml", environ={"CHATPPT_LLM_API_KEY": "sk-proj-abc"})
+    assert (s.llm.provider, s.llm.providers["openai"].api_key) == ("openai", "sk-proj-abc")
+
+
+def test_api_key_shorthand_follows_configured_provider(tmp_path):
+    path = write_toml(tmp_path, '[llm]\nprovider = "google"\n[llm.providers.google]\napi_key = "from-file"\n')
+    s = load_settings(path, environ={"CHATPPT_LLM_API_KEY": "sk-looks-like-openai"})
+    assert s.llm.provider == "google"
+    assert s.llm.providers["google"].api_key == "sk-looks-like-openai"  # env beats the file
+    assert "openai" not in s.llm.providers
+
+    s = load_settings(tmp_path / "missing.toml", environ={"LLM": "custom", "CHATPPT_LLM_API_KEY": "k"})
+    assert s.llm.provider == "custom" and s.llm.providers["custom"].api_key == "k"
+    assert apply_to_environ(s, env := {}) and env["CUSTOM_LLM_API_KEY"] == "k"
+
+
+def test_api_key_shorthand_yields_to_the_long_form_and_unknown_prefixes(tmp_path):
+    env = {
+        "CHATPPT_LLM__PROVIDER": "openai",
+        "CHATPPT_LLM__PROVIDERS__OPENAI__API_KEY": "sk-long",
+        "CHATPPT_LLM_API_KEY": "sk-short",
+    }
+    assert load_settings(tmp_path / "missing.toml", environ=env).llm.providers["openai"].api_key == "sk-long"
+    s = load_settings(tmp_path / "missing.toml", environ={"CHATPPT_LLM_API_KEY": "no-prefix"})
+    assert s.llm.provider is None and s.llm.providers == {}
