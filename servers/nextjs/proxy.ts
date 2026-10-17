@@ -27,7 +27,9 @@ type AuthStatus = {
 };
 
 const SESSION_COOKIE_NAME = "chatppt_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+/** The exporter's ?exportSession= is a read-only token FastAPI issues for 15 minutes
+ * (POST /api/v1/auth/export-token); the cookie lives no longer than that. */
+const EXPORT_SESSION_TTL_SECONDS = 15 * 60;
 
 async function getAuthStatus(request: NextRequest): Promise<AuthStatus> {
   const cookieHeader = request.headers.get("cookie");
@@ -73,7 +75,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.set({
         name: SESSION_COOKIE_NAME,
         value: exportSession,
-        maxAge: SESSION_TTL_SECONDS,
+        maxAge: EXPORT_SESSION_TTL_SECONDS,
         httpOnly: true,
         secure:
           request.headers.get("x-forwarded-proto")?.toLowerCase() === "https" ||

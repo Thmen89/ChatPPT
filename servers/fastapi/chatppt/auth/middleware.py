@@ -61,6 +61,8 @@ ADMIN_RULES: tuple[tuple[frozenset[str] | None, str], ...] = (
 API_CSP = "default-src 'none'; frame-ancestors 'self'"
 DOCS_CSP = "frame-ancestors 'self'"  # Swagger UI loads its own scripts and styles
 # Files people uploaded or generated: render as images/fonts only, never run as a page.
+# Our own PDF/PPTX exports: no sandbox, which would stop browsers' PDF viewers.
+EXPORT_CSP = "frame-ancestors 'self'"
 FILE_CSP = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; font-src 'self' data:; sandbox"
 
 
@@ -243,6 +245,8 @@ def same_origin(headers: dict[str, str], settings: Settings) -> bool:
 
 
 def _csp_for(path: str) -> str:
+    if path.startswith(APP_DATA_PREFIX + "exports/"):
+        return EXPORT_CSP
     if path.startswith(APP_DATA_PREFIX) or path.startswith("/static/"):
         return FILE_CSP
     if path in DOCS_PATHS:

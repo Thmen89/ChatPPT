@@ -425,6 +425,10 @@ def test_security_headers(client: TestClient) -> None:
     assert response.headers["x-frame-options"] == "SAMEORIGIN"
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert "frame-ancestors 'self'" in response.headers["content-security-policy"]
+    from chatppt.auth.middleware import _csp_for
+
+    assert "sandbox" in _csp_for("/app_data/images/x.svg")  # uploaded SVG cannot run script
+    assert "sandbox" not in _csp_for("/app_data/exports/deck.pdf")  # PDF viewers still work
 
 
 def test_oversized_bodies_are_refused(client: TestClient) -> None:
