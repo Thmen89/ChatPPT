@@ -1,5 +1,8 @@
 {
+  "id": "swift",
+  "name": "Swift",
   "description": "Swift layouts for presentations",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "thin"

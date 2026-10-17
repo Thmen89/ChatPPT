@@ -9,7 +9,12 @@ import "../../utils/prism-languages";
 import TemplateService from "../../services/api/template";
 import Header from "../../(dashboard)/dashboard/components/Header";
 import { notify } from "@/components/ui/sonner";
-import { CustomTemplateLayout, useCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import {
+  CustomTemplateLayout,
+  useCustomTemplateDetails,
+  useRuntimeTemplatesVersion,
+} from "@/app/hooks/useCustomTemplates";
+import { isRuntimeTemplate, runtimeTemplateId } from "@/app/hooks/runtimeTemplates";
 import { templates as templateGroups, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { setupImageUrlConverter } from "@/utils/image-url-converter";
 
@@ -19,8 +24,11 @@ const GroupLayoutPreview = () => {
 
   const templateParams = searchParams.get("slug") || "";
 
-  const isCustom = templateParams.startsWith("custom-");
-  const customTemplateId = isCustom ? templateParams.split("custom-")[1] : null;
+  // Any <data>/templates/<id>/ folder (including one overriding a built-in id) is
+  // compiled at runtime; re-evaluated once the template list has loaded.
+  useRuntimeTemplatesVersion();
+  const isCustom = isRuntimeTemplate(templateParams);
+  const customTemplateId = isCustom ? runtimeTemplateId(templateParams) : null;
 
   const staticTemplates = !isCustom ? getTemplatesByTemplateName(templateParams) : [];
   const staticGroup = !isCustom ? templateGroups.find((g: { id: string }) => g.id === templateParams) : null;
@@ -30,17 +38,8 @@ const GroupLayoutPreview = () => {
     loading: customLoading,
     error: customError,
     fonts: customFonts,
-  } = useCustomTemplateDetails({ id: templateParams?.split("custom-")[1] || "", name: "", description: "" });
+  } = useCustomTemplateDetails({ id: customTemplateId || "", name: "", description: "" });
 
-  useEffect(() => {
-    const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.tailwindcss.com";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, [templateParams]);
 
   // Keep backend-served assets on the active origin in Docker/nginx preview mode.
   useEffect(() => {

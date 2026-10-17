@@ -1,5 +1,8 @@
 {
+  "id": "neo-modern",
+  "name": "Neo Modern",
   "description": "New modern purpose layouts for common presentation elements",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

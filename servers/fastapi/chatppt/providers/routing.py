@@ -6,6 +6,9 @@ Order of resolution for a step:
 2. ``[llm]`` provider/model.
 3. ``[llm.providers.<id>].model``, then the provider's default model.
 
+A provider id that is not registered but has a ``base_url`` under ``[llm.providers.<id>]``
+is an OpenAI-compatible endpoint; nothing else is needed.
+
 When neither ``chatppt.toml`` nor ``CHATPPT_*`` sets ``llm.provider``, the legacy
 ``utils.llm_config``/``utils.llm_provider`` path is used unchanged, so installs that
 still configure themselves through the settings UI and env vars behave as before.
@@ -20,6 +23,7 @@ from fastapi import HTTPException
 from llmai import get_client
 
 from chatppt.providers.base import ProviderConfigError
+from chatppt.providers.llm import openai_compatible_spec
 from chatppt.providers.registry import get_llm_provider
 from chatppt.settings import STEPS, ProviderCredentials, Settings, StepRoute, get_settings
 
@@ -32,7 +36,8 @@ class ResolvedLLM:
     source: str  # "routing", "settings" or "legacy"
 
 
-def _uses_settings(settings: Settings, step: str | None) -> bool:
+def uses_settings(settings: Settings, step: str | None) -> bool:
+    """True when chatppt.toml (or CHATPPT_*) picks the LLM for this step."""
     if step and (
         settings.is_explicit(f"llm.routing.{step}.provider") or settings.is_explicit(f"llm.routing.{step}.model")
     ):
@@ -52,19 +57,20 @@ def resolve_llm(step: str | None = None, settings: Settings | None = None) -> Re
     if step is not None and step not in STEPS:
         raise ValueError(f"unknown step '{step}'; known: {', '.join(STEPS)}")
     settings = settings or get_settings()
-    if not _uses_settings(settings, step):
+    if not uses_settings(settings, step):
         return _legacy()
 
     route = settings.llm.routing.get(step, StepRoute()) if step else StepRoute()
     provider_id = route.provider or settings.llm.provider
     if not provider_id:
         raise HTTPException(status_code=400, detail="No LLM provider configured. Set llm.provider in chatppt.toml.")
+    creds = settings.llm.providers.get(provider_id, ProviderCredentials())
     try:
         spec = get_llm_provider(provider_id)
     except KeyError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-
-    creds = settings.llm.providers.get(provider_id, ProviderCredentials())
+        if not creds.base_url:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        spec = openai_compatible_spec(provider_id)  # declared in chatppt.toml alone
     model = (
         route.model
         or (settings.llm.model if provider_id == settings.llm.provider else None)

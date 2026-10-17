@@ -17,6 +17,7 @@ from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from chatppt import hooks
 from chatppt.providers import llm_for_step
 from utils.llm_utils import (
     get_generate_kwargs,
@@ -171,6 +172,7 @@ def _outline_with_layouts_model(n_slides: Optional[int], n_layouts: int) -> type
     return PresentationOutlineWithLayouts
 
 
+@hooks.before_outline
 async def generate_ppt_outline(
     content: str,
     n_slides: Optional[int],

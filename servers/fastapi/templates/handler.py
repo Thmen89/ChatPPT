@@ -1,20 +1,28 @@
 import os
 import random
 import re
+import shutil
 import uuid
 from datetime import datetime
 from typing import Any, List, Optional
 
 import aiohttp
 from fastapi import Body, Depends, File, Form, HTTPException, Path, Query, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import delete, select
 
+from chatppt.settings import get_settings
+from chatppt.templates import (
+    TemplateInfo,
+    TemplateManifest,
+    discover_templates,
+    get_template,
+    write_layout,
+    write_manifest,
+    write_template,
+)
 from constants.presentation import DEFAULT_TEMPLATES
-from models.sql.presentation_layout_code import PresentationLayoutCodeModel
-from models.sql.template import TemplateModel
 from models.sql.template_create_info import TemplateCreateInfoModel
 from services.database import async_session_maker, get_async_session
 from services.export_task_service import EXPORT_TASK_SERVICE
@@ -46,11 +54,13 @@ from utils.asset_directory_utils import (
 class TemplateDetail(BaseModel):
     id: str
     name: str
+    description: Optional[str] = None
     total_layouts: Optional[int] = None
+    fingerprint: Optional[str] = None
 
 
 class TemplateLayoutData(BaseModel):
-    template: uuid.UUID
+    template: str
     layout_id: str
     layout_name: str
     layout_code: str
@@ -58,17 +68,22 @@ class TemplateLayoutData(BaseModel):
 
 
 class TemplateData(BaseModel):
-    id: uuid.UUID
+    id: str
     init_id: Optional[uuid.UUID] = None
     name: str
     description: Optional[str] = None
     created_at: datetime
+    ordered: bool = False
+    icon_weight: str = "regular"
 
 
 class GetTemplateLayoutsResponse(BaseModel):
     layouts: list[TemplateLayoutData]
     template: Optional[TemplateData] = None
     fonts: Optional[Any] = None
+    modules: dict[str, str] = {}
+    """Helper files layouts import from (``./ChartPrimitives``), by file name."""
+    fingerprint: Optional[str] = None
 
 
 class TemplateExample(BaseModel):
@@ -137,12 +152,12 @@ class CloneTemplateRequest(BaseModel):
 
 
 class UpdateTemplateRequest(BaseModel):
-    id: uuid.UUID
+    id: str
     layouts: List[SaveTemplateLayoutData]
 
 
 class SaveSlideLayoutRequest(BaseModel):
-    template_id: uuid.UUID
+    template_id: str
     layout_id: str
     layout_code: str
 
@@ -290,94 +305,117 @@ async def _read_image_bytes_and_media_type(image_url: str) -> tuple[bytes, str]:
     return image_bytes, media_type_map.get(file_extension, "image/png")
 
 
+def _template_or_404(template_id: str) -> TemplateInfo:
+    if not template_id or not template_id.strip():
+        raise HTTPException(status_code=400, detail="Template ID cannot be empty")
+    info = get_template(template_id.strip())
+    if info is None:
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+    return info
+
+
+def _data_template_or_400(template_id: str) -> TemplateInfo:
+    info = get_template(str(template_id))
+    if info is None or info.source != "data":
+        raise HTTPException(status_code=400, detail="Template not found. Please use a valid template.")
+    return info
+
+
+def _template_data(info: TemplateInfo) -> "TemplateData":
+    manifest_path = info.path / "template.json"
+    created = manifest_path.stat().st_mtime if manifest_path.exists() else info.path.stat().st_mtime
+    return TemplateData(
+        id=info.id,
+        name=info.manifest.name,
+        description=info.manifest.description or None,
+        created_at=datetime.fromtimestamp(created),
+        ordered=info.manifest.ordered,
+        icon_weight=info.manifest.icon_weight,
+    )
+
+
+def _files_url(template_id: str) -> str:
+    return f"/api/v1/ppt/template/{template_id}/files"
+
+
+def _with_folder_urls(template_id: str, code: str) -> str:
+    """``"./assets/x.png"`` / ``"./fonts/x.woff2"`` in a layout point at the folder's files."""
+    return re.sub(r"""(["'`])\./(assets|fonts)/""", lambda m: f"{m.group(1)}{_files_url(template_id)}/{m.group(2)}/", code)
+
+
+def _font_urls(info: TemplateInfo) -> dict[str, str]:
+    return {
+        family: url if re.match(r"^(https?:)?/", url) else f"{_files_url(info.id)}/{url.lstrip('./')}"
+        for family, url in info.manifest.fonts.items()
+    }
+
+
 async def get_all_templates(
     include_defaults: bool = Query(
         default=True, description="Whether to include default templates"
     ),
-    sql_session: AsyncSession = Depends(get_async_session),
 ):
-    result = await sql_session.execute(
-        select(
-            TemplateModel.id,
-            TemplateModel.name,
-            func.count(PresentationLayoutCodeModel.id).label("total_layouts"),
-        )
-        .join(
-            PresentationLayoutCodeModel,
-            PresentationLayoutCodeModel.presentation == TemplateModel.id,
-        )
-        .group_by(TemplateModel.id, TemplateModel.name)
-    )
-    rows = result.all()
-
+    """Built-in ids, then every template folder under ``<data>/templates`` (dropped in,
+    imported from a PPTX, or overriding a built-in), with a fingerprint that changes
+    whenever a file in the folder does."""
     templates: list[TemplateDetail] = []
     if include_defaults:
         templates.extend(
             TemplateDetail(id=template, name=template) for template in DEFAULT_TEMPLATES
         )
-
-    templates.extend(
-        TemplateDetail(
-            id=f"custom-{template_id}",
-            name=template_name,
-            total_layouts=total_layouts,
+    for info in discover_templates().values():
+        if info.source != "data":
+            continue
+        templates.append(
+            TemplateDetail(
+                id=info.id,
+                name=info.manifest.name,
+                description=info.manifest.description or None,
+                total_layouts=len(info.layout_files),
+                fingerprint=info.fingerprint(),
+            )
         )
-        for template_id, template_name, total_layouts in rows
-    )
     return templates
 
 
 async def get_layouts(
     template_id: str = Path(..., description="The id of the template"),
-    session: AsyncSession = Depends(get_async_session),
 ):
-    if not template_id or not template_id.strip():
-        raise HTTPException(status_code=400, detail="Template ID cannot be empty")
-
-    try:
-        cleaned_template_id = template_id.replace("custom-", "")
-        template_id_uuid = uuid.UUID(cleaned_template_id)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid custom template ID") from exc
-
-    result = await session.execute(
-        select(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == template_id_uuid
+    info = _template_or_404(template_id)
+    layouts = [
+        TemplateLayoutData(
+            template=info.id,
+            layout_id=layout.layout_id,
+            layout_name=layout.layout_name,
+            layout_code=_with_folder_urls(info.id, layout.code),
+            fonts=_font_urls(info) or None,
         )
-    )
-    layouts_db = result.scalars().all()
-    if not layouts_db:
+        for layout in info.layouts()
+    ]
+    if not layouts:
         raise HTTPException(
             status_code=404,
             detail=f"No layouts found for template ID: {template_id}",
         )
-
-    template_meta = await session.get(TemplateModel, template_id_uuid)
-    template = None
-    if template_meta:
-        template = TemplateData(
-            id=template_id_uuid,
-            init_id=None,
-            name=template_meta.name,
-            description=template_meta.description,
-            created_at=template_meta.created_at,
-        )
-
-    layouts = [
-        TemplateLayoutData(
-            template=template_id_uuid,
-            layout_id=layout.layout_id,
-            layout_name=layout.layout_name,
-            layout_code=layout.layout_code,
-            fonts=layout.fonts,
-        )
-        for layout in layouts_db
-    ]
     return GetTemplateLayoutsResponse(
         layouts=layouts,
-        template=template,
-        fonts=layouts[0].fonts if layouts else None,
+        template=_template_data(info),
+        fonts=_font_urls(info) or None,
+        modules={name: _with_folder_urls(info.id, code) for name, code in info.modules().items()},
+        fingerprint=info.fingerprint(),
     )
+
+
+async def get_template_file(
+    template_id: str = Path(..., description="The id of the template"),
+    file_path: str = Path(..., description="A file under fonts/ or assets/"),
+):
+    """Fonts and images a template folder ships, for its layouts to reference."""
+    info = _template_or_404(template_id)
+    target = info.file(file_path)
+    if target is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(target)
 
 
 async def get_template_by_id(
@@ -385,24 +423,12 @@ async def get_template_by_id(
         ...,
         description=f"The id of the template, must be one of {', '.join(DEFAULT_TEMPLATES)} or your custom template",
     ),
-    sql_session: AsyncSession = Depends(get_async_session),
 ):
-    if id.startswith("custom-"):
-        try:
-            template_id = uuid.UUID(id.replace("custom-", ""))
-        except Exception as exc:
-            raise HTTPException(
-                status_code=400,
-                detail="Template not found. Please use a valid template.",
-            ) from exc
-
-        template = await sql_session.get(TemplateModel, template_id)
-        if not template:
-            raise HTTPException(
-                status_code=400,
-                detail="Template not found. Please use a valid template.",
-            )
-
+    if get_template(id) is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Template not found. Please use a valid template.",
+        )
     return await get_layout_by_name(id)
 
 
@@ -411,9 +437,8 @@ async def get_template_example(
         ...,
         description=f"The id of the template, must be one of {', '.join(DEFAULT_TEMPLATES)} or your custom template",
     ),
-    sql_session: AsyncSession = Depends(get_async_session),
 ):
-    template = await get_template_by_id(id=id, sql_session=sql_session)
+    template = await get_template_by_id(id=id)
     return TemplateExample(**build_template_example(id, template))
 
 
@@ -573,10 +598,15 @@ async def edit_slide_layout_section(
     )
 
 
+def _templates_root():
+    return get_settings().templates_dir
+
+
 async def save_template(
     request: SaveTemplateRequest,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    """An imported PPTX becomes a template folder, ``<data>/templates/custom-<uuid>/``."""
     if not request.layouts:
         raise HTTPException(status_code=400, detail="Layouts are required")
 
@@ -584,202 +614,108 @@ async def save_template(
     if not template_info:
         raise HTTPException(status_code=400, detail="Template info not found")
 
-    template = TemplateModel(
-        id=uuid.uuid4(),
+    template_uuid = uuid.uuid4()
+    fonts = template_info.fonts if isinstance(template_info.fonts, dict) else {}
+    manifest = TemplateManifest(
+        id=f"custom-{template_uuid}",
         name=request.name,
-        description=request.description,
+        description=request.description or "",
+        fonts={str(k): str(v) for k, v in fonts.items() if v},
     )
-    sql_session.add(template)
-
-    sql_session.add_all(
-        [
-            PresentationLayoutCodeModel(
-                presentation=template.id,
-                layout_id=layout.layout_id,
-                layout_name=layout.layout_name,
-                layout_code=layout.layout_code,
-                fonts=template_info.fonts,
-            )
-            for layout in request.layouts
-        ]
-    )
-    await sql_session.commit()
-    await sql_session.refresh(template)
-
-    return SaveTemplateResponse(
-        id=template.id,
-        name=template.name,
-        description=template.description,
-        created_at=template.created_at,
-    )
-
-
-async def clone_template(
-    request: CloneTemplateRequest = Body(...),
-    sql_session: AsyncSession = Depends(get_async_session),
-):
-    if not request.id or not request.id.strip():
-        raise HTTPException(status_code=400, detail="Template ID cannot be empty")
-
     try:
-        template_id_uuid = uuid.UUID(request.id.replace("custom-", ""))
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid custom template ID") from exc
-
-    template = await sql_session.get(TemplateModel, template_id_uuid)
-    if not template:
-        raise HTTPException(
-            status_code=400,
-            detail="Template not found. Please use a valid template.",
+        info = write_template(
+            _templates_root(),
+            manifest,
+            [(layout.layout_id, layout.layout_code) for layout in request.layouts],
         )
-
-    result = await sql_session.execute(
-        select(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == template_id_uuid
-        )
-    )
-    layouts_db = result.scalars().all()
-    if not layouts_db:
-        raise HTTPException(status_code=400, detail="No layouts found for template")
-
-    new_template = TemplateModel(
-        id=uuid.uuid4(),
-        name=request.name,
-        description=template.description
-        if request.description is None
-        else request.description,
-    )
-    sql_session.add(new_template)
-
-    sql_session.add_all(
-        [
-            PresentationLayoutCodeModel(
-                presentation=new_template.id,
-                layout_id=layout.layout_id,
-                layout_name=layout.layout_name,
-                layout_code=layout.layout_code,
-                fonts=layout.fonts,
-            )
-            for layout in layouts_db
-        ]
-    )
-    await sql_session.commit()
-    await sql_session.refresh(new_template)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return SaveTemplateResponse(
-        id=new_template.id,
-        name=new_template.name,
-        description=new_template.description,
-        created_at=new_template.created_at,
+        id=template_uuid,
+        name=info.manifest.name,
+        description=request.description,
+        created_at=_template_data(info).created_at,
     )
 
 
-async def update_template(
-    request: UpdateTemplateRequest,
-    sql_session: AsyncSession = Depends(get_async_session),
-):
+async def clone_template(request: CloneTemplateRequest = Body(...)):
+    source = _template_or_404(request.id)
+    template_uuid = uuid.uuid4()
+    manifest = source.manifest.model_copy(
+        update={
+            "id": f"custom-{template_uuid}",
+            "name": request.name,
+            "description": source.manifest.description if request.description is None else request.description,
+            "default": False,
+            "layouts": None,
+        }
+    )
+    target = _templates_root() / manifest.id
+    shutil.copytree(source.path, target)
+    write_manifest(target, manifest)
+    (target / "settings.json").unlink(missing_ok=True)
+    info = _data_template_or_400(manifest.id)
+
+    return SaveTemplateResponse(
+        id=template_uuid,
+        name=info.manifest.name,
+        description=info.manifest.description or None,
+        created_at=_template_data(info).created_at,
+    )
+
+
+async def update_template(request: UpdateTemplateRequest):
     if not request.layouts:
         raise HTTPException(status_code=400, detail="Layouts are required")
 
-    template = await sql_session.get(TemplateModel, request.id)
-    if not template:
-        raise HTTPException(status_code=400, detail="Template not found")
-
-    existing_layout = await sql_session.scalar(
-        select(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == request.id
-        )
+    info = _data_template_or_400(request.id)
+    write_template(
+        info.path.parent,
+        info.manifest,
+        [(layout.layout_id, layout.layout_code) for layout in request.layouts],
     )
-    fonts = existing_layout.fonts if existing_layout else None
-
-    await sql_session.execute(
-        delete(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == request.id
-        )
-    )
-    sql_session.add_all(
-        [
-            PresentationLayoutCodeModel(
-                presentation=template.id,
-                layout_id=layout.layout_id,
-                layout_name=layout.layout_name,
-                layout_code=layout.layout_code,
-                fonts=fonts,
-            )
-            for layout in request.layouts
-        ]
-    )
-    await sql_session.commit()
-
+    data = _template_data(info)
     return SaveTemplateResponse(
-        id=template.id,
-        name=template.name,
-        description=template.description,
-        created_at=template.created_at,
+        id=_uuid_or_none(info.id) or uuid.uuid5(uuid.NAMESPACE_URL, info.id),
+        name=data.name,
+        description=data.description,
+        created_at=data.created_at,
     )
 
 
-async def save_slide_layout(
-    request: SaveSlideLayoutRequest,
-    sql_session: AsyncSession = Depends(get_async_session),
-):
-    template = await sql_session.get(TemplateModel, request.template_id)
-    if not template:
-        raise HTTPException(status_code=400, detail="Template not found")
-
-    layout = await sql_session.scalar(
-        select(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == request.template_id,
-            PresentationLayoutCodeModel.layout_id == request.layout_id,
-        )
-    )
-    if not layout:
-        raise HTTPException(status_code=400, detail="Layout not found")
-
-    layout.layout_code = request.layout_code
-    sql_session.add(layout)
-    await sql_session.commit()
-
-
-async def clone_slide_layout(
-    request: CloneSlideLayoutRequest = Body(...),
-    sql_session: AsyncSession = Depends(get_async_session),
-):
-    if not request.template_id or not request.template_id.strip():
-        raise HTTPException(status_code=400, detail="Template ID cannot be empty")
-
+def _uuid_or_none(template_id: str) -> uuid.UUID | None:
     try:
-        template_id_uuid = uuid.UUID(request.template_id.replace("custom-", ""))
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid custom template ID") from exc
+        return uuid.UUID(template_id.removeprefix("custom-"))
+    except ValueError:
+        return None
 
-    template = await sql_session.get(TemplateModel, template_id_uuid)
-    if not template:
-        raise HTTPException(status_code=400, detail="Template not found")
 
-    layout = await sql_session.scalar(
-        select(PresentationLayoutCodeModel).where(
-            PresentationLayoutCodeModel.presentation == template_id_uuid,
-            PresentationLayoutCodeModel.layout_id == request.layout_id,
-        )
-    )
-    if not layout:
+async def save_slide_layout(request: SaveSlideLayoutRequest):
+    info = _data_template_or_400(request.template_id)
+    if not any(layout.layout_id == request.layout_id for layout in info.layouts()):
+        raise HTTPException(status_code=400, detail="Layout not found")
+    write_layout(info, request.layout_id, request.layout_code)
+
+
+async def clone_slide_layout(request: CloneSlideLayoutRequest = Body(...)):
+    info = _data_template_or_400(request.template_id)
+    layout = next((item for item in info.layouts() if item.layout_id == request.layout_id), None)
+    if layout is None:
         raise HTTPException(status_code=400, detail="Layout not found")
 
-    new_layout_code, new_layout_id = _update_layout_id_in_code(layout.layout_code)
-    new_layout = PresentationLayoutCodeModel(
-        presentation=template_id_uuid,
+    new_layout_code, new_layout_id = _update_layout_id_in_code(layout.code)
+    if request.layout_name:
+        new_layout_code = re.sub(
+            r'(layoutName\s*=\s*["\'])([^"\']+)(["\'])',
+            lambda m: f"{m.group(1)}{request.layout_name}{m.group(3)}",
+            new_layout_code,
+            count=1,
+        )
+    write_layout(info, new_layout_id, new_layout_code)
+
+    return SaveTemplateLayoutData(
         layout_id=new_layout_id,
         layout_name=request.layout_name or layout.layout_name,
         layout_code=new_layout_code,
-        fonts=layout.fonts,
-    )
-    sql_session.add(new_layout)
-    await sql_session.commit()
-    await sql_session.refresh(new_layout)
-
-    return SaveTemplateLayoutData(
-        layout_id=new_layout.layout_id,
-        layout_name=new_layout.layout_name,
-        layout_code=new_layout.layout_code,
     )

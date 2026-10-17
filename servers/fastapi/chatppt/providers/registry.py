@@ -17,9 +17,13 @@ def register_image(spec: ImageProviderSpec) -> ImageProviderSpec:
 
 
 def _ensure_loaded() -> None:
-    # Importing the modules registers the built-in providers.
+    # Importing the modules registers the built-in providers; files in <data>/providers/
+    # register theirs (re-imported when they change).
     import chatppt.providers.images  # noqa: F401
     import chatppt.providers.llm  # noqa: F401
+    from chatppt.providers.plugins import load_plugins
+
+    load_plugins()
 
 
 def llm_providers() -> dict[str, LLMProviderSpec]:

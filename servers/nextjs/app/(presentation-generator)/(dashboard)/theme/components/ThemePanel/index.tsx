@@ -165,8 +165,10 @@ const ThemePanel: React.FC = () => {
       }
     }
     loadUserFonts()
-    const loadDefaultThemes = () => {
-      const localDefaults: Theme[] = DEFAULT_THEMES.map((theme) => ({
+    const loadDefaultThemes = async () => {
+      // Theme files (<data>/themes/*.json and shipped ones) first, then the built-ins.
+      const fileThemes = await ThemeApi.getFileThemes()
+      const localDefaults: Theme[] = [...fileThemes, ...DEFAULT_THEMES].map((theme) => ({
         ...theme,
         user: 'system',
         logo: theme.logo ?? '',
@@ -188,7 +190,7 @@ const ThemePanel: React.FC = () => {
       }
     }
     loadCustomThemes()
-    loadDefaultThemes()
+    void loadDefaultThemes()
   }, [])
 
 

@@ -11,7 +11,8 @@ import { addNewSlide } from "@/store/slices/presentationGeneration";
 import { Loader2, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { notify } from "@/components/ui/sonner";
-import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import { getCustomTemplateDetails, useRuntimeTemplatesVersion } from "@/app/hooks/useCustomTemplates";
+import { isRuntimeTemplate } from "@/app/hooks/runtimeTemplates";
 import { getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { usePathname } from "next/navigation";
 
@@ -104,7 +105,8 @@ const NewSlideV1 = ({
   const [layouts, setLayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isCustomTemplate = templateID.startsWith("custom-");
+  const templatesVersion = useRuntimeTemplatesVersion();
+  const isCustomTemplate = isRuntimeTemplate(templateID);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -151,9 +153,8 @@ const NewSlideV1 = ({
       try {
         setLoading(true);
         if (isCustomTemplate) {
-          const customTemplateId = templateID.split("custom-")[1];
           const templateDetails = await getCustomTemplateDetails(
-            customTemplateId,
+            templateID,
             "Custom Template",
             "User-created template"
           );
@@ -175,7 +176,7 @@ const NewSlideV1 = ({
     return () => {
       isMounted = false;
     };
-  }, [isCustomTemplate, templateID]);
+  }, [isCustomTemplate, templateID, templatesVersion]);
 
   const layoutCountText = `${layouts.length} Layout${
     layouts.length === 1 ? "" : "s"

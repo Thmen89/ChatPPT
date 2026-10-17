@@ -20,6 +20,20 @@ class ThemeApi {
       throw error
     }
   }
+  /** Theme files: shipped ones and `<data>/themes/<id>.json`. Never throws (empty on error). */
+  static async getFileThemes(): Promise<Theme[]> {
+    try {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/themes/default`), {
+        method: "GET",
+        headers: getHeader(),
+        cache: "no-store",
+      })
+      return await ApiResponseHandler.handleResponse(response, "Failed to get theme files")
+    } catch (error) {
+      console.error("Error getting theme files:", error)
+      return []
+    }
+  }
   static async createTheme(theme: ThemeParams) {
     try {
 

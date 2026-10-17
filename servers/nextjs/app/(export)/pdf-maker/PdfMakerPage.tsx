@@ -128,7 +128,7 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
     try {
       const data = effectiveExportCookie
         ? await fetchPresentationForExport(presentation_id, effectiveExportCookie)
-        : await DashboardApi.getPresentation(presentation_id);
+        : await DashboardApi.getExportDeck(presentation_id); // after hooks.py before_export
       const normalizedData = normalizeBackendAssetUrls(data);
       dispatch(setPresentationData(normalizedData));
 
@@ -175,7 +175,7 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
     if (!element) return;
     if (!theme?.data) return;
     if (!theme.data.colors["graph_0"]) return;
-    if (!theme.data.fonts?.textFont?.name || !theme.data.fonts?.textFont?.url) return;
+    if (!theme.data.fonts?.textFont?.name) return; // an empty url means an installed font
 
     const cssVariables = {
       "--primary-color": theme.data.colors["primary"],

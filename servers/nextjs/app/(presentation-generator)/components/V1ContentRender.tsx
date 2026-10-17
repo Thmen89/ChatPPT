@@ -4,9 +4,9 @@ import React, { useMemo, useRef } from "react";
 import EditableLayoutWrapper from "../components/EditableLayoutWrapper";
 import SlideErrorBoundary from "../components/SlideErrorBoundary";
 import TiptapTextReplacer from "../components/TiptapTextReplacer";
-import { validate as uuidValidate } from 'uuid';
 import { getLayoutByLayoutId } from "@/app/presentation-templates";
-import { useCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import { useCustomTemplateDetails, useRuntimeTemplatesVersion } from "@/app/hooks/useCustomTemplates";
+import { bareLayoutId, isRuntimeTemplate } from "@/app/hooks/runtimeTemplates";
 import { updateSlideContent } from "@/store/slices/presentationGeneration";
 import { useDispatch } from "react-redux";
 import { Loader2 } from "lucide-react";
@@ -19,29 +19,26 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
     const containerRef = useRef<HTMLDivElement | null>(null);
 
 
-    const customTemplateId = slide.layout_group.startsWith("custom-") ? slide.layout_group.split("custom-")[1] : slide.layout_group;
-    const isCustomTemplate = uuidValidate(customTemplateId) || slide.layout_group.startsWith("custom-");
+    // Template folders under <data>/templates (dropped in, imported, or overriding a
+    // built-in) are compiled at runtime; built-ins come from the static registry.
+    useRuntimeTemplatesVersion();
+    const isCustomTemplate = isRuntimeTemplate(slide.layout_group);
 
-    // Always call the hook (React hooks rule), but with empty id when not a custom template
+    // Always call the hook (React hooks rule), but with empty id when not a runtime template
     const { template: customTemplate, loading: customLoading } = useCustomTemplateDetails({
-        id: isCustomTemplate ? customTemplateId : "",
+        id: isCustomTemplate ? slide.layout_group : "",
         name: isCustomTemplate ? slide.layout_group : "",
         description: ""
     });
-
 
     // Memoize layout resolution to prevent unnecessary recalculations
     const Layout = useMemo(() => {
         if (isCustomTemplate) {
             if (customTemplate) {
-                const layoutId = slide.layout.startsWith("custom-") ? slide.layout.split(":")[1] : slide.layout;
-
-
+                const layoutId = bareLayoutId(slide.layout, slide.layout_group);
                 const compiledLayout = customTemplate.layouts.find(
-                    (layout) => layout.layoutId === layoutId
+                    (layout) => layout.layoutId === layoutId || layout.rawLayoutId === layoutId
                 );
-
-
                 return compiledLayout?.component ?? null;
             }
             return null;
@@ -49,7 +46,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
             const template = getLayoutByLayoutId(slide.layout, slide.layout_group);
             return template?.component ?? null;
         }
-    }, [isCustomTemplate, customTemplate, slide.layout]);
+    }, [isCustomTemplate, customTemplate, slide.layout, slide.layout_group]);
 
     // Show loading state for custom templates
     if (isCustomTemplate && customLoading) {

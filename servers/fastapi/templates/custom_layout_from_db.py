@@ -1,13 +1,18 @@
-import hashlib
-import json
+"""Imported (``custom-<uuid>``) templates are folders under ``<data>/templates/`` now.
+
+``load_custom_presentation_layout`` resolves one like any other template folder (through
+the Next.js schema route), and ``migrate_db_templates_to_folders`` moves templates that
+older versions stored in the database into folders once at startup. Their ids do not
+change, so existing presentations keep pointing at them.
+"""
+
 import logging
-import uuid
-from typing import Any
 
 import aiohttp
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlmodel import select
 
+from chatppt.templates import TemplateManifest, get_template, write_template
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sql.template import TemplateModel
 from services.database import async_session_maker
@@ -17,147 +22,80 @@ from utils.internal_urls import nextjs_base_url
 
 LOGGER = logging.getLogger(__name__)
 
-# Compiled payloads keyed by a hash of the template's layout code: a template is compiled
-# once until one of its layouts changes.
-_compiled_cache: dict[str, dict[str, Any]] = {}
-
-
 async def load_custom_presentation_layout(layout_name: str) -> PresentationLayoutModel:
-    """Load a custom template from the DB and compile layouts via Next.js (no Puppeteer)."""
-    if not layout_name.startswith("custom-"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid custom template id: {layout_name}",
-        )
-
-    try:
-        template_uuid = uuid.UUID(layout_name.replace("custom-", "", 1))
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid custom template ID",
-        ) from exc
-
-    LOGGER.info(
-        "[template_layout] loading custom template via server compile template=%r",
-        layout_name,
-    )
-
-    async with async_session_maker() as session:
-        template_meta = await session.get(TemplateModel, template_uuid)
-        result = await session.execute(
-            select(PresentationLayoutCodeModel).where(
-                PresentationLayoutCodeModel.presentation == template_uuid
-            )
-        )
-        layouts_db = result.scalars().all()
-
-    if not template_meta:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Template '{layout_name}' not found",
-        )
-
-    if not layouts_db:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No layouts found for template '{layout_name}'",
-        )
-
-    cache_key = _layouts_cache_key(layout_name, layouts_db)
-    payload = _compiled_cache.get(cache_key)
-    if payload is None:
-        payload = await _compile_custom_layouts_on_nextjs(
-            layout_name=layout_name,
-            layouts_db=layouts_db,
-        )
-        if payload.get("slides"):
-            _compiled_cache[cache_key] = payload
-
-    slides = payload.get("slides") or []
-    if not slides:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Template '{layout_name}' not found",
-        )
-
-    LOGGER.info(
-        "[template_layout] custom server compile OK template=%r slides=%d",
-        layout_name,
-        len(slides),
-    )
-    return PresentationLayoutModel(**payload)
-
-
-def _layouts_cache_key(
-    layout_name: str, layouts_db: list[PresentationLayoutCodeModel]
-) -> str:
-    digest = hashlib.sha256()
-    for layout in layouts_db:
-        digest.update(
-            json.dumps(
-                [layout.layout_id, layout.layout_name, layout.layout_code]
-            ).encode("utf-8")
-        )
-    return f"{layout_name}:{digest.hexdigest()}"
-
-
-async def _compile_custom_layouts_on_nextjs(
-    layout_name: str,
-    layouts_db: list[PresentationLayoutCodeModel],
-) -> dict[str, Any]:
-    body = {
-        "group": layout_name,
-        "layouts": [
-            {
-                "layout_id": layout.layout_id,
-                "layout_name": layout.layout_name,
-                "layout_code": layout.layout_code,
-            }
-            for layout in layouts_db
-        ],
-    }
-
-    headers = internal_request_headers()
+    """Layouts and schemas of a template folder, compiled by Next.js (no Puppeteer)."""
+    if get_template(layout_name) is None:
+        raise HTTPException(status_code=404, detail=f"Template '{layout_name}' not found")
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{nextjs_base_url()}/api/template/custom", json=body, headers=headers
+            async with session.get(
+                f"{nextjs_base_url()}/api/template",
+                params={"group": layout_name},
+                headers=internal_request_headers(),
             ) as response:
-                if response.status == 200:
-                    payload = await response.json()
-                    if isinstance(payload, dict):
-                        return payload
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Custom template compile returned invalid payload",
+                if response.status != 200:
+                    error = await response.text()
+                    LOGGER.error(
+                        "[template_layout] schema route HTTP %s template=%r body=%s",
+                        response.status,
+                        layout_name,
+                        (error or "")[:600],
                     )
-
-                error = await response.text()
-                LOGGER.error(
-                    "[template_layout] custom server compile HTTP %s template=%r body=%s",
-                    response.status,
-                    layout_name,
-                    (error or "")[:600],
-                )
-                if response.status == 404:
                     raise HTTPException(
-                        status_code=404,
-                        detail=f"Template '{layout_name}' not found",
+                        status_code=404 if response.status == 404 else 500,
+                        detail=f"Template '{layout_name}' could not be compiled: {error or response.status}",
                     )
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to compile custom template layouts: {error or response.status}",
-                )
-    except HTTPException:
-        raise
+                payload = await response.json()
     except aiohttp.ClientError as exc:
-        LOGGER.exception(
-            "[template_layout] custom server compile request failed template=%r",
-            layout_name,
-        )
         raise HTTPException(
             status_code=500,
             detail=f"Failed to reach template compile service: {exc}",
         ) from exc
+
+    if not isinstance(payload, dict) or not payload.get("slides"):
+        raise HTTPException(status_code=404, detail=f"Template '{layout_name}' not found")
+    return PresentationLayoutModel(**payload)
+
+
+async def migrate_db_templates_to_folders() -> int:
+    """Write every database template that has no folder yet to ``custom-<uuid>/``."""
+    from chatppt.settings import get_settings
+
+    root = get_settings().templates_dir
+    async with async_session_maker() as session:
+        templates = (await session.execute(select(TemplateModel))).scalars().all()
+        moved = 0
+        for template in templates:
+            template_id = f"custom-{template.id}"
+            if (root / template_id).exists():
+                continue
+            layouts = (
+                (
+                    await session.execute(
+                        select(PresentationLayoutCodeModel).where(
+                            PresentationLayoutCodeModel.presentation == template.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if not layouts:
+                continue
+            fonts = layouts[0].fonts if isinstance(layouts[0].fonts, dict) else {}
+            manifest = TemplateManifest(
+                id=template_id,
+                name=template.name or template_id,
+                description=template.description or "",
+                fonts={str(k): str(v) for k, v in fonts.items() if v},
+            )
+            try:
+                write_template(root, manifest, [(layout.layout_id, layout.layout_code) for layout in layouts])
+            except (OSError, ValueError) as exc:
+                LOGGER.warning("Could not move template %s to a folder: %s", template_id, exc)
+                continue
+            moved += 1
+    if moved:
+        LOGGER.info("Moved %d imported template(s) from the database to %s", moved, root)
+    return moved

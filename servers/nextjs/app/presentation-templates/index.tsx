@@ -1351,19 +1351,19 @@ import TitleDescriptionFourChartsSixBulletsLayout, {
 
 // TODO: Step 2: Import template settings Here (like the ones below)
 // Template template settings
-import generalSettings from "./general/settings.json";
-import modernSettings from "./modern/settings.json";
-import standardSettings from "./standard/settings.json";
-import swiftSettings from "./swift/settings.json";
-import neoGeneralSettings from "./neo-general/settings.json";
-import neoStandardSettings from "./neo-standard/settings.json";
-import neoModernSettings from "./neo-modern/settings.json";
-import neoSwiftSettings from "./neo-swift/settings.json";
-import codeSettings from "./Code/settings.json";
-import educationSettings from "./Education/settings.json";
-import productOverviewSettings from "./ProductOverview/settings.json";
-import reportSettings from "./Report/settings.json";
-import pitchDeckSettings from "./pitch-deck/settings.json";
+import generalSettings from "./general/template.json";
+import modernSettings from "./modern/template.json";
+import standardSettings from "./standard/template.json";
+import swiftSettings from "./swift/template.json";
+import neoGeneralSettings from "./neo-general/template.json";
+import neoStandardSettings from "./neo-standard/template.json";
+import neoModernSettings from "./neo-modern/template.json";
+import neoSwiftSettings from "./neo-swift/template.json";
+import codeSettings from "./Code/template.json";
+import educationSettings from "./Education/template.json";
+import productOverviewSettings from "./ProductOverview/template.json";
+import reportSettings from "./Report/template.json";
+import pitchDeckSettings from "./pitch-deck/template.json";
 
 // Helper to create template entry
 
