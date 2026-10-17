@@ -39,6 +39,18 @@ a helper the layouts can import (`import { Rule } from "./Rule"`).
 { "id": "desk", "name": "Desk", "description": "Dark, two layouts", "ordered": false, "icon_weight": "regular" }
 ```
 
+| `template.json` key | Default | |
+|---|---|---|
+| `id` | folder name | Lowercase letters, digits, `-`, `_`. What the API's `template` field takes |
+| `name` | required | Shown in the picker |
+| `description` | `""` | |
+| `ordered` | `false` | `true`: use layouts in file order; `false`: the model picks one per slide |
+| `default` | `false` | Offer this template first |
+| `icon_weight` | `regular` | `bold`, `duotone`, `fill`, `light`, `regular`, `thin` |
+| `layouts` | every `.tsx`, by name | Layout file names, in order |
+| `fonts` | `{}` | Family to URL or `fonts/<file>` |
+| `version` | `1` | Bump when layouts change incompatibly |
+
 ```tsx
 import React from "react";
 import * as z from "zod";
@@ -64,8 +76,9 @@ export default function Title({ data }: { data?: Partial<z.infer<typeof Schema>>
 }
 ```
 
-Copy the folder to `/data/templates/desk/` and it shows up in the template picker. It
-generates, renders in the editor and exports, all without a rebuild. Tailwind classes,
+Copy the folder to `/data/templates/desk/` and it shows up in the template picker and is
+accepted as `"template": "desk"` by the API and MCP. It generates, renders in the editor and
+exports, all without a rebuild. Tailwind classes,
 including arbitrary values like `bg-[#0b1220]`, are compiled locally on first use.
 
 - **Imports:** layouts can import `react`, `zod`, `recharts`, `lucide-react`, `d3`,
@@ -102,7 +115,8 @@ A theme is a set of colours and a font, saved as `/data/themes/<id>.json`:
 }
 ```
 
-Layouts see the tokens as CSS variables: `--primary-color`, `--background-color`,
+`description` and `logo` (a URL, shown by layouts that support one) are optional; colours
+must be hex. Layouts see the tokens as CSS variables: `--primary-color`, `--background-color`,
 `--card-color`, `--stroke`, `--primary-text`, `--background-text`, `--graph-0` to `--graph-9`
 (the `graph` list repeats to fill ten slots), plus `--heading-font-family` and
 `--body-font-family`. Theme files appear in the editor's **Theme** menu next to the built-in
@@ -126,13 +140,30 @@ Prompts ship as files in `servers/fastapi/prompts/<name>.md`. To change one, sav
 with the same name in `/data/prompts/`. `{placeholders}` work as in the shipped file.
 
 ```bash
-cp servers/fastapi/prompts/slide_content.system.md /data/prompts/
-$EDITOR /data/prompts/slide_content.system.md
+mkdir -p ./chatppt/prompts
+docker cp <container>:/app/servers/fastapi/prompts/slide_content.system.md ./chatppt/prompts/
+$EDITOR ./chatppt/prompts/slide_content.system.md
 ```
+
+What each prompt is for, and its placeholders, is in
+[`servers/fastapi/prompts/README.md`](../servers/fastapi/prompts/README.md). JSON inside a
+prompt doubles its braces (`{{ }}`); unknown `{placeholders}` are left as written. In code, a
+prompt is read with `chatppt.prompts.render_prompt("slide_content.system", **values)`, which
+picks the override when there is one; new prompts start as files there, never as Python
+strings.
 
 Tested by `tests/unit/test_chatppt_templates_prompts_themes.py`.
 
 ## Providers
+
+Built in: `openai`, `anthropic`, `google`, `vertex`, `azure`, `bedrock`, `openrouter`,
+`fireworks`, `together`, `cerebras`, `litellm`, `lmstudio`, `ollama`, `custom` (any
+OpenAI-compatible URL) and `codex`. Pick one with `llm.provider`; its credentials go under
+`[llm.providers.<id>]` (`api_key`, `base_url`, `model`, plus `endpoint`/`api_version`/
+`deployment` for Azure, `project`/`location` for Vertex, `region` and AWS keys for Bedrock).
+`CHATPPT_LLM_API_KEY` is a shortcut for the chosen provider's key; with no provider set, the
+key's prefix picks it (`sk-ant-` Anthropic, `sk-or-` OpenRouter, `AIza` Google, other `sk-`
+OpenAI). A missing credential is a 400 naming the key to set.
 
 **OpenAI-compatible servers** (vLLM, llama.cpp, a gateway) need only `chatppt.toml`:
 
@@ -149,9 +180,10 @@ api_key = "secret"
 Image endpoints work the same way, with `[images] provider = "…"` and
 `[images.providers.<id>]` holding `base_url`, `api_key` and `model`.
 
-**Per-step models:** you can send each step to a different provider and model. The steps
-are `outline`, `structure`, `content`, `edit`, `chat` and `template`. This is set in the
-file only, not in the settings page:
+**Per-step models:** you can send each step to a different provider and model: `outline`,
+`structure` (layout choice), `content` (each slide), `edit`, and `template` (PPTX import).
+A step without a route uses `[llm]`. A route without `model` takes `llm.model` (when it
+names the default provider), else `llm.providers.<id>.model`, else the provider's default. This is set in the file only, not in the settings page:
 
 ```toml
 [llm.routing.outline]
@@ -185,6 +217,9 @@ register_llm(LLMProviderSpec("lab", "Lab model", "lab-1", build))
 register_image(ImageProviderSpec("lab-images", "Lab images", "generative", generate=generate))
 ```
 
+Generation code gets its client from `chatppt.providers.llm_for_step("<step>")`, which
+returns `(client, model)` with the routes applied; use it for any new LLM call.
+
 Select them with `llm.provider = "lab"` and `images.provider = "lab-images"`. Put the
 credentials under `[llm.providers.lab]` or `[images.providers.lab-images]`. A file that
 fails to import is logged and skipped. The chat panel still uses the provider chosen on
@@ -203,14 +238,20 @@ def before_outline(request):        # dict: content, n_slides, language, instruc
     request["instructions"] = "House style: no adjectives."
     return request
 
-def after_slide(slide):             # slide.content is the layout data, slide.layout its id
-    slide.content["title"] = slide.content.get("title", "").upper()
+def after_slide(slide):             # .content (layout data), .layout, .layout_group (template id), .index
+    if slide.layout_group == "desk":
+        slide.content["title"] = slide.content.get("title", "").upper()
 
-def before_export(deck):            # dict with "slides"; affects the export, not the saved deck
+def before_export(deck):            # dict; each of deck["slides"] has "content", "layout", "layout_group"
     deck["slides"] = [s for s in deck["slides"] if not s["content"].get("draft")]
 
 async def after_export(path):       # the written .pptx / .pdf
     print("exported", path)
 ```
+
+`before_outline` gets the outline call's arguments; keys the call does not take are
+dropped. `before_export` changes the export only, not the saved deck. Generation code runs
+hooks through `chatppt.hooks.run_hook(name, value)`.
+[`e2e/fixtures/hooks.py`](../servers/nextjs/e2e/fixtures/hooks.py) is a working example.
 
 Tested by `tests/unit/test_chatppt_themes_providers_hooks.py`.

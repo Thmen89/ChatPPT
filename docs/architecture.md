@@ -1,130 +1,125 @@
-# Architecture (as inherited from Presenton 0.8.7-beta)
+# Architecture
 
-How the app works today, written down so every workstream starts from the same
-picture. Corrections to the planning prompt's assumptions are marked **(correction)**.
+How ChatPPT runs today. Where it came from is in [upstream.md](upstream.md); the numbers and
+what changed per workstream are in [roadmap.md](roadmap.md).
 
-## Processes in the container
+## One container, one port
 
-`start.js` (Node) is PID 1. It writes `userConfig.json` from env vars, then spawns:
+```
+              :5000 (PORT, public)
+ browser ──▶  node start.js  (PID 1)
+              └─ Next.js standalone server, in the same process
+                   UI pages; /api/template, /api/export-presentation, ...
+                   rewrites /api/v1/*, /app_data/*, /static/*, /mcp, /docs, /openapi.json
+                        │
+                        ▼  127.0.0.1:8000 (loopback only)
+              python server.py  (uvicorn, child of start.js)
+                   FastAPI: generation, storage, auth, webhooks, config
+                   MCP at /mcp, built on first request
+                   export: spawns presentation-export (Puppeteer + converter), which
+                   loads http://127.0.0.1:5000/pdf-maker?id=... in Chromium
+```
 
-| Process | Port | Role |
-|---|---|---|
-| nginx | 80 | Reverse proxy: `/` → Next.js, `/api/v1/` → FastAPI, `/mcp` → MCP, `/docs`. Also serves nothing itself; only routing. |
-| Next.js (standalone) | 3000 | UI (editor, outline, templates, settings) and a handful of server routes (`/api/template`, `/api/export-presentation`, `/api/user-config`, …). |
-| FastAPI (uvicorn) | 8000 | All generation, storage, export orchestration, auth, webhooks. |
-| MCP server (fastmcp) | 8001 | Generated at startup from `openai_spec.json`; proxies tool calls to FastAPI with an internal auth header. |
+- **No reverse proxy.** The rewrites live in `servers/nextjs/next.config.mjs` and are fixed at
+  build time to `127.0.0.1:8000`. Forwarded requests may be idle for up to 30 minutes
+  (`experimental.proxyTimeout`), since `POST .../presentation/generate` answers only when the
+  deck is exported.
+- **`start.js`** resolves the data folder (`/data`, or an old `/app_data` mount), hands it to
+  uid 1000 and drops root, sets the loopback URLs (`FAST_API_INTERNAL_URL`,
+  `CHATPPT_NEXTJS_URL`), starts FastAPI, then imports the Next.js server into its own process.
+  It forwards SIGTERM to the child and exits when either side dies. It writes no config.
+- **MCP** is mounted in FastAPI (`api/mcp.py`). Tools are generated from
+  `openai_spec.json` and call the REST API over loopback with the caller's `Authorization`
+  header. Nothing MCP-related is imported until the first `/mcp` request.
+- **Health:** `GET /healthz` on the public port (the image's `HEALTHCHECK`).
 
-Hard-coded assumptions worth knowing: FastAPI calls `http://localhost/...` (port 80,
-i.e. nginx) to reach Next.js for layout schemas and export pages, so nginx is
-load-bearing today, not optional. `NEXT_PUBLIC_URL` defaults to `http://127.0.0.1`.
+## Data folder
 
-## The generation path (what the UI does)
+Everything an install owns is in `server.data_dir` (`/data` in the container):
 
-1. `POST /api/v1/ppt/presentation/create` stores a `PresentationModel` row (prompt, n_slides, tone, …).
-2. `GET /api/v1/ppt/outlines/stream/{id}` streams the outline as SSE. One LLM call
-   (`utils/llm_calls/generate_presentation_outlines.py`) with a JSON-schema response
-   of exactly `n` slides, each `## title` + markdown body (100–1200 chars).
-3. The UI fetches the layout for the chosen template. Built-in templates live as React/TSX
-   files in `servers/nextjs/app/presentation-templates/<group>/*.tsx`, each exporting a
-   zod `Schema`, `layoutId`, `layoutName`, `layoutDescription` and the component.
-   `settings.json` per group carries `ordered`, `default`, `icon_weight`.
-4. `POST /api/v1/ppt/presentation/prepare` picks a layout per slide. If the template is
-   `ordered`, no LLM call; otherwise one LLM call (`generate_presentation_structure.py`)
-   returns a list of layout indices.
-5. `GET /api/v1/ppt/presentation/stream/{id}` generates slide content **sequentially**:
-   one LLM call per slide (`generate_slide_content.py`, JSON-schema response matching the
-   layout's schema plus a speaker note), each followed by asset fetching (icon search via a
-   local fastembed vector store, image generation via the configured image provider).
-   Slides are streamed to the editor as they finish.
-6. Export: `POST /api/export-presentation` (Next.js) runs the bundled
-   `presentation-export` runtime (a ~66 MB zip from `presenton/presenton-export`
-   releases: Puppeteer + a PyInstaller converter). It opens `/pdf-maker?id=…` in headless
-   Chromium, renders each slide to HTML, and converts to PPTX/PDF. Needs `sharp`'s native
-   addon and a Chromium binary.
+```
+/data
+├── chatppt.toml            settings (the settings page writes it; .bak keeps the previous one)
+├── fastapi.db              SQLite (Postgres/MySQL via server.database_url)
+├── templates/<id>/         template folders (PPTX imports land here as custom-<uuid>/)
+├── themes/<id>.json        themes
+├── prompts/<name>.md       prompt overrides
+├── providers/*.py          extra LLM or image backends
+├── hooks.py                generation and export hooks
+├── uploads/ images/ exports/ fonts/ pptx-to-html/   files served under /app_data
+├── userConfig.json         only Codex sign-in tokens (older settings are migrated once)
+└── backups/                chatppt backup
+```
 
-The REST API (`POST /api/v1/ppt/presentation/generate`) does steps 2, 4, 5, 6 in one call,
-generating slide content in **parallel batches of 10** (unlike the UI stream path).
-
-### Where the layout schema comes from on the backend
-
-`templates/get_layout_by_name.py` resolves a template name by **launching Chromium through
-the export runtime** (`extract-schema` on `http://localhost/schema?group=…`), then falls back
-to the JSON route `http://localhost/api/template?group=…`, then overlays `settings.json`
-read from disk. This runs on every generation; nothing is cached. It is the single biggest
-avoidable cost in the pipeline after the export itself. **(correction)**: the prompt said
-templates are "compiled into the Next.js app"; that is true for the editor, but layout
-schemas are also extracted at runtime via Puppeteer or Babel (`lib/compile-template-schema.ts`).
-
-### Custom templates
-
-Importing a PPTX (`templates/router.py`, 17 endpoints) converts slides to images, asks the
-LLM (vision) to write TSX layouts (`templates/prompts.py`), stores the TSX in the
-`presentation_layout_codes` table, and compiles it **in the browser** with
-`@babel/standalone` (`app/hooks/compileLayout.ts`, with React, Recharts, d3 and Lucide in
-scope). This is the mechanism "templates as files" can reuse: layouts are already TSX text
-compiled at runtime; only the storage (DB vs folder) and discovery differ.
+`/app_data/*` serves only the media folders, behind sign-in or a signed link. See
+[contracts.md](contracts.md) for each extension point and [customising.md](customising.md)
+for how to use them.
 
 ## Configuration
 
-Three layers, all mutable at runtime:
+`chatppt/settings.py`: one schema, read from `CHATPPT_*` env > `chatppt.toml` > legacy
+Presenton env names > defaults, re-read when the file's mtime changes (checked at most once a
+second). At startup `apply_to_environ` exports explicitly configured keys under their legacy
+names so upstream readers (`utils/get_env.py`) see them, and an old `userConfig.json` is
+copied into `chatppt.toml` once. The settings page reads and writes through
+`GET/PUT /api/v1/config` (admin only; `CAN_CHANGE_KEYS=false` makes it read-only). Reference:
+[config-reference.md](config-reference.md).
 
-- **Environment variables** (~85 getters in `utils/get_env.py`, ~74 setters in `utils/set_env.py`).
-- **`userConfig.json`** in the data directory, written by `start.js` from env at boot and by
-  the settings UI (`/api/user-config`), with lock/backup handling in `utils/user_config_store.py`.
-- **`UserConfigEnvUpdateMiddleware`**: on **every HTTP request**, re-reads `userConfig.json`
-  and rewrites `os.environ` (`utils/user_config.py::update_env_with_user_config`) unless
-  `CAN_CHANGE_KEYS=false`.
+## Generation
 
-Provider selection is a 15-way `if/elif` repeated in `utils/llm_provider.py` (model),
-`utils/llm_config.py` (client config), `utils/model_availability.py` (startup check) and
-`start.js` (env → config). LLM calls go through the `llmai` package (one client API over
-OpenAI-compatible, Anthropic, Google, Vertex, Azure, Bedrock, …).
+The UI path:
+
+1. `POST /api/v1/ppt/presentation/create` stores the prompt, slide count, template and so on.
+2. `GET /api/v1/ppt/outlines/stream/{id}` streams the outline (SSE). With the template known,
+   the same call picks each slide's layout (`outline.layouts.md`), so no structure call is
+   needed.
+3. `POST /api/v1/ppt/presentation/prepare` stores the outline and layouts.
+4. `GET /api/v1/ppt/presentation/stream/{id}` generates slide content, `llm.concurrency` (8)
+   slides at a time, fetching icons (local fastembed index) and images as each finishes, and
+   streams them to the editor. `after_slide` runs on each.
+5. Export: `POST /api/export-presentation` (Next.js) runs the export runtime, which renders
+   `/pdf-maker?id=...` in headless Chromium and converts it to PPTX or PDF. `before_export`
+   and `after_export` run around it.
+
+`POST /api/v1/ppt/presentation/generate` does 2 to 5 in one call (FastAPI drives the same
+exporter). Every LLM call gets its client from `llm_for_step(step)`, and every prompt comes
+from `render_prompt(name)`.
+
+Layout schemas come from Next.js (`/api/template?group=<id>`, which compiles the template's
+TSX) and are cached in FastAPI by the template's fingerprint, so a template is compiled once
+per change. The editor compiles folder layouts in the browser
+(`app/hooks/compileLayout.ts`) with Tailwind compiled locally.
+
+## Auth
+
+`chatppt/auth/`: local users (one or more admins) with PBKDF2 passwords, HttpOnly session
+cookies, hashed revocable API tokens (`cpt_...`), optional OIDC or trusted proxy header. One
+ASGI middleware (`chatppt/auth/middleware.py`) authenticates every request, keeps admin routes
+to admins, enforces CSRF on cookie requests, caps bodies and sets security headers. The
+exporter gets a 15-minute read-only token; exported files and slide images use signed,
+expiring links. Details: [SECURITY.md](../SECURITY.md#how-chatppt-protects-an-install).
 
 ## Storage
 
-SQLite by default (`<data>/fastapi.db`, SQLModel + aiosqlite); Postgres/MySQL via
-`DATABASE_URL`. Five Alembic migrations, run only when `MIGRATE_DATABASE_ON_STARTUP=true`
-(otherwise `create_all`). Tables: presentations, slides, image assets, templates, layout
-code, key/value, chat history, webhooks, async generation tasks, ollama pull status.
+SQLModel over SQLite by default (`<data>/fastapi.db`, aiosqlite). Tables are created at
+startup; Alembic migrations run when `MIGRATE_DATABASE_ON_STARTUP=true`. Tables: presentations,
+slides, image assets, templates (pre-folder imports), layout code, key/value, chat history,
+webhooks, async generation tasks, users, API tokens.
 
-Auth is a single username + bcrypt-style hash + session secret stored in **`userConfig.json`**
-(`utils/simple_auth.py`), checked by `SessionAuthMiddleware` on `/api/*` and `/app_data/*`
-except `/app_data/images/`, which is public so the exporter can fetch images without a cookie.
-
-ChatPPT replaces that: a few local users (`users` table, one or more admins) with hashed,
-revocable API tokens (`api_tokens`), optional OIDC and trusted-proxy-header login, all in
-`chatppt/auth/` and checked by one ASGI middleware (`chatppt/auth/middleware.py`) that also
-sets security headers, enforces CSRF on cookie requests and caps request bodies. `/app_data`
-serves only the media folders; the exporter gets a 15-minute read-only token and slide images
-carry signed, expiring links. An existing `userConfig.json` login becomes the first admin on
-upgrade. What is protected and how: [SECURITY.md](../SECURITY.md#how-chatppt-protects-an-install).
-
-## Optional subsystems (upstream defaults; see roadmap for what changed)
+## Optional subsystems
 
 | Subsystem | Cost | Default |
 |---|---|---|
-| mem0 chat memory (`services/mem0_*`, `services/chat/`, ~3.4k lines) | spaCy `en_core_web_sm`, NLTK data, on-disk Qdrant, extra LLM calls | upstream: on. ChatPPT: off (`features.memory`) since #4 |
-| Icon search (`services/icon_finder_service.py`) | fastembed MiniLM ONNX (baked at image build; untracked since #3) + 21 MB JSON vectorstore | always; never downloads at runtime since #4 |
-| OCR | Tesseract + traineddata | installed in image |
-| LibreOffice | ~400 MB in image | installed in image |
-| Chromium + ImageMagick | required by export | installed in image |
-| Ollama | upstream: `curl \| sh` at container start. Removed in #4 | off |
-| Mixpanel (UI) | upstream hard-coded token. Removed in #4 | gone |
-| Sentry | backend opt-in via `server.error_reporting_dsn`; Electron DSN removed in #4 | off |
+| Icon search | fastembed ONNX model baked into the image, local vector index | on |
+| Images | your image provider | placeholders until one is configured |
+| Chat memory (mem0) | spaCy, on-disk Qdrant, extra LLM calls; `:full` image only | off (`features.memory`) |
+| OCR (Tesseract), LibreOffice, ImageMagick | `:full` image only | used when present |
+| Error reporting | a DSN you set (`server.error_reporting_dsn`) and the SDK you install | off |
+
+No analytics, no update checks, no runtime downloads: [telemetry.md](telemetry.md).
 
 ## Desktop app
 
-`electron/` bundles both servers plus LibreOffice, ImageMagick and Chromium; it has its own
-update checker pointing at `raw.githubusercontent.com/presenton/presenton` and
-`presenton.ai/download`. It shares the two server trees; nothing in the servers is
-desktop-only except path helpers (`utils/path_helpers.py`).
-
-## Size and weight (measured, this commit)
-
-- Git clone: 652 MB `.git`, 10,019 files; largest tracked blobs: 87 MB fastembed model,
-  15 MB icons vectorstore, 7.3 MB `loading.gif`, 6.3 MB icons.json, 1.3 MB NOTICE.
-- Python venv (`uv sync`, 3.11): 647 MB. Next.js `node_modules`: 1.1 GB; standalone build 425 MB.
-- Upstream container image `ghcr.io/presenton/presenton:v0.8.7-beta`: **1.25 GB compressed**, 22 layers.
-- CI: one workflow, builds a PyInstaller binary; no lint, no type check, no e2e.
-
-See `docs/roadmap.md` for the scoreboard and the workstreams.
+`electron/` bundles both servers and starts them itself (not through `start.js`); it shares
+the two server trees. Its dependency plan is in
+[electron-dependency-strategy.md](electron-dependency-strategy.md).
