@@ -73,7 +73,39 @@ def filesystem_image_path_to_app_data_url(path_or_url: str) -> str:
     return absolute_fastapi_asset_url("/app_data/images/" + rel.replace(os.sep, "/"))
 
 
+def _allowed_file_roots() -> list[str]:
+    """Folders a request-named path may resolve into: the app-data media folders, the
+    temp folder and the bundled static assets (never chatppt.toml, userConfig.json or
+    the database next to them, and nothing elsewhere on disk)."""
+    import tempfile
+
+    from chatppt.auth.middleware import APP_DATA_FOLDERS
+    from utils.get_env import get_temp_directory_env
+
+    roots = [
+        get_temp_directory_env() or os.path.join(tempfile.gettempdir(), "chatppt"),
+        os.path.abspath("static"),
+    ]
+    app_data = get_app_data_directory_env()
+    if app_data:
+        roots += [os.path.join(app_data, folder) for folder in APP_DATA_FOLDERS]
+    return [os.path.realpath(root) for root in roots]
+
+
 def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
+    """Like ``_resolve_app_path_unchecked`` but only returns files inside
+    ``_allowed_file_roots()`` (symlinks and ``..`` resolved first)."""
+    resolved = _resolve_app_path_unchecked(path_or_url)
+    if not resolved:
+        return None
+    real = os.path.realpath(resolved)
+    for root in _allowed_file_roots():
+        if real == root or real.startswith(root + os.sep):
+            return resolved
+    return None
+
+
+def _resolve_app_path_unchecked(path_or_url: str) -> Optional[str]:
     """
     Resolve an app-served path or URL to an actual filesystem path.
 

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 LOGGER = logging.getLogger(__name__)
 
@@ -128,6 +128,16 @@ class ServerSettings(BaseModel):
         default=None, description="Sentry-compatible DSN. Unset means no error reporting at all."
     )
     max_upload_mb: int = Field(default=100, ge=1, le=2048, description="Largest upload (request body) accepted, in MB.")
+    fetch_allow_hosts: list[str] = Field(
+        default_factory=list,
+        description="Private hosts (name or name:port) webhooks may reach; public hosts and configured provider URLs need no entry.",
+    )
+
+    @field_validator("fetch_allow_hosts", mode="before")
+    @classmethod
+    def _comma_separated(cls, value: Any) -> Any:
+        # The environment form is one string: CHATPPT_SERVER__FETCH_ALLOW_HOSTS="n8n,hooks:8080".
+        return [part.strip() for part in value.split(",") if part.strip()] if isinstance(value, str) else value
 
 
 class OIDCSettings(BaseModel):

@@ -157,9 +157,12 @@ async def upload_font(
                 detail=f"Invalid font file. Supported formats: {', '.join(SUPPORTED_FONT_EXTENSIONS.keys())}"
             )
         
-        # Generate unique filename to avoid conflicts
-        file_ext = os.path.splitext(font_file.filename)[1].lower()
-        base_name = os.path.splitext(font_file.filename)[0]
+        # Generate unique filename to avoid conflicts (never a path from the request)
+        from chatppt.guards import check_upload
+
+        safe_name = await check_upload(font_file, "font")
+        file_ext = os.path.splitext(safe_name)[1].lower()
+        base_name = os.path.splitext(safe_name)[0]
         unique_filename = f"{base_name}_{str(uuid.uuid4())[:8]}{file_ext}"
         
         # Get fonts directory
@@ -302,6 +305,8 @@ async def delete_font(filename: str):
     """
     try:
         fonts_dir = get_fonts_directory()
+        if filename != os.path.basename(filename) or filename in ("", ".", ".."):
+            raise HTTPException(status_code=400, detail="Invalid font file name")
         font_path = os.path.join(fonts_dir, filename)
         
         if not os.path.exists(font_path):

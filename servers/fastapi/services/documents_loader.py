@@ -195,7 +195,10 @@ class DocumentsLoader:
         documents: List[str] = []
         images: List[List[str]] = []
 
+        from chatppt.guards import inside, upload_roots
+
         for file_path in self._file_paths:
+            file_path = str(inside(file_path, upload_roots()))
             if not os.path.exists(file_path):
                 raise HTTPException(
                     status_code=404, detail=f"File {file_path} not found"
