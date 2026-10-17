@@ -11,6 +11,8 @@ ChatPPT reads `chatppt.toml` from the data directory (or `CHATPPT_CONFIG`). Ever
 | `server.database_url` | str |  | `CHATPPT_SERVER__DATABASE_URL` (legacy `DATABASE_URL`) | SQLAlchemy URL. Default is SQLite in data_dir; set postgresql://... to opt in. |
 | `server.log_level` | str | `'info'` | `CHATPPT_SERVER__LOG_LEVEL` (legacy `LOG_LEVEL`) | debug, info, warning or error. |
 | `server.error_reporting_dsn` | str |  | `CHATPPT_SERVER__ERROR_REPORTING_DSN` (legacy `SENTRY_DSN`) | Sentry-compatible DSN. Unset means no error reporting at all. |
+| `server.max_upload_mb` | int | `100` | `CHATPPT_SERVER__MAX_UPLOAD_MB` | Largest upload (request body) accepted, in MB. |
+| `server.fetch_allow_hosts` | list | `[]` | `CHATPPT_SERVER__FETCH_ALLOW_HOSTS` | Private hosts (name or name:port) that webhooks and template slide-image downloads may reach; public hosts and configured provider URLs need no entry. |
 | `llm.provider` | str |  | `CHATPPT_LLM__PROVIDER` (legacy `LLM`) | Default LLM provider id: openai, anthropic, google, vertex, azure, bedrock, openrouter, fireworks, together, cerebras, litellm, lmstudio, ollama, custom, codex. |
 | `llm.model` | str |  | `CHATPPT_LLM__MODEL` | Default model for the default provider. |
 | `llm.thinking` | bool | `True` | `CHATPPT_LLM__THINKING` (legacy `DISABLE_THINKING`) | Allow reasoning/thinking on models that support it. |
@@ -56,6 +58,17 @@ ChatPPT reads `chatppt.toml` from the data directory (or `CHATPPT_CONFIG`). Ever
 | `features.web_search` | bool | `False` | `CHATPPT_FEATURES__WEB_SEARCH` (legacy `WEB_GROUNDING`) | Provider-side web grounding when supported. |
 | `features.update_check` | bool | `False` | `CHATPPT_FEATURES__UPDATE_CHECK` | Desktop app checks for new releases. |
 | `auth.disabled` | bool | `False` | `CHATPPT_AUTH__DISABLED` (legacy `DISABLE_AUTH`) | Turn login off entirely (single-user, trusted network). |
+| `auth.session_days` | int | `30` | `CHATPPT_AUTH__SESSION_DAYS` | How long a browser sign-in lasts. |
+| `auth.signed_url_minutes` | int | `60` | `CHATPPT_AUTH__SIGNED_URL_MINUTES` | How long signed links to exported files and slide images stay valid. |
+| `auth.proxy_header` | str |  | `CHATPPT_AUTH__PROXY_HEADER` | Header (e.g. Remote-User) your SSO reverse proxy sets to the signed-in username; only set it when ChatPPT is reachable solely through that proxy. |
+| `auth.proxy_secret` | str |  | `CHATPPT_AUTH__PROXY_SECRET` | When set, proxy_header is trusted only on requests that also carry X-ChatPPT-Proxy-Secret with this value. |
+| `auth.oidc.issuer` | str |  | `CHATPPT_AUTH__OIDC__ISSUER` | OpenID Connect issuer URL; set it (with client_id) to show a single sign-on button. |
+| `auth.oidc.client_id` | str |  | `CHATPPT_AUTH__OIDC__CLIENT_ID` | OIDC client id registered for ChatPPT. |
+| `auth.oidc.client_secret` | str |  | `CHATPPT_AUTH__OIDC__CLIENT_SECRET` | OIDC client secret (confidential client). |
+| `auth.oidc.scopes` | str | `'openid email profile'` | `CHATPPT_AUTH__OIDC__SCOPES` | Scopes requested at sign-in. |
+| `auth.oidc.username_claim` | str | `'preferred_username'` | `CHATPPT_AUTH__OIDC__USERNAME_CLAIM` | ID-token claim used as the username (falls back to email, then sub). |
+| `auth.oidc.label` | str | `'Sign in with SSO'` | `CHATPPT_AUTH__OIDC__LABEL` | Text on the single sign-on button. |
+| `auth.oidc.create_users` | bool | `True` | `CHATPPT_AUTH__OIDC__CREATE_USERS` | Create a user on first SSO sign-in; off means an admin must add the user first. |
 | `paths.templates` | str |  | `CHATPPT_PATHS__TEMPLATES` | Template folders. Default <data>/templates. |
 | `paths.prompts` | str |  | `CHATPPT_PATHS__PROMPTS` | Prompt overrides. Default <data>/prompts. |
 | `paths.themes` | str |  | `CHATPPT_PATHS__THEMES` | Theme files. Default <data>/themes. |

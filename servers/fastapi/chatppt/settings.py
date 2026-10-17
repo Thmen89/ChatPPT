@@ -130,7 +130,7 @@ class ServerSettings(BaseModel):
     max_upload_mb: int = Field(default=100, ge=1, le=2048, description="Largest upload (request body) accepted, in MB.")
     fetch_allow_hosts: list[str] = Field(
         default_factory=list,
-        description="Private hosts (name or name:port) webhooks may reach; public hosts and configured provider URLs need no entry.",
+        description="Private hosts (name or name:port) that webhooks and template slide-image downloads may reach; public hosts and configured provider URLs need no entry.",
     )
 
     @field_validator("fetch_allow_hosts", mode="before")
