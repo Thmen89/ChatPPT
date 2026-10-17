@@ -7,6 +7,7 @@ import {
   runBundledPresentationExport,
 } from "@/lib/run-bundled-presentation-export";
 import { runAfterExportHook } from "@/lib/export-hooks";
+import { exporterCookieHeader } from "@/lib/export-auth";
 
 function isValidFormat(value: unknown): value is BundledPresentationExportFormat {
   return value === "pdf" || value === "pptx";
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
       format,
       presentationId: id,
       title,
-      cookieHeader,
+      // A short-lived read-only token, never the user's own session.
+      cookieHeader: await exporterCookieHeader(cookieHeader),
     });
     await runAfterExportHook(outPath, cookieHeader);
 

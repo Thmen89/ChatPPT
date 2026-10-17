@@ -21,7 +21,9 @@ import ImageProvider from "./ImageProvider";
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { getApiUrl } from "@/utils/api";
-import LogoutButton from "@/components/Auth/LogoutButton";
+import AccountSettings from "@/components/Auth/AccountSettings";
+import UsersAdmin from "@/components/Auth/UsersAdmin";
+import { AuthStatus, authApi } from "@/components/Auth/authApi";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -39,9 +41,14 @@ const SettingsPage = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [mode, setMode] = useState<'nanobanana' | 'template'>('template')
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  useEffect(() => {
+    authApi<AuthStatus>("/status").then(setAuthStatus).catch(() => setAuthStatus(null));
+  }, []);
   const [selectedProvider, setSelectedProvider] = useState<
-    "text-provider" | "image-provider" | "session"
+    "text-provider" | "image-provider" | "session" | "users"
   >("text-provider");
+  const isAccountSection = selectedProvider === "session" || selectedProvider === "users";
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
     userConfigState.llm_config
@@ -269,14 +276,15 @@ const SettingsPage = () => {
     }
   }, [downloadingModel]);
 
-  useEffect(() => {
-    if (!canChangeKeys) {
-      router.push("/dashboard");
-    }
-  }, [canChangeKeys, router]);
-
+  // Provider keys are locked (CAN_CHANGE_KEYS=false) or you are not an admin: your
+  // account and API tokens are still yours to manage.
   if (!canChangeKeys) {
-    return null;
+    return (
+      <div className="h-screen font-syne overflow-auto px-6">
+        <h3 className="py-[28px] text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black">Account</h3>
+        <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
+      </div>
+    );
   }
 
   const textProviderKey = llmConfig.LLM || "openai";
@@ -410,6 +418,7 @@ const SettingsPage = () => {
           setMode={setMode}
           selectedProvider={selectedProvider}
           setSelectedProvider={setSelectedProvider}
+          isAdmin={Boolean(authStatus?.is_admin && !authStatus?.auth_disabled)}
         />
         <div className="w-full">
           <div className="sticky top-0 right-0 z-50 py-[28px]   backdrop-blur mb-4 ">
@@ -439,25 +448,15 @@ const SettingsPage = () => {
           />}
           {mode === 'template' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === "session" && (
-            <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
-              <div>
-                <h4 className="font-unbounded text-lg font-normal text-black">Sign out</h4>
-                <p className="mt-2 font-syne text-sm leading-relaxed text-[#494A4D]">
-                  End your session on this deployment. You will need to sign in again to use the app and access the API.
-                </p>
-              </div>
-              <LogoutButton
-                label="Sign out"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 font-syne text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
+            <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
           )}
+          {selectedProvider === "users" && <UsersAdmin currentUser={authStatus?.username ?? null} />}
 
         </div>
       </main>
 
-      {/* Fixed Bottom Button — hidden on Sign out; nothing to save there */}
-      {selectedProvider !== "session" ? (
+      {/* Fixed Bottom Button — hidden on the account pages; nothing to save there */}
+      {!isAccountSection ? (
         <div className=" mx-auto fixed bottom-20 right-5 ">
           <button
             onClick={handleSaveConfig}

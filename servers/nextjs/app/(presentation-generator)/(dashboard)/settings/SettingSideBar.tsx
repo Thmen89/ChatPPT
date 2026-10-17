@@ -1,12 +1,12 @@
 import React from 'react'
-import { LogOut } from 'lucide-react'
+import { UserRound, Users } from 'lucide-react'
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 
-type SettingsSection = 'text-provider' | 'image-provider' | 'session'
+type SettingsSection = 'text-provider' | 'image-provider' | 'session' | 'users'
 
-const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }: { mode: 'nanobanana' | 'template', setMode: (mode: 'nanobanana' | 'template') => void, selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void }) => {
+const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider, isAdmin = false }: { mode: 'nanobanana' | 'template', setMode: (mode: 'nanobanana' | 'template') => void, selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void, isAdmin?: boolean }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
     const textProviderIcon = LLM_PROVIDERS[llm_config.LLM as keyof typeof LLM_PROVIDERS]?.icon
     const imageProviderIcon = IMAGE_PROVIDERS[llm_config.IMAGE_PROVIDER as keyof typeof IMAGE_PROVIDERS]?.icon || '/providers/pexel.png'
@@ -81,10 +81,21 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
                         onClick={() => setSelectedProvider('session')}
                     >
                         <div className='relative w-6 h-6 rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
-                            <LogOut className='w-3.5 h-3.5 text-[#5146E5]' />
+                            <UserRound className='w-3.5 h-3.5 text-[#5146E5]' />
                         </div>
-                        <p className='text-[#191919] text-xs font-medium'>Sign out</p>
+                        <p className='text-[#191919] text-xs font-medium'>Account &amp; tokens</p>
                     </button>
+                    {isAdmin && (
+                        <button
+                            className={`w-full rounded-[6px] p-3 py-4 flex items-center gap-1.5 border ${selectedProvider === 'users' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`}
+                            onClick={() => setSelectedProvider('users')}
+                        >
+                            <div className='relative w-6 h-6 rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
+                                <Users className='w-3.5 h-3.5 text-[#5146E5]' />
+                            </div>
+                            <p className='text-[#191919] text-xs font-medium'>Users</p>
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
