@@ -8,12 +8,11 @@ import tempfile
 from typing import Literal, Mapping
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ValidationError, model_validator
+from pydantic import BaseModel
 
 from services.liteparse_service import _command_str, _snippet
 from utils.asset_directory_utils import resolve_app_path_to_filesystem
 from utils.get_env import get_app_data_directory_env, get_temp_directory_env
-from utils.icon_weights import DEFAULT_ICON_WEIGHT, extract_icon_weight_from_settings
 from utils.runtime_limits import (
     BoundedTextBuffer,
     log_memory,
@@ -46,29 +45,6 @@ class PresentationExportTaskResult(BaseModel):
 
 class HtmlToImageTaskResult(BaseModel):
     path: str
-
-
-class ExtractSchemaSlide(BaseModel):
-    id: str
-    name: str | None = None
-    description: str | None = None
-    json_schema: dict
-
-
-class ExtractSchemaDocument(BaseModel):
-    name: str
-    ordered: bool = False
-    icon_weight: str = DEFAULT_ICON_WEIGHT
-    slides: list[ExtractSchemaSlide]
-
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_icon_weight(cls, data):
-        if isinstance(data, dict):
-            normalized = dict(data)
-            normalized["icon_weight"] = extract_icon_weight_from_settings(normalized)
-            return normalized
-        return data
 
 
 class ExportTaskService:
@@ -435,44 +411,6 @@ class ExportTaskService:
         self._ensure_output_readable(output_path)
 
         return HtmlToImageTaskResult(path=output_path)
-
-    async def extract_schema(self, url: str) -> ExtractSchemaDocument:
-        LOGGER.info(
-            "[export_runtime] extract_schema spawn "
-            "url=%s entrypoint=%s export_dir=%s",
-            url,
-            self.entrypoint_path,
-            self.export_dir,
-        )
-        try:
-            response_data = await self._run_task(
-                {
-                    "type": "extract-schema",
-                    "url": url,
-                },
-                "Extract-schema task did not produce a response file",
-            )
-            slides = response_data.get("slides") if isinstance(response_data, dict) else None
-            slide_n = len(slides) if isinstance(slides, list) else "?"
-            LOGGER.info(
-                "[export_runtime] extract_schema node finished url=%s "
-                "response_name=%r ordered=%s icon_weight=%s slides=%s",
-                url,
-                response_data.get("name") if isinstance(response_data, dict) else None,
-                response_data.get("ordered") if isinstance(response_data, dict) else None,
-                response_data.get("icon_weight") if isinstance(response_data, dict) else None,
-                slide_n,
-            )
-            return ExtractSchemaDocument(**response_data)
-        except ValidationError as exc:
-            LOGGER.exception(
-                "[export_runtime] extract_schema pydantic validation failed url=%s",
-                url,
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Extract-schema task produced invalid output",
-            ) from exc
 
 
 def sys_platform() -> str:

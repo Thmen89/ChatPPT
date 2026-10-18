@@ -83,6 +83,9 @@ class LLMSettings(BaseModel):
     model: str | None = Field(default=None, description="Default model for the default provider.")
     thinking: bool = Field(default=True, description="Allow reasoning/thinking on models that support it.")
     extended_reasoning: bool = Field(default=False, description="Ask for longer reasoning where supported.")
+    concurrency: int = Field(
+        default=8, ge=1, le=32, description="Slides generated at once; lower it if your provider rate-limits."
+    )
     providers: dict[str, ProviderCredentials] = Field(
         default_factory=dict, description="Per-provider credentials, keyed by provider id."
     )

@@ -4,6 +4,7 @@ from typing import Optional
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import SlideLayoutModel
 from models.sql.slide import SlideModel
+from chatppt.prompts import render_prompt
 from chatppt.providers import llm_for_step
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import generate_structured_with_schema_retries
@@ -32,58 +33,31 @@ def get_system_prompt(
     memory_context: Optional[str] = None,
 ):
     memory_block = (
-        "\n    # Retrieved Presentation Memory Context\n"
-        f"    {memory_context}\n"
-        "    - Use this context only if it is relevant to the user prompt.\n"
-        "    - Prefer this context over assumptions when resolving ambiguity.\n"
+        "\n# Retrieved Presentation Memory Context\n"
+        f"{memory_context}\n"
+        "- Use this context only if it is relevant to the user prompt.\n"
+        "- Prefer this context over assumptions when resolving ambiguity.\n"
         if memory_context
         else ""
     )
 
-    return f"""
-    Edit Slide data and speaker note based on provided prompt, follow mentioned steps and notes and provide structured output.
-
-    {"# User Instruction:" if instructions else ""}
-    {instructions or ""}
-
-    {"# Tone:" if tone else ""}
-    {tone or ""}
-
-    {"# Verbosity:" if verbosity else ""}
-    {verbosity or ""}
-
-    # Notes
-    - Provide output in language mentioned in **Input**.
-    - The goal is to change Slide data based on the provided prompt.
-    - Do not change **Image prompts** and **Icon queries** if not asked for in prompt.
-    - Generate **Image prompts** and **Icon queries** if asked to generate or change in prompt.
-    - Make sure to follow language guidelines.
-    - Speaker note should be normal text, not markdown.
-    - Speaker note should be simple, clear, concise and to the point.
-    {memory_block}
-
-    **Go through all notes and steps and make sure they are followed, including mentioned constraints**
-    """
+    return render_prompt(
+        "edit_slide.system",
+        user_instructions=f"# User Instruction:\n{instructions}" if instructions else "",
+        tone_instructions=f"# Tone:\n{tone}" if tone else "",
+        verbosity_instructions=f"# Verbosity:\n{verbosity}" if verbosity else "",
+        memory_context=memory_block,
+    )
 
 
 def get_user_prompt(prompt: str, slide_data: dict, language: str):
-    display_language = _resolve_prompt_language(language)
-    return f"""
-        ## Icon Query And Image Prompt Language
-        English
-
-        ## Current Date and Time
-        {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-
-        ## Slide Content Language
-        {display_language}
-
-        ## Prompt
-        {prompt}
-
-        ## Slide data
-        {slide_data}
-    """
+    return render_prompt(
+        "edit_slide.user",
+        current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        language=_resolve_prompt_language(language),
+        prompt=prompt,
+        slide_data=slide_data,
+    )
 
 
 def get_messages(
