@@ -1,6 +1,6 @@
 # Amazon Bedrock provider
 
-ChatPPT can use **Amazon Bedrock** as the text LLM provider for presentation generation, editing, and chat. Configure Bedrock in the app UI (**Settings → Text provider**) or with environment variables / `userConfig.json` (Docker and desktop).
+ChatPPT can use **Amazon Bedrock** as the text LLM provider for presentation generation, editing, and chat. Configure Bedrock in the app UI (**Settings → Text provider**, saved to `chatppt.toml`), in `[llm.providers.bedrock]` of `chatppt.toml`, or with environment variables (`CHATPPT_LLM__PROVIDERS__BEDROCK__*`, or the legacy names below).
 
 The backend sends your configured **Model** value to the Bedrock **Converse** API as `modelId`. That means you can use:
 
@@ -103,18 +103,33 @@ Replace `471112542209` with **your** AWS account ID. The ARN must come from **yo
 ### Docker
 
 ```bash
-docker run -it --name chatppt -p 5000:80 \
-  -e LLM="bedrock" \
-  -e BEDROCK_REGION="us-east-1" \
-  -e BEDROCK_AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID" \
-  -e BEDROCK_AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY" \
-  -e BEDROCK_MODEL="arn:aws:bedrock:us-east-1:471112542209:inference-profile/us.anthropic.claude-sonnet-4-6" \
-  -e IMAGE_PROVIDER="pexels" \
-  -e PEXELS_API_KEY="YOUR_PEXELS_KEY" \
-  -e CAN_CHANGE_KEYS="false" \
-  -v "./app_data:/app_data" \
-  ghcr.io/thmen89/chatppt:latest
+docker run -d --name chatppt -p 5000:5000 -v ./chatppt:/data \
+  -e CHATPPT_LLM__PROVIDER=bedrock \
+  -e CHATPPT_LLM__PROVIDERS__BEDROCK__REGION="us-east-1" \
+  -e CHATPPT_LLM__PROVIDERS__BEDROCK__AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID" \
+  -e CHATPPT_LLM__PROVIDERS__BEDROCK__AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY" \
+  -e CHATPPT_LLM__MODEL="arn:aws:bedrock:us-east-1:471112542209:inference-profile/us.anthropic.claude-sonnet-4-6" \
+  -e CHATPPT_IMAGES__PROVIDER=pexels \
+  -e CHATPPT_IMAGES__PROVIDERS__PEXELS__API_KEY="YOUR_PEXELS_KEY" \
+  -e CAN_CHANGE_KEYS=false \
+  ghcr.io/thmen89/chatppt   # TODO(owner): image not published yet; or build it: docker build -t chatppt .
 ```
+
+Or the same in `./chatppt/chatppt.toml`:
+
+```toml
+[llm]
+provider = "bedrock"
+model = "arn:aws:bedrock:us-east-1:471112542209:inference-profile/us.anthropic.claude-sonnet-4-6"
+
+[llm.providers.bedrock]
+region = "us-east-1"
+aws_access_key_id = "YOUR_ACCESS_KEY_ID"
+aws_secret_access_key = "YOUR_SECRET_ACCESS_KEY"
+```
+
+The legacy names (`LLM=bedrock`, `BEDROCK_REGION`, `BEDROCK_MODEL`, ...) still work and log
+a warning naming the new key.
 
 ### On-demand model example (Haiku)
 

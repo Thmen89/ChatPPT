@@ -23,7 +23,7 @@ npm ci
 NEXT_PUBLIC_FAST_API=http://127.0.0.1:8000 npm run dev
 ```
 
-Or run the whole stack in one container: `docker build -t chatppt . && docker run -p 5000:80 chatppt`.
+Or run the whole stack in one container: `docker build -t chatppt . && docker run -p 5000:5000 -v ./chatppt:/data chatppt`.
 
 The desktop app lives in `electron/` (`npm run setup:env`, then `npm run dev`).
 

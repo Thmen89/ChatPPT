@@ -16,6 +16,7 @@ services:
       - ./chatppt:/data
     environment:
       # Passed through only when set in your shell (an empty value would count as set).
+      - CHATPPT_LLM_API_KEY             # the prefix picks the provider (README)
       - CHATPPT_LLM__PROVIDER
       - CHATPPT_LLM__MODEL
       - CHATPPT_LLM__PROVIDERS__OPENAI__API_KEY
