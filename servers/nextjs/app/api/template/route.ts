@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
-import {
-  buildBuiltinTemplateLayoutPayload,
-  buildCustomTemplateLayoutPayloadFromApi,
-} from "@/lib/server-template-layouts";
+import { buildTemplateLayoutPayload } from "@/lib/server-template-layouts";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Server-only layout + JSON Schema for built-in templates (no import of
- * `presentation-templates/index.tsx`, which would pull Recharts into RSC).
+ * Server-only layout ids + JSON schemas for one template: built-in, dropped into
+ * `<data>/templates/<id>/`, or imported from a PPTX (`custom-<uuid>`). FastAPI resolves
+ * template names through this route; it never imports `presentation-templates/index.tsx`
+ * (which would pull Recharts into RSC).
  *
  * FastAPI calls this directly (`CHATPPT_NEXTJS_URL`) and caches the result per
  * template fingerprint, so it runs once per template version.
@@ -24,18 +23,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    if (group.startsWith("custom-")) {
-      const customPayload = await buildCustomTemplateLayoutPayloadFromApi(group);
-      if (!customPayload) {
-        return NextResponse.json(
-          { error: `Unknown template group: ${group}` },
-          { status: 404 },
-        );
-      }
-      return NextResponse.json(customPayload);
-    }
-
-    const payload = await buildBuiltinTemplateLayoutPayload(group);
+    const payload = await buildTemplateLayoutPayload(group);
     if (!payload) {
       return NextResponse.json(
         { error: `Unknown template group: ${group}` },

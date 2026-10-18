@@ -1,5 +1,8 @@
 {
+  "id": "modern",
+  "name": "Modern",
   "description": "Modern white and blue business pitch deck layouts with clean, professional design",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

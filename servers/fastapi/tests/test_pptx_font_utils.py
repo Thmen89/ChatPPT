@@ -87,7 +87,18 @@ class _FakeGoogleFontsSession:
         return _FakeGoogleFontsResponse(self._status, self._css)
 
 
+def test_check_google_font_availability_is_offline_without_api_key(monkeypatch):
+    monkeypatch.delenv("GOOGLE_FONTS_API_KEY", raising=False)
+
+    def no_network():
+        raise AssertionError("no request expected without GOOGLE_FONTS_API_KEY")
+
+    monkeypatch.setattr(pptx_font_utils.aiohttp, "ClientSession", no_network)
+    assert asyncio.run(pptx_font_utils.check_google_font_availability("Montserrat")) is False
+
+
 def test_check_google_font_availability_rejects_compatibility_font_kit(monkeypatch):
+    monkeypatch.setenv("GOOGLE_FONTS_API_KEY", "test-key")
     css = """\
 @font-face {
   font-family: 'Calibri';
@@ -104,6 +115,7 @@ def test_check_google_font_availability_rejects_compatibility_font_kit(monkeypat
 
 
 def test_check_google_font_availability_checks_requested_variant_url(monkeypatch):
+    monkeypatch.setenv("GOOGLE_FONTS_API_KEY", "test-key")
     requested_urls = []
     css = """\
 @font-face {

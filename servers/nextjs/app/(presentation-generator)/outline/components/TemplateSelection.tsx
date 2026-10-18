@@ -64,17 +64,6 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(function Templa
   selectedTemplate,
   onSelectTemplate,
 }) {
-  useEffect(() => {
-    const existingScript = document.querySelector(
-      'script[src*="tailwindcss.com"]'
-    );
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.tailwindcss.com";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, []);
 
   const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
 
@@ -128,18 +117,20 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(function Templa
     );
   }, [customLoading, customTemplates, handleCustomSelect, selectedCustomId]);
 
-  const builtInTemplateCards = useMemo(
-    () =>
-      templates.map((template: TemplateLayoutsWithSettings) => (
+  const builtInTemplateCards = useMemo(() => {
+    // A <data>/templates/<id>/ folder with a built-in id replaces that built-in.
+    const overridden = new Set(customTemplates.map((t) => t.id));
+    return templates
+      .filter((template: TemplateLayoutsWithSettings) => !overridden.has(template.id))
+      .map((template: TemplateLayoutsWithSettings) => (
         <BuiltInTemplateCard
           key={template.id}
           template={template}
           isSelected={selectedBuiltInId === template.id}
           onSelect={handleBuiltInSelect}
         />
-      )),
-    [selectedBuiltInId, handleBuiltInSelect]
-  );
+      ));
+  }, [customTemplates, selectedBuiltInId, handleBuiltInSelect]);
 
   return (
     <div className="space-y-[30px] mb-4">

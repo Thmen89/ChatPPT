@@ -126,6 +126,10 @@ def get_google_font_css_url(font_name: str) -> str:
 
 
 async def check_google_font_availability(font_name: str) -> bool:
+    from templates.pptx_font_utils import google_fonts_enabled
+
+    if not google_fonts_enabled():  # offline unless GOOGLE_FONTS_API_KEY is set
+        return False
     try:
         async with aiohttp.ClientSession() as session:
             async with session.head(

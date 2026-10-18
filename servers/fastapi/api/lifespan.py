@@ -12,6 +12,7 @@ from utils.model_availability import (
 )
 from chatppt.config_store import migrate_user_config_json
 from chatppt.settings import apply_to_environ, get_settings
+from templates.custom_layout_from_db import migrate_db_templates_to_folders
 from utils.user_config import load_codex_tokens_into_env
 from utils.simple_auth import (
     clear_stored_credentials,
@@ -105,6 +106,10 @@ async def app_lifespan(_: FastAPI):
     os.makedirs(get_app_data_directory_env() or str(settings.data_dir), exist_ok=True)
     await migrate_database_on_startup()
     await create_db_and_tables()
+    try:
+        await migrate_db_templates_to_folders()
+    except Exception:  # pragma: no cover - old templates stay in the DB; never block startup
+        logger.exception("Could not move imported templates from the database to folders")
     _bootstrap_auth_from_env()
     load_codex_tokens_into_env()
     await check_llm_and_image_provider_api_or_model_availability()
