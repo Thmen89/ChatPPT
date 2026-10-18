@@ -192,7 +192,8 @@ jobs:
           for mount in /app_data /data; do
             docker run -d --name new -p 5000:5000 -v "$RUNNER_TEMP/old:$mount" chatppt:test
             for i in $(seq 1 90); do curl -fsS -o /dev/null http://127.0.0.1:5000/healthz && break; sleep 1; done
-            curl -fsS -u admin:upgrade-test http://127.0.0.1:5000/api/v1/ppt/presentation/all | grep -q "$id"
+            # /all lists only decks with slides; this one has none yet, so fetch it by id.
+            curl -fsS -u admin:upgrade-test "http://127.0.0.1:5000/api/v1/ppt/presentation/$id" | grep -q "$id"
             docker exec new chatppt doctor || true
             docker logs new 2>&1 | tail -20
             docker rm -f new
