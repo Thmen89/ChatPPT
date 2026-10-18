@@ -44,14 +44,14 @@ def test_generate_ppt_outline_streams_json_chunks_and_keeps_schema_shape():
         yield content_event('{"content": "## Intro\\nBullet"}')
         yield content_event("]}")
 
-    with patch.object(
-        outline_module, "llm_for_step", return_value=(object(), "fake-model")
-    ), patch.object(
-        outline_module,
-        "get_generate_kwargs",
-        side_effect=lambda **kwargs: kwargs,
-    ), patch.object(
-        outline_module, "stream_generate_events", side_effect=fake_stream_generate_events
+    with (
+        patch.object(outline_module, "llm_for_step", return_value=(object(), "fake-model")),
+        patch.object(
+            outline_module,
+            "get_generate_kwargs",
+            side_effect=lambda **kwargs: kwargs,
+        ),
+        patch.object(outline_module, "stream_generate_events", side_effect=fake_stream_generate_events),
     ):
         chunks = _collect_async_chunks(
             outline_module.generate_ppt_outline(
@@ -72,20 +72,23 @@ def test_generate_ppt_outline_returns_http_exception_chunk_on_failure():
         raise TimeoutError("provider timed out")
         yield  # pragma: no cover
 
-    with patch.object(
-        outline_module, "llm_for_step", return_value=(object(), "fake-model")
-    ), patch.object(
-        outline_module,
-        "get_generate_kwargs",
-        side_effect=lambda **kwargs: kwargs,
-    ), patch.object(
-        outline_module,
-        "stream_generate_events",
-        side_effect=failing_stream,
-    ), patch.object(
-        outline_module,
-        "handle_llm_client_exceptions",
-        return_value=HTTPException(status_code=408, detail="LLM timeout"),
+    with (
+        patch.object(outline_module, "llm_for_step", return_value=(object(), "fake-model")),
+        patch.object(
+            outline_module,
+            "get_generate_kwargs",
+            side_effect=lambda **kwargs: kwargs,
+        ),
+        patch.object(
+            outline_module,
+            "stream_generate_events",
+            side_effect=failing_stream,
+        ),
+        patch.object(
+            outline_module,
+            "handle_llm_client_exceptions",
+            return_value=HTTPException(status_code=408, detail="LLM timeout"),
+        ),
     ):
         chunks = _collect_async_chunks(
             outline_module.generate_ppt_outline(

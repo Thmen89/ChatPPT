@@ -1,7 +1,6 @@
 from datetime import datetime
 import secrets
 from typing import Optional
-import uuid
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel

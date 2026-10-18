@@ -85,7 +85,7 @@ class ScoreBasedChunker:
 
             selected_indices = []
 
-            for score, indices in sorted_groups:
+            for _score, indices in sorted_groups:
                 indices.sort()
                 remaining_needed = top_k - len(selected_indices)
 

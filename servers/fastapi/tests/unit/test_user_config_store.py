@@ -24,11 +24,7 @@ def test_update_creates_parent_directory_and_writes_valid_json(tmp_path):
     )
 
     assert json.loads(config_path.read_text(encoding="utf-8")) == {"LLM": "openai"}
-    backup_config = json.loads(
-        config_path.with_suffix(config_path.suffix + ".bak").read_text(
-            encoding="utf-8"
-        )
-    )
+    backup_config = json.loads(config_path.with_suffix(config_path.suffix + ".bak").read_text(encoding="utf-8"))
     assert backup_config == {"LLM": "openai"}
 
 

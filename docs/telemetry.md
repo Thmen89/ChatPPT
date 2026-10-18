@@ -47,7 +47,7 @@ is the only place a download is allowed, and the result is baked in.
 
 ## How it is checked
 
-`python3 scripts/check_offline.py` (CI: `.github/workflows/offline.yml`):
+`python3 scripts/check_offline.py` (CI: the `offline` job in `.github/workflows/ci.yml`):
 
 1. **Static:** greps tracked source for `mixpanel`, `sentry.io`, `presenton.ai`,
    `huggingface.co`, `ollama.com/install` and `googleapis.com`. Any hit outside a short,

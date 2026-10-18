@@ -1,12 +1,10 @@
 import asyncio
-import os
 import zipfile
 from types import SimpleNamespace
 
 import pytest
 
-from templates import fonts_and_slides_preview
-from templates import pptx_font_utils
+from templates import fonts_and_slides_preview, pptx_font_utils
 
 
 class DummyLogger:
@@ -121,9 +119,7 @@ def test_check_google_font_availability_checks_requested_variant_url(monkeypatch
 
     assert (
         asyncio.run(
-            pptx_font_utils.check_google_font_availability(
-                "Montserrat", variants=["regular", "bold", "italic"]
-            )
+            pptx_font_utils.check_google_font_availability("Montserrat", variants=["regular", "bold", "italic"])
         )
         is True
     )
@@ -178,9 +174,7 @@ def test_extract_fonts_from_oxml_prefers_latin_font_over_script_fallbacks():
 
 
 def test_font_info_entries_preserve_original_variant_name():
-    original_names = fonts_and_slides_preview._original_names_by_normalized_variant(
-        {"Arial Gras": {"bold"}}
-    )
+    original_names = fonts_and_slides_preview._original_names_by_normalized_variant({"Arial Gras": {"bold"}})
 
     entries = fonts_and_slides_preview._font_info_entries(
         [("Arial", None)],
@@ -197,9 +191,7 @@ def test_font_info_entries_preserve_original_variant_name():
 
 
 def test_preview_dimensions_preserve_converter_aspect_ratio():
-    assert fonts_and_slides_preview._preview_dimensions_from_document(
-        1280.0, 960.0
-    ) == (1280, 960)
+    assert fonts_and_slides_preview._preview_dimensions_from_document(1280.0, 960.0) == (1280, 960)
     assert fonts_and_slides_preview._preview_dimensions_from_document(0, 0) == (
         1280,
         720,
@@ -234,8 +226,7 @@ def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
 
 def test_font_stylesheet_links_for_slide_html_extracts_tailwind_font_classes():
     links = fonts_and_slides_preview._font_stylesheet_links_for_slide_html(
-        "<span class=\"font-['Poppins']\"></span>"
-        "<span class=\"font-['DM_Sans']\"></span>"
+        "<span class=\"font-['Poppins']\"></span><span class=\"font-['DM_Sans']\"></span>"
     )
 
     assert "family=Poppins:wght@400;700" in links
@@ -483,9 +474,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_returns_bold_google_font_u
     )
 
     available_fonts, unavailable_fonts = asyncio.run(
-        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx(
-            "presentation.pptx", "/tmp"
-        )
+        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx("presentation.pptx", "/tmp")
     )
 
     assert unavailable_fonts == []
@@ -526,9 +515,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_returns_variant_google_fon
     )
 
     available_fonts, unavailable_fonts = asyncio.run(
-        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx(
-            "presentation.pptx", "/tmp"
-        )
+        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx("presentation.pptx", "/tmp")
     )
 
     assert unavailable_fonts == []
@@ -672,9 +659,7 @@ def test_extract_used_fonts_from_pptx_only_returns_fonts_used_by_slide_content(t
         for name, content in files.items():
             archive.writestr(name, content)
 
-    assert pptx_font_utils.extract_used_fonts_from_pptx(str(pptx_path)) == {
-        "Body Theme Font"
-    }
+    assert pptx_font_utils.extract_used_fonts_from_pptx(str(pptx_path)) == {"Body Theme Font"}
 
 
 def test_extract_used_fonts_from_pptx_prefers_latin_font_over_fallbacks(tmp_path):
@@ -964,9 +949,7 @@ async def test_uploaded_font_mapping_uses_original_variant_name_and_uploaded_act
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         if path.endswith("Calibri-Bold.ttf"):
@@ -1028,9 +1011,7 @@ async def test_direct_upload_uses_canonical_name_for_localized_same_family_varia
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         return pptx_font_utils.FontDetail(
@@ -1069,9 +1050,7 @@ async def test_direct_upload_keeps_different_replacement_font_family(
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         return pptx_font_utils.FontDetail(

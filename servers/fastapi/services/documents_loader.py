@@ -270,7 +270,7 @@ class DocumentsLoader:
         try:
             with pdfplumber.open(file_path) as pdf:
                 total_chars = 0
-                for i, page in enumerate(pdf.pages[:sample_pages]):
+                for _i, page in enumerate(pdf.pages[:sample_pages]):
                     text = page.extract_text() or ""
                     total_chars += len(text.strip())
                 return total_chars < threshold

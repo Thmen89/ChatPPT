@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from services.liteparse_service import LiteParseService
+from services.liteparse_service import _DEFAULT_NUM_WORKERS, LiteParseService
 
 
 def _ok_process(
@@ -13,22 +13,30 @@ def _ok_process(
 
 
 class TestLiteParseService:
+    # The default ("plain") bridge streams stdout to a temp file via Popen in
+    # `_run_plain_bridge_to_text`; only the JSON bridge goes through subprocess.run.
+    # Each test patches the seam its mode actually uses.
     def test_parse_uses_safe_defaults(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "LITEPARSE_DPI": "",
-                "LITEPARSE_NUM_WORKERS": "",
-            },
-            clear=False,
-        ), patch.object(
-            LiteParseService,
-            "check_runtime_ready",
-            return_value=(True, "ok"),
-        ), patch(
-            "services.liteparse_service.subprocess.run",
-            return_value=_ok_process(),
-        ) as mock_run:
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "LITEPARSE_DPI": "",
+                    "LITEPARSE_NUM_WORKERS": "",
+                },
+                clear=False,
+            ),
+            patch.object(
+                LiteParseService,
+                "check_runtime_ready",
+                return_value=(True, "ok"),
+            ),
+            patch.object(
+                LiteParseService,
+                "_run_plain_bridge_to_text",
+                return_value=_ok_process(),
+            ) as mock_run,
+        ):
             service = LiteParseService(timeout_seconds=30)
             r = service.parse("/tmp/sample.pdf", ocr_enabled=True, ocr_language="eng")
             assert r["ok"] is True
@@ -38,25 +46,31 @@ class TestLiteParseService:
         assert "--dpi" in command
         assert command[command.index("--dpi") + 1] == "120"
         assert "--num-workers" in command
-        assert command[command.index("--num-workers") + 1] == "1"
+        # Default is cpu_count - 2 (at least 1), so it depends on the machine.
+        assert command[command.index("--num-workers") + 1] == str(_DEFAULT_NUM_WORKERS)
         assert command[command.index("--python-bridge") + 1] == "plain"
 
     def test_parse_uses_env_overrides(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "LITEPARSE_DPI": "96",
-                "LITEPARSE_NUM_WORKERS": "2",
-            },
-            clear=False,
-        ), patch.object(
-            LiteParseService,
-            "check_runtime_ready",
-            return_value=(True, "ok"),
-        ), patch(
-            "services.liteparse_service.subprocess.run",
-            return_value=_ok_process(),
-        ) as mock_run:
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "LITEPARSE_DPI": "96",
+                    "LITEPARSE_NUM_WORKERS": "2",
+                },
+                clear=False,
+            ),
+            patch.object(
+                LiteParseService,
+                "check_runtime_ready",
+                return_value=(True, "ok"),
+            ),
+            patch.object(
+                LiteParseService,
+                "_run_plain_bridge_to_text",
+                return_value=_ok_process(),
+            ) as mock_run,
+        ):
             service = LiteParseService(timeout_seconds=30)
             service.parse("/tmp/sample.pdf", ocr_enabled=True, ocr_language="eng")
 
@@ -65,21 +79,26 @@ class TestLiteParseService:
         assert command[command.index("--num-workers") + 1] == "2"
 
     def test_parse_clamps_invalid_env_values(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "LITEPARSE_DPI": "-1",
-                "LITEPARSE_NUM_WORKERS": "0",
-            },
-            clear=False,
-        ), patch.object(
-            LiteParseService,
-            "check_runtime_ready",
-            return_value=(True, "ok"),
-        ), patch(
-            "services.liteparse_service.subprocess.run",
-            return_value=_ok_process(),
-        ) as mock_run:
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "LITEPARSE_DPI": "-1",
+                    "LITEPARSE_NUM_WORKERS": "0",
+                },
+                clear=False,
+            ),
+            patch.object(
+                LiteParseService,
+                "check_runtime_ready",
+                return_value=(True, "ok"),
+            ),
+            patch.object(
+                LiteParseService,
+                "_run_plain_bridge_to_text",
+                return_value=_ok_process(),
+            ) as mock_run,
+        ):
             service = LiteParseService(timeout_seconds=30)
             service.parse("/tmp/sample.pdf", ocr_enabled=True, ocr_language="eng")
 
@@ -88,18 +107,22 @@ class TestLiteParseService:
         assert command[command.index("--num-workers") + 1] == "1"
 
     def test_parse_json_bridge_env(self):
-        with patch.dict(
-            "os.environ",
-            {"LITEPARSE_RUNNER_OUTPUT": "json"},
-            clear=False,
-        ), patch.object(
-            LiteParseService,
-            "check_runtime_ready",
-            return_value=(True, "ok"),
-        ), patch(
-            "services.liteparse_service.subprocess.run",
-            return_value=_ok_process(stdout='{"ok": true, "text": "legacy"}\n'),
-        ) as mock_run:
+        with (
+            patch.dict(
+                "os.environ",
+                {"LITEPARSE_RUNNER_OUTPUT": "json"},
+                clear=False,
+            ),
+            patch.object(
+                LiteParseService,
+                "check_runtime_ready",
+                return_value=(True, "ok"),
+            ),
+            patch(
+                "services.liteparse_service.subprocess.run",
+                return_value=_ok_process(stdout='{"ok": true, "text": "legacy"}\n'),
+            ) as mock_run,
+        ):
             service = LiteParseService(timeout_seconds=30)
             r = service.parse("/tmp/sample.pdf", ocr_enabled=True, ocr_language="eng")
             assert r["text"] == "legacy"

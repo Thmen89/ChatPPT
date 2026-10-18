@@ -15,7 +15,7 @@ from services.documents_loader import (
 
 
 def test_unwrap_liteparse_json_line_extracts_text_field():
-    inner_text = "Title\n\nBody with \"quotes\""
+    inner_text = 'Title\n\nBody with "quotes"'
     payload = json.dumps({"ok": True, "filePath": "/tmp/test.pdf", "text": inner_text})
 
     assert _unwrap_liteparse_json_line_if_stored(payload) == inner_text
@@ -28,10 +28,7 @@ def test_unwrap_liteparse_json_line_leaves_non_json_text():
 
 
 def test_clean_extracted_document_text_handles_malformed_json_body():
-    malformed = (
-        '{"ok": true, "filePath": "/tmp/test.pdf", "text": '
-        '"hello\\nworld\\u0021 and trailing'
-    )
+    malformed = '{"ok": true, "filePath": "/tmp/test.pdf", "text": "hello\\nworld\\u0021 and trailing'
     cleaned = clean_extracted_document_text(malformed)
     assert cleaned == "hello\nworld! and trailing"
 
@@ -41,9 +38,7 @@ def test_clean_extracted_document_text_unwraps_nested_liteparse_payloads():
         {
             "ok": True,
             "filePath": "/tmp/outer.pdf",
-            "text": json.dumps(
-                {"ok": True, "filePath": "/tmp/inner.pdf", "text": "final body"}
-            ),
+            "text": json.dumps({"ok": True, "filePath": "/tmp/inner.pdf", "text": "final body"}),
         }
     )
     assert clean_extracted_document_text(nested) == "final body"

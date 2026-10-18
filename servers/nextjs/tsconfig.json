@@ -38,8 +38,6 @@
     ".next-build/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "**/*.cy.ts",
-    "**/*.cy.tsx"
+    "node_modules"
   ]
 }

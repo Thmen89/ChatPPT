@@ -1,7 +1,7 @@
 import os
 import uuid
 import shutil
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from pydantic import BaseModel
 from templates.preview import FontCheckResponse, check_fonts_in_pptx_handler
@@ -9,7 +9,7 @@ from utils.asset_directory_utils import absolute_fastapi_asset_url, get_app_data
 
 try:
     from fontTools.ttLib import TTFont
-    from fontTools.ttLib.tables._n_a_m_e import table__n_a_m_e
+    from fontTools.ttLib.tables._n_a_m_e import table__n_a_m_e  # noqa: F401  (availability probe)
     FONTTOOLS_AVAILABLE = True
 except ImportError:
     FONTTOOLS_AVAILABLE = False

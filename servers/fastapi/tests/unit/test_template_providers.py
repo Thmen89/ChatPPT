@@ -54,9 +54,7 @@ def test_resolve_template_provider_and_model(monkeypatch, provider: LLMProvider)
     monkeypatch.setattr(providers_module, "get_llm_provider", lambda: provider)
     monkeypatch.setattr(providers_module, "get_model", lambda: "resolved-model")
 
-    resolved_provider, resolved_model = (
-        providers_module._resolve_template_provider_and_model()
-    )
+    resolved_provider, resolved_model = providers_module._resolve_template_provider_and_model()
 
     assert resolved_provider == provider
     assert resolved_model == "resolved-model"
@@ -74,9 +72,7 @@ def test_exception_message_handles_http_exception_and_non_http_exception():
         def __str__(self) -> str:
             return "detail as object"
 
-    http_message = providers_module._exception_message(
-        HTTPException(status_code=500, detail=_CustomDetail())
-    )
+    http_message = providers_module._exception_message(HTTPException(status_code=500, detail=_CustomDetail()))
     runtime_message = providers_module._exception_message(RuntimeError("plain error"))
 
     assert http_message == "detail as object"
@@ -84,9 +80,7 @@ def test_exception_message_handles_http_exception_and_non_http_exception():
 
 
 def test_exception_message_handles_http_exception_string_detail():
-    http_message = providers_module._exception_message(
-        HTTPException(status_code=400, detail="simple detail")
-    )
+    http_message = providers_module._exception_message(HTTPException(status_code=400, detail="simple detail"))
     assert http_message == "simple detail"
 
 
@@ -110,9 +104,7 @@ def test_exception_message_handles_http_exception_string_detail():
         LLMProvider.CUSTOM,
     ],
 )
-def test_generate_slide_layout_code_uses_llmai_for_all_supported_providers(
-    monkeypatch, provider: LLMProvider
-):
+def test_generate_slide_layout_code_uses_llmai_for_all_supported_providers(monkeypatch, provider: LLMProvider):
     dummy_client = _DummyClient(outputs=["component-output"])
     llm_config = {"provider": provider.value}
 
@@ -167,9 +159,7 @@ def test_generate_slide_layout_code_uses_llmai_for_all_supported_providers(
         LLMProvider.CUSTOM,
     ],
 )
-def test_edit_slide_layout_code_uses_llmai_text_only(
-    monkeypatch, provider: LLMProvider
-):
+def test_edit_slide_layout_code_uses_llmai_text_only(monkeypatch, provider: LLMProvider):
     dummy_client = _DummyClient(outputs=["edited-component"])
 
     monkeypatch.setattr(providers_module, "get_llm_provider", lambda: provider)
@@ -246,9 +236,7 @@ def test_run_template_llm_with_retries_handles_empty_response_as_failure():
 
     assert attempts["count"] == providers_module.MAX_ATTEMPTS_PER_PROVIDER
     assert exc_info.value.status_code == 502
-    assert "OpenAI error: No output from template generation provider" in str(
-        exc_info.value.detail
-    )
+    assert "OpenAI error: No output from template generation provider" in str(exc_info.value.detail)
 
 
 def test_run_template_llm_with_retries_fail_fast_on_client_errors():
@@ -318,6 +306,7 @@ def test_run_template_llm_with_retries_raises_500_when_no_attempts(monkeypatch):
     assert exc_info.value.status_code == 500
     assert "Failed to generate template output" in str(exc_info.value.detail)
 
+
 def test_run_template_llm_with_retries_maps_vision_errors_when_requires_vision():
     async def vision_fail():
         raise RuntimeError("This model does not support image inputs")
@@ -352,9 +341,7 @@ def test_run_template_llm_with_retries_does_not_map_vision_without_flag():
 
 
 def test_generate_slide_layout_code_fail_fast_on_vision_error(monkeypatch):
-    dummy_client = _DummyClient(
-        outputs=[RuntimeError("image_url is not supported for this model")]
-    )
+    dummy_client = _DummyClient(outputs=[RuntimeError("image_url is not supported for this model")])
     monkeypatch.setattr(providers_module, "get_llm_provider", lambda: LLMProvider.OPENAI)
     monkeypatch.setattr(providers_module, "get_model", lambda: "text-only")
     monkeypatch.setattr(providers_module, "get_llm_config", lambda: {"provider": "openai"})

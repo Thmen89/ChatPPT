@@ -13,6 +13,7 @@ from models.presentation_structure_model import PresentationStructureModel
 from models.sql.presentation import PresentationModel
 from templates.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 from tests.conftest import FakeAsyncSession
+from tests.mocks import http_request
 
 
 def _run(coro):
@@ -50,59 +51,72 @@ def test_generate_presentation_handler_full_flow_uses_mocked_dependencies(fake_a
         ]
     )
 
-    with patch.object(
-        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
-        "store_generation_context",
-        new=AsyncMock(),
-    ), patch.object(
-        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
-        "store_generated_outlines",
-        new=AsyncMock(),
-    ), patch.object(
-        presentation_endpoint,
-        "generate_ppt_outline",
-        side_effect=fake_outline_stream,
-    ), patch.object(
-        presentation_endpoint,
-        "get_layout_by_name",
-        new=AsyncMock(return_value=_mock_layout()),
-    ), patch.object(
-        presentation_endpoint,
-        "generate_presentation_structure",
-        new=AsyncMock(return_value=PresentationStructureModel(slides=[0, 1])),
-    ), patch.object(
-        presentation_endpoint,
-        "get_slide_content_from_type_and_outline",
-        get_slide_content,
-    ), patch.object(
-        presentation_endpoint,
-        "process_slide_and_fetch_assets",
-        new=AsyncMock(return_value=[]),
-    ), patch.object(
-        presentation_endpoint,
-        "get_images_directory",
-        return_value="/tmp",
-    ), patch.object(
-        presentation_endpoint,
-        "ImageGenerationService",
-        return_value=Mock(),
-    ), patch.object(
-        presentation_endpoint,
-        "export_presentation",
-        new=AsyncMock(
-            return_value=PresentationAndPath(
-                presentation_id=presentation_id,
-                path="/tmp/generated/deck.pptx",
-            )
+    with (
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+            "store_generation_context",
+            new=AsyncMock(),
         ),
-    ), patch.object(
-        presentation_endpoint.CONCURRENT_SERVICE,
-        "run_task",
-        new=Mock(),
-    ), patch.object(
-        presentation_endpoint,
-        "random",
-        new=Mock(randint=Mock(return_value=0)),
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+            "store_generated_outlines",
+            new=AsyncMock(),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "generate_ppt_outline",
+            side_effect=fake_outline_stream,
+        ),
+        patch.object(
+            presentation_endpoint,
+            "get_layout_by_name",
+            new=AsyncMock(return_value=_mock_layout()),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "generate_presentation_structure",
+            new=AsyncMock(return_value=PresentationStructureModel(slides=[0, 1])),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "get_slide_content_from_type_and_outline",
+            get_slide_content,
+        ),
+        patch.object(
+            presentation_endpoint,
+            "process_slide_and_fetch_assets",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "get_images_directory",
+            return_value="/tmp",
+        ),
+        patch.object(
+            presentation_endpoint,
+            "ImageGenerationService",
+            return_value=Mock(),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "export_presentation",
+            new=AsyncMock(
+                return_value=PresentationAndPath(
+                    presentation_id=presentation_id,
+                    path="/tmp/generated/deck.pptx",
+                )
+            ),
+        ),
+        patch.object(
+            presentation_endpoint.CONCURRENT_SERVICE,
+            "run_task",
+            new=Mock(),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "random",
+            new=Mock(randint=Mock(return_value=0)),
+        ),
     ):
         response = _run(
             presentation_endpoint.generate_presentation_handler(
@@ -145,14 +159,17 @@ def test_prepare_presentation_preserves_payload_icon_weight():
         ],
     )
 
-    with patch.object(
-        presentation_endpoint,
-        "generate_presentation_structure",
-        new=AsyncMock(return_value=PresentationStructureModel(slides=[0])),
-    ), patch.object(
-        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
-        "store_generated_outlines",
-        new=AsyncMock(),
+    with (
+        patch.object(
+            presentation_endpoint,
+            "generate_presentation_structure",
+            new=AsyncMock(return_value=PresentationStructureModel(slides=[0])),
+        ),
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+            "store_generated_outlines",
+            new=AsyncMock(),
+        ),
     ):
         response = _run(
             presentation_endpoint.prepare_presentation(
@@ -179,6 +196,7 @@ def test_generate_presentation_sync_rejects_invalid_slide_count(fake_async_sessi
     with pytest.raises(HTTPException) as exc:
         _run(
             presentation_endpoint.generate_presentation_sync(
+                request_http=http_request(),
                 request=request,
                 sql_session=fake_async_session,
             )
@@ -200,18 +218,22 @@ def test_generate_presentation_handler_rejects_invalid_llm_json(fake_async_sessi
     async def fake_outline_stream(*_args, **_kwargs):
         yield "{invalid-json"
 
-    with patch.object(
-        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
-        "store_generation_context",
-        new=AsyncMock(),
-    ), patch.object(
-        presentation_endpoint,
-        "generate_ppt_outline",
-        side_effect=fake_outline_stream,
-    ), patch.object(
-        presentation_endpoint.CONCURRENT_SERVICE,
-        "run_task",
-        new=Mock(),
+    with (
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+            "store_generation_context",
+            new=AsyncMock(),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "generate_ppt_outline",
+            side_effect=fake_outline_stream,
+        ),
+        patch.object(
+            presentation_endpoint.CONCURRENT_SERVICE,
+            "run_task",
+            new=Mock(),
+        ),
     ):
         with pytest.raises(HTTPException) as exc:
             _run(
