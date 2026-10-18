@@ -33,12 +33,16 @@ dependencies = [
     "fonttools>=4.55.0",
 ]
 
+[project.scripts]
+chatppt = "chatppt.cli:main"
+
 [tool.uv]
 index-strategy = "unsafe-best-match"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = [
+    "chatppt*",
     "api*",
     "enums*",
     "models*",
