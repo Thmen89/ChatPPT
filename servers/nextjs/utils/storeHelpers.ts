@@ -1,6 +1,7 @@
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
+import { getApiUrl } from "@/utils/api";
 
 function isProvided(value: unknown): boolean {
   return value !== "" && value !== null && value !== undefined;
@@ -310,14 +311,16 @@ export const handleSaveLLMConfig = async (llmConfig: LLMConfig) => {
     throw new Error(validationError);
   }
 
-  // Prefer shared API routes; fallback to Electron IPC for packaged compatibility.
-  if (typeof window !== "undefined" && window.electron?.setUserConfig) {
-    await window.electron.setUserConfig(normalizedConfig);
-  } else {
-    await fetch("/api/user-config", {
-      method: "POST",
-      body: JSON.stringify(normalizedConfig),
-    });
+  // Saved to chatppt.toml by FastAPI; applies to the next request, no restart.
+  const response = await fetch(getApiUrl("/api/v1/config"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(normalizedConfig),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail || `Could not save settings (HTTP ${response.status}).`);
   }
 
   store.dispatch(setLLMConfig(normalizedConfig));

@@ -1,3 +1,8 @@
+"""Upstream's environment getters. Values configured in ``chatppt.toml`` reach these
+through ``chatppt.settings.apply_to_environ`` (run at startup and again whenever the
+file changes), so callers see one configuration whichever way it was set. New code reads
+``chatppt.settings.get_settings()`` instead of adding a getter here."""
+
 import os
 
 
@@ -256,10 +261,6 @@ def get_pixabay_api_key_env():
 
 def get_disable_thinking_env():
     return os.getenv("DISABLE_THINKING")
-
-
-def get_extended_reasoning_env():
-    return os.getenv("EXTENDED_REASONING")
 
 
 def get_web_grounding_env():

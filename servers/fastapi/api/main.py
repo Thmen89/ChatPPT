@@ -12,8 +12,9 @@ from starlette.responses import FileResponse
 from api import mcp
 from api.lifespan import app_lifespan
 from api.observability import AccessLogMiddleware, UnbufferedStreamsMiddleware, health_router
-from api.middlewares import SessionAuthMiddleware, UserConfigEnvUpdateMiddleware
+from api.middlewares import SessionAuthMiddleware
 from api.v1.auth.router import API_V1_AUTH_ROUTER
+from api.v1.config.router import API_V1_CONFIG_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
@@ -77,6 +78,7 @@ app.include_router(API_V1_PPT_ROUTER)
 app.include_router(API_V1_WEBHOOK_ROUTER)
 app.include_router(API_V1_MOCK_ROUTER)
 app.include_router(API_V1_AUTH_ROUTER)
+app.include_router(API_V1_CONFIG_ROUTER)
 
 # MCP at /mcp, in this process (built on first use; see api/mcp.py).
 _mcp = mcp.mount(app)
@@ -102,7 +104,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(UserConfigEnvUpdateMiddleware)
 app.add_middleware(SessionAuthMiddleware)
 
 

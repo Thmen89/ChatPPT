@@ -63,12 +63,9 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     if (canChangeKeys) {
       let llmConfig: LLMConfig = {};
       try {
-        if (window.electron?.getUserConfig) {
-          llmConfig = await window.electron.getUserConfig();
-        } else {
-          const res = await fetch('/api/user-config');
-          llmConfig = await res.json();
-        }
+        // Settings live in chatppt.toml; FastAPI reads and writes it (desktop app included).
+        const res = await fetch(getApiUrl('/api/v1/config'), { credentials: 'include' });
+        llmConfig = res.ok ? await res.json() : {};
       } catch (e) {
         console.error('Failed to fetch user config:', e);
         llmConfig = {};
