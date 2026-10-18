@@ -13,27 +13,60 @@ instantly, so "0 ms" shows ChatPPT's own overhead; "800 ms" paces every LLM call
 hosted model and shows what the pipeline's shape costs. Real-provider numbers
 (`--real`) will be added once a key is configured.
 
-| Metric | Baseline, mock 0 ms | Baseline, mock 800 ms | After wave 1, 0 ms / 800 ms | Target | Status |
-|---|---|---|---|---|---|
-| Cold start (all processes answering) | 4.9 s | 4.8 s | 4.1 s (9.4 s on a cold page cache) | < 3 s | |
-| Idle RAM, whole stack | 493 MB (FastAPI 262, MCP 97, Next 113, nginx 22) | 493 MB | 435–451 MB (FastAPI 220: memory off by default) | < 300 MB | |
-| Outline (create + stream) | 0.5 s | 1.3 s | 0.15 s / 0.97 s | provider-bound | |
-| Time to first slide, after outline | 1.3 s | 2.3 s | 0.18 s / 1.8 s | < 1.5 s + one LLM call | |
-| Time to full 10-slide deck, after outline | 1.3 s | 9.6 s | 0.91 s / 9.6 s | < 2 s + one LLM call (parallel) | |
-| Prompt → full deck in editor | 1.9 s | 11.0 s | 1.2 s / 10.7 s | < 2 × LLM call | |
-| PPTX export | 18.0 s | 16.9 s | 18.4 s / 18.9 s | < 5 s | |
-| API deck incl. PPTX (`/presentation/generate`) | 22.6 s | 26.6 s | 22.4 s / 26.9 s | < 10 s + 2 LLM calls | |
-| LLM requests per deck (UI / API) | 12 / 12 | 12 / 12 | 12 / 12 | 11 (outline, structure, 1/slide) or fewer | |
-| Tokens per deck, approx (UI / API) | 18.2k / 17.7k | same | 18.2k / 17.7k | < 9k | |
-| Container image, compressed | 1.25 GB (`ghcr.io/presenton/presenton:v0.8.7-beta`) | | not rebuilt (wave 2, packaging) | slim ≤ 450 MB, full ≤ 900 MB | |
-| Git clone | 652 MB, 10,019 files | | tracked tree 141 MB → 46 MB; clone still carries history | < 100 MB | |
-| CI | build only, no lint/types/e2e | | lint + types + tests + e2e + offline + scan (#5) | lint + types + tests + e2e + scan, < 10 min | |
+| Metric | Baseline, mock 0 ms | Baseline, mock 800 ms | After wave 1, 0 ms / 800 ms | After wave 2, 0 ms / 800 ms | After wave 3, 0 ms / 800 ms (wave 2 re-run on the same host) | Target | Status |
+|---|---|---|---|---|---|---|---|
+| Cold start (all processes answering) | 4.9 s | 4.8 s | 4.1 s (9.4 s on a cold page cache) | 3.3–3.4 s | 5.8–6.2 s (5.8 s) | < 3 s | |
+| Idle RAM, whole stack | 493 MB (FastAPI 262, MCP 97, Next 113, nginx 22) | 493 MB | 435–451 MB (FastAPI 220: memory off by default) | 331 MB (FastAPI 220, Next 112; no nginx, MCP in-process) | 330 MB (329 MB) | < 300 MB | |
+| Outline (create + stream) | 0.5 s | 1.3 s | 0.15 s / 0.97 s | 0.14 s / 0.93 s | 0.36 s / 1.09 s (0.21 s) | provider-bound | |
+| Time to first slide, after outline | 1.3 s | 2.3 s | 0.18 s / 1.8 s | 0.5 s / 1.8 s | 0.75 s / 0.98 s (0.9 s) | < 1.5 s + one LLM call | |
+| Time to full 10-slide deck, after outline | 1.3 s | 9.6 s | 0.91 s / 9.6 s | 0.67 s / 2.6 s | 0.8 s / 1.9 s (0.96 s) | < 2 s + one LLM call (parallel) | |
+| Prompt → full deck in editor | 1.9 s | 11.0 s | 1.2 s / 10.7 s | 0.8 s / 3.6 s | 1.1 s / 3.0 s (1.2 s) | < 2 × LLM call | |
+| PPTX export | 18.0 s | 16.9 s | 18.4 s / 18.9 s | 16.3 s / 16.7 s | 21.8 s / 21.8 s (22.3 s) | < 5 s | |
+| API deck incl. PPTX (`/presentation/generate`) | 22.6 s | 26.6 s | 22.4 s / 26.9 s | 17.1 s / 19.3 s | 22.0 s / 25.0 s (23.2 s) | < 10 s + 2 LLM calls | |
+| LLM requests per deck (UI / API) | 12 / 12 | 12 / 12 | 12 / 12 | 12 / 11 | 11 / 11 (12 / 11) | 11 (outline, structure, 1/slide) or fewer | |
+| Tokens per deck, approx (UI / API) | 18.2k / 17.7k | same | 18.2k / 17.7k | 12.3k / 10.7k | 10.7k / 10.7k (12.3k / 10.7k) | < 9k | |
+| Container image, compressed | 1.25 GB (`ghcr.io/presenton/presenton:v0.8.7-beta`) | | not rebuilt (wave 2, packaging) | slim/full images defined; size reported by CI once pushes work (estimate 480–560 MB slim) | unchanged | slim ≤ 450 MB, full ≤ 900 MB | |
+| Git clone | 652 MB, 10,019 files | | tracked tree 141 MB → 46 MB; clone still carries history | same | same | < 100 MB | |
+| CI | build only, no lint/types/e2e | | lint + types + tests + e2e + offline + scan (#5) | + template-folder e2e, image build/scan/upgrade workflow | + flow, keyboard and security e2e | lint + types + tests + e2e + scan, < 10 min | |
 
 Wave 1 (strip, zero telemetry, lean CI) did not touch the generation path, so the
 generation numbers are unchanged within noise; the wins are RAM (memory off by default),
 repo size, no outbound traffic and a real PR gate. Bench note: the icon model is no longer
 in git, so the wave 1 run points `CHATPPT_FASTEMBED_ICON_CACHE_DIR` at the old cache to keep
 icon search in the measured path.
+
+Wave 2 (speed, customisation, packaging): slides now generate in parallel and stream by
+index, the layout schema is sent once, layout lookup no longer launches Chromium, nginx and
+the separate MCP process are gone. What still bounds the misses:
+
+- **Export (16–17 s):** the prebuilt `presentation-export` bundle. Profiled: Chromium launch
+  per task ~0.6 s, page load to network idle 2.4–3.4 s, two fixed 2 s waits, per-element
+  attribute reads ~6 s, screenshots of svg/canvas/tables ~4 s, PyInstaller converter
+  ~2 s of startup. An empty deck takes ~8 s. Hitting < 5 s means replacing the bundle (a warm
+  reused page, one in-page DOM walk, python-pptx in-process, no fixed sleeps).
+- **RAM and cold start:** the `llmai` package imports every provider SDK at import time
+  (~1.8 s and ~120 MB in FastAPI alone, google-genai being the largest). Lazy imports in
+  `llmai` would put the stack near 230 MB and under 3 s.
+- **Tokens (12.3k UI / 10.7k API, target < 9k):** ~3.9k is the mock's filler output; the rest
+  is the per-slide prompt and, in the UI path, the separate structure call (the template is
+  picked after the outline; the editor work in wave 3 can pick it up front).
+- **First slide at 0 ms is 0.5 s** (was 0.18 s) because ten parallel calls share four cores;
+  at realistic latency it is unchanged and the full deck is 3.7× faster.
+
+Wave 3 (flow, editor, auth): the template is chosen before the outline, so the separate
+structure call is gone (11 requests, 10.7k tokens on both paths), and the full deck lands
+one LLM call after the outline at realistic latency (1.9 s at 800 ms). The wave 3 run is on
+a slower host than wave 2's, so wave 2 was re-run there (in brackets): cold start, RAM and
+export match it, which means sign-in, users, tokens and the hardening cost nothing
+measurable. Export on that host breaks down as page load 3.2 s, fixed waits 4 s, attribute
+reads 5.4 s, screenshots 3.2 s, converter 4 s; same bound as above.
+
+New exporter (`claude/j-exporter`): a warm Chromium in the Next.js server, one DOM walk,
+ready signals instead of fixed sleeps and the PPTX written inside FastAPI. On the same host,
+PPTX export goes from 17.8 s to 4.2–4.3 s and the API deck incl. PPTX from 18.2 s to 5.2 s
+(6.9 s at 800 ms); PDF is about twice as fast. Output matches the old exporter shape for
+shape on the three decks compared. What remains is mostly the pdf-maker page loading a
+4.3 MB chunk with every template (~1.2 s).
 
 Reading the baseline:
 

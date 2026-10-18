@@ -230,6 +230,11 @@ def test_generate_presentation_handler_rejects_invalid_llm_json(fake_async_sessi
             side_effect=fake_outline_stream,
         ),
         patch.object(
+            presentation_endpoint,
+            "get_layout_by_name",
+            new=AsyncMock(return_value=_mock_layout()),
+        ),
+        patch.object(
             presentation_endpoint.CONCURRENT_SERVICE,
             "run_task",
             new=Mock(),
