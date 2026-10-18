@@ -16,8 +16,8 @@ python scripts/bench/run.py --real                # provider from your environme
 python scripts/bench/run.py --repeat 3 --image <image>
 ```
 
-Needs `nginx` on `$PATH` and a Chromium at `PUPPETEER_EXECUTABLE_PATH` (default
-`/usr/bin/chromium`). Ports 80, 3000, 8000, 8001 and 9900 must be free. Results go to
+Needs a Chromium at `PUPPETEER_EXECUTABLE_PATH` (default `/usr/bin/chromium`); the stack
+starts through `start.js` exactly as in the container. Ports 5000, 8000 and 9900 must be free. Results go to
 `bench-results.json` and a markdown table on stdout.
 
 `mock_llm.py` is also usable on its own (`LLM=custom CUSTOM_LLM_URL=http://127.0.0.1:9900/v1`):

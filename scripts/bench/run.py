@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """ChatPPT benchmark: the scoreboard numbers, measured end to end.
 
-Starts the full stack the way the container does (nginx :80 → Next.js :3000 and
-FastAPI :8000, plus the MCP server :8001), points it at the mock LLM
+Starts the full stack the way the container does (``node start.js``: Next.js on the
+public port :5000 in that process, FastAPI on 127.0.0.1:8000 as its child, MCP inside
+FastAPI), in a throwaway copy of the image's /app layout, points it at the mock LLM
 (``scripts/bench/mock_llm.py``) or at a real provider, then measures:
 
-  cold start          first 200 from FastAPI, Next.js and nginx after spawn
+  cold start          first 200 from FastAPI, Next.js and the public /healthz after spawn
   idle RAM            RSS of every process in the stack after it settles
   outline             POST create + SSE outline stream (what the UI does first)
   time to first slide prepare + first slide chunk on the presentation stream
@@ -22,7 +23,7 @@ Usage:
   python scripts/bench/run.py --image <image>  # e.g. the upstream ghcr.io/presenton/presenton:v0.8.7-beta for comparison
 
 Requires: the Next.js build (``npm run build`` in servers/nextjs), the FastAPI
-venv (``uv sync``), the presentation-export runtime, nginx and a Chromium at
+venv (``uv sync``), the presentation-export runtime and a Chromium at
 ``PUPPETEER_EXECUTABLE_PATH``. Nothing here needs network access with the mock.
 """
 
@@ -59,10 +60,8 @@ STANDALONE_DIR = _standalone_dir()
 EXPORT_DIR = REPO / "presentation-export"
 
 MOCK_PORT = 9900
-NGINX_PORT = 80
-NEXT_PORT = 3000
+PUBLIC_PORT = 5000  # start.js serves Next.js here and forwards the API to FastAPI
 FASTAPI_PORT = 8000
-MCP_PORT = 8001
 
 PROMPT = (
     "A 10-slide investment memo on a mid-cap European industrial automation company: "
@@ -144,6 +143,18 @@ def rss_tree(root_pids: list[int]) -> dict[int, int]:
     return out
 
 
+def proc_name(pid: int) -> str:
+    try:
+        with open(f"/proc/{pid}/comm") as f:
+            comm = f.read().strip()
+    except OSError:
+        return "?"
+    if comm.startswith("python"):
+        return "python"
+    # Next.js renames its process title to "next-server (vX)"; it is start.js's node.
+    return "node" if comm.startswith("next-server") else comm
+
+
 def mb(n: float) -> float:
     return round(n / 1e6, 1)
 
@@ -188,8 +199,8 @@ class Stack:
             "DISABLE_IMAGE_GENERATION": env.get("DISABLE_IMAGE_GENERATION", "true"),
             "NEXT_TELEMETRY_DISABLED": "1",
             "NODE_ENV": "production",
-            "FAST_API_INTERNAL_URL": f"http://127.0.0.1:{FASTAPI_PORT}",
-            "NEXT_PUBLIC_URL": f"http://127.0.0.1:{NGINX_PORT}",
+            "PORT": str(PUBLIC_PORT),
+            "CHATPPT_PYTHON": str(FASTAPI_DIR / ".venv" / "bin" / "python"),
             "EXPORT_RUNTIME_DIR": str(EXPORT_DIR),
             "EXPORT_PACKAGE_ROOT": str(EXPORT_DIR),
             "BUILT_PYTHON_MODULE_PATH": str(EXPORT_DIR / "py" / "convert-linux-x64"),
@@ -234,37 +245,45 @@ class Stack:
                 link.parent.mkdir(parents=True, exist_ok=True)
                 link.symlink_to(target, target_is_directory=True)
 
-        nginx_conf = self.tmp / "nginx.conf"
-        nginx_conf.write_text((REPO / "nginx.conf").read_text()
-                              .replace("pid /run/nginx.pid;", f"pid {self.tmp}/nginx.pid;")
-                              .replace("error_log /var/log/nginx/error.log;", f"error_log {self.logs}/nginx-error.log;"))
+        # The image's /app layout: start.js + banner, servers/fastapi, and the Next.js
+        # standalone build at servers/nextjs (start.js imports its server.js).
+        app = self.tmp / "app"
+        (app / "scripts").mkdir(parents=True)
+        (app / "servers").mkdir()
+        shutil.copy(REPO / "start.js", app)
+        shutil.copy(REPO / "package.json", app)  # "type": "module"
+        for name in ("chatppt-banner.mjs", "chatppt-ascii.txt"):
+            shutil.copy(REPO / "scripts" / name, app / "scripts")
+        (app / "servers" / "fastapi").symlink_to(FASTAPI_DIR, target_is_directory=True)
+        (app / "servers" / "nextjs").symlink_to(STANDALONE_DIR, target_is_directory=True)
 
         t0 = time.monotonic()
-        self.spawn("fastapi", [str(python), "server.py", "--port", str(FASTAPI_PORT), "--reload", "false"], FASTAPI_DIR, env)
-        self.spawn("mcp", [str(python), "mcp_server.py", "--port", str(MCP_PORT)], FASTAPI_DIR, env)
-        self.spawn("nextjs", ["node", "server.js"], STANDALONE_DIR,
-                   dict(env, HOSTNAME="127.0.0.1", PORT=str(NEXT_PORT)))
-        self.spawn("nginx", ["nginx", "-c", str(nginx_conf), "-g", "daemon off;"], REPO, env)
+        # Same command as the Dockerfile's CMD.
+        self.spawn("chatppt", ["node", "--max-semi-space-size=1", str(app / "start.js")], app, env)
 
         deadline = time.monotonic() + 120
         ready = {
-            "fastapi": wait_for(f"http://127.0.0.1:{FASTAPI_PORT}/api/v1/auth/status", deadline),
-            "nextjs": wait_for(f"http://127.0.0.1:{NEXT_PORT}/", deadline, ok=(200, 307, 308)),
-            "nginx": wait_for(f"http://127.0.0.1:{NGINX_PORT}/api/v1/auth/status", deadline),
+            "fastapi": wait_for(f"http://127.0.0.1:{FASTAPI_PORT}/healthz", deadline),
+            "nextjs": wait_for(f"http://127.0.0.1:{PUBLIC_PORT}/", deadline, ok=(200, 307, 308)),
+            "public": wait_for(f"http://127.0.0.1:{PUBLIC_PORT}/api/v1/auth/status", deadline),
         }
         for name, t in ready.items():
             if t is None:
-                raise SystemExit(f"{name} did not become ready; see {self.logs}/{name}.log")
+                raise SystemExit(f"{name} did not become ready; see {self.logs}/chatppt.log")
         return {f"cold_start_{k}_s": round(v - t0, 2) for k, v in ready.items()} | {
             "cold_start_s": round(max(ready.values()) - t0, 2)}
 
     def idle_ram(self) -> dict:
         time.sleep(self.args.settle)
-        by_group = {}
+        by_group: dict[str, int] = {}
         for name, proc in self.procs.items():
             if name == "mock_llm":
                 continue
-            by_group[name] = sum(rss_tree([proc.pid]).values())
+            # Every process under start.js, named by what it runs: node (start.js with
+            # Next.js in-process) and python (FastAPI with MCP inside).
+            for pid, rss in rss_tree([proc.pid]).items():
+                label = {"node": "nextjs", "python": "fastapi"}.get(proc_name(pid), proc_name(pid))
+                by_group[label] = by_group.get(label, 0) + rss
         return {"idle_ram_mb": mb(sum(by_group.values())),
                 "idle_ram_by_process_mb": {k: mb(v) for k, v in by_group.items()}}
 
@@ -426,7 +445,7 @@ def main() -> None:
         results.update(stack.idle_ram())
         print(f"idle RAM {results['idle_ram_mb']} MB {results['idle_ram_by_process_mb']}", flush=True)
 
-        base = f"http://127.0.0.1:{NGINX_PORT}"
+        base = f"http://127.0.0.1:{PUBLIC_PORT}"
         ui_runs, api_runs = [], []
         for i in range(args.repeat):
             print(f"ui flow {i + 1}/{args.repeat}...", flush=True)
