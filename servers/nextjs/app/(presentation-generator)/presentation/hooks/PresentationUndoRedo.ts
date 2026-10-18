@@ -1,8 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { redo, undo } from "@/store/slices/undoRedoSlice";
-import { useKeyboardShortcut } from "../../hooks/use-keyboard-shortcut";
+import { isMod } from "@/lib/keys";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 
 export const usePresentationUndoRedo = () => {
@@ -60,41 +60,22 @@ export const usePresentationUndoRedo = () => {
     applySlidesSnapshot(nextState.slides);
   }, [applySlidesSnapshot, canRedo, dispatch, undoRedoState.future]);
 
-  // Handle undo (Ctrl + Z)
-  useKeyboardShortcut(
-    ["z"],
-    (e) => {
-      if (e.ctrlKey && !e.shiftKey && canUndo) {
+  // ⌘/Ctrl+Z undoes; ⌘/Ctrl+Shift+Z and Ctrl+Y redo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!isMod(e)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
         e.preventDefault();
         onUndo();
-      }
-    },
-    [canUndo, onUndo]
-  );
-
-  // Handle redo (Ctrl + Shift + Z)
-  useKeyboardShortcut(
-    ["z"],
-    (e) => {
-      if (e.ctrlKey && e.shiftKey && canRedo) {
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
         e.preventDefault();
         onRedo();
       }
-    },
-    [canRedo, onRedo]
-  );
-
-  // Handle redo (Ctrl + Y)
-  useKeyboardShortcut(
-    ["y"],
-    (e) => {
-      if (e.ctrlKey && canRedo) {
-        e.preventDefault();
-        onRedo();
-      }
-    },
-    [canRedo, onRedo]
-  );
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onUndo, onRedo]);
 
   return { onUndo, onRedo, canUndo, canRedo };
 };

@@ -20,15 +20,15 @@ import {
 } from "@dnd-kit/sortable";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { SortableSlide } from "./SortableSlide";
-import { Separator } from "@/components/ui/separator";
 import NewSlide from "./NewSlide";
-import { SlideThumbnailCard } from "./SlideThumbnailCard";
+import { SlideThumbnailCard, SlideThumbnailPlaceholder } from "./SlideThumbnailCard";
 
 interface SidePanelProps {
   selectedSlide: number;
   onSlideClick: (index: number) => void;
   presentationId: string;
-
+  /** Slides the stream will deliver; the missing ones show as placeholders. */
+  expected: number;
   loading: boolean;
 }
 
@@ -36,7 +36,7 @@ const SidePanel = ({
   selectedSlide,
   onSlideClick,
   presentationId,
-
+  expected,
   loading,
 }: SidePanelProps) => {
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
@@ -104,15 +104,12 @@ const SidePanel = ({
     }
   };
 
-  // Loading shimmer component
-  if (
-    !presentationData ||
-    loading ||
-    !presentationData?.slides ||
-    presentationData?.slides.length === 0
-  ) {
+  const slides: any[] = presentationData?.slides ?? [];
+  const writing = isStreaming || loading;
+  if (!slides.length && !(writing && expected > 0)) {
     return null;
   }
+  const count = writing ? Math.max(expected, slides.length) : slides.length;
 
   const shouldShowNewSlideModal =
     showNewSlideSelection &&
@@ -144,7 +141,7 @@ const SidePanel = ({
     : null;
 
   return (
-    <div className="px-4 w-[120px] h-full">
+    <nav aria-label="Slides" className="h-full w-[120px] px-4">
       <div
         className={`
           relative  h-full z-50 xl:z-auto 
@@ -158,17 +155,21 @@ const SidePanel = ({
             onDragEnd={handleDragEnd}
           >
             <div className="overflow-y-auto w-full hide-scrollbar min-h-0 flex-1 space-y-3.5">
-              {isStreaming ? (
-                presentationData &&
-                presentationData?.slides.map((slide: any, index: number) => (
-                  <SlideThumbnailCard
-                    key={`${slide.id}-${index}`}
-                    slide={slide}
-                    index={index}
-                    selected={selectedSlide === index}
-                    onClick={() => onSlideClick(slide.index ?? index)}
-                  />
-                ))
+              {writing ? (
+                Array.from({ length: count }, (_, index) => {
+                  const slide = slides.find((s) => s?.index === index);
+                  return slide ? (
+                    <SlideThumbnailCard
+                      key={`${slide.id}-${index}`}
+                      slide={slide}
+                      index={index}
+                      selected={selectedSlide === index}
+                      onClick={() => onSlideClick(index)}
+                    />
+                  ) : (
+                    <SlideThumbnailPlaceholder key={`pending-${index}`} index={index} />
+                  );
+                })
               ) : (
                 <SortableContext
                   items={
@@ -194,22 +195,19 @@ const SidePanel = ({
               )}
             </div>
           </DndContext>
-          <Separator orientation="horizontal" className=" " />
-
           <button
             type="button"
             onClick={handleAddSlideClick}
-            className="py-4 gap-2 flex flex-col duration-300 items-center justify-center rounded-lg cursor-pointer mx-auto"
+            disabled={writing}
+            className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-zinc-300 py-2 text-[11px] text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 disabled:opacity-40"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-normal text-[#000000]">
-              Add Slide
-            </span>
+            <Plus className="h-3 w-3" aria-hidden />
+            Add
           </button>
         </div>
       </div>
       {newSlideModal}
-    </div>
+    </nav>
   );
 };
 

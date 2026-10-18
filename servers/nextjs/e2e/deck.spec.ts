@@ -29,7 +29,7 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
   await expect
     .poll(async () => (await (await request.get(`/api/v1/ppt/presentation/${id}`)).json()).slides?.length)
     .toBe(4);
-  const exportButton = page.getByRole("button", { name: "Export" });
+  const exportButton = page.getByRole("button", { name: "Export PPTX" });
   await expect(exportButton).toBeEnabled();
 
   const field = page.locator("#slide-0 [contenteditable=true]").first();
@@ -39,9 +39,8 @@ test("prompt to a 4-slide deck, edit a field, export PPTX", async ({ page, reque
   await page.locator("#slide-0").click({ position: { x: 5, y: 5 } }); // blur commits the edit
   await expect(field).toHaveText(EDIT);
 
-  await exportButton.click();
   const downloading = page.waitForEvent("download", { timeout: 120_000 });
-  await page.getByRole("button", { name: "PPTX", exact: true }).click();
+  await exportButton.click();
   const download = await downloading;
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);
 
