@@ -23,12 +23,8 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
     const router = useRouter();
     const { previewLayouts, loading } = useCustomTemplatePreview(`${template.id}`);
     const handleOpen = useCallback(() => {
-        if (template.id.startsWith('custom-')) {
-            router.push(`/template-preview?slug=${template.id}`)
-        } else {
-            router.push(`/template-preview?slug=custom-${template.id}`)
-        }
-    }, [router, template.id, template.name]);
+        router.push(`/template-preview?slug=${encodeURIComponent(template.id)}`)
+    }, [router, template.id]);
 
     return (
         <Card
@@ -92,15 +88,6 @@ const LayoutPreview = () => {
     const router = useRouter();
     const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
 
-    useEffect(() => {
-        const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
-        if (!existingScript) {
-            const script = document.createElement("script");
-            script.src = "https://cdn.tailwindcss.com";
-            script.async = true;
-            document.head.appendChild(script);
-        }
-    }, []);
 
     const handleOpenPreview = useCallback((id: string) => {
         router.push(`/template-preview?slug=${id}`);
@@ -109,12 +96,15 @@ const LayoutPreview = () => {
     const { nonNeoInbuilt, neoInbuilt } = useMemo(() => {
         const nonNeo: TemplateLayoutsWithSettings[] = [];
         const neo: TemplateLayoutsWithSettings[] = [];
+        // A <data>/templates/<id>/ folder with a built-in id replaces that built-in.
+        const overridden = new Set(customTemplates.map((t) => t.id));
         for (const t of templates) {
+            if (overridden.has(t.id)) continue;
             if (t.id.startsWith("neo")) neo.push(t);
             else nonNeo.push(t);
         }
         return { nonNeoInbuilt: nonNeo, neoInbuilt: neo };
-    }, []);
+    }, [customTemplates]);
 
     const customTemplateCards = useMemo(
         () => customTemplates.map((template: CustomTemplates) => <CustomTemplateCard key={template.id} template={template} />),

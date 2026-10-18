@@ -377,16 +377,29 @@ async def create_template(
 
 @LAYOUT_MANAGEMENT_ROUTER.delete("/delete-templates/{template_id}", status_code=204)
 async def delete_template(
-    template_id: UUID,
+    template_id: str,
     session: AsyncSession = Depends(get_async_session),
 ):
+    """Delete a template folder under <data>/templates (and any database copy, so the
+    startup migration does not bring it back). Built-in templates cannot be deleted."""
+    from chatppt.templates import delete_template as delete_template_folder, get_template
+
+    info = get_template(template_id)
+    if info is not None:
+        if info.source != "data":
+            raise HTTPException(status_code=400, detail="Built-in templates cannot be deleted")
+        delete_template_folder(info)
+    try:
+        db_id = UUID(info.id.removeprefix("custom-") if info else template_id)
+    except ValueError:
+        return
     try:
         await session.execute(
-            delete(TemplateModel).where(TemplateModel.id == template_id)
+            delete(TemplateModel).where(TemplateModel.id == db_id)
         )
         await session.execute(
             delete(PresentationLayoutCodeModel).where(
-                PresentationLayoutCodeModel.presentation == template_id,
+                PresentationLayoutCodeModel.presentation == db_id,
             )
         )
         await session.commit()

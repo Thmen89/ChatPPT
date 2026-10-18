@@ -22,6 +22,7 @@ from templates.handler import (
     edit_slide_layout_section,
     get_all_templates,
     get_layouts,
+    get_template_file,
     get_template_by_id,
     get_template_example,
     init_create_template,
@@ -41,6 +42,7 @@ TEMPLATE_ROUTER.get("/all", response_model=list[TemplateDetail])(get_all_templat
 TEMPLATE_ROUTER.get(
     "/{template_id}/layouts", response_model=GetTemplateLayoutsResponse
 )(get_layouts)
+TEMPLATE_ROUTER.get("/{template_id}/files/{file_path:path}")(get_template_file)
 TEMPLATE_ROUTER.get("/{id}", response_model=PresentationLayoutModel)(get_template_by_id)
 TEMPLATE_ROUTER.get("/{id}/example", response_model=TemplateExample)(
     get_template_example

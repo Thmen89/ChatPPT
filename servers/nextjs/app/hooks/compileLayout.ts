@@ -1,13 +1,19 @@
 "use client";
 
+import { ensureTemplateCss } from "./templateCss";
 import React from "react";
 import * as z from "zod";
 import * as Recharts from "recharts";
 import * as Babel from "@babel/standalone";
 import * as d3 from "d3";
 import * as LucideReact from "lucide-react";
+import * as ReactJsxRuntime from "react/jsx-runtime";
+import * as ChartJs from "chart.js";
+import * as ChartJsAuto from "chart.js/auto";
+import * as RemoteSvgIcon from "@/app/hooks/useRemoteSvgIcon";
+import { IconSchema, ImageSchema } from "@/app/presentation-templates/defaultSchemes";
+import * as UtilsApi from "@/utils/api";
 import { resolveBackendAssetUrl } from "@/utils/api";
-// import * as d3Cloud from "d3-cloud";
 
 /** Names already bound from Recharts (and core helpers) — do not shadow with Lucide. */
 const RESERVED_FOR_LUCIDE = new Set([
@@ -157,131 +163,171 @@ function normalizeHardcodedBackendUrlsInCode(layoutCode: string): string {
 }
 
 /**
- * Compiles a layout code string into a usable React component
+ * Modules a runtime-loaded layout may import. Template folders (`<data>/templates/<id>/`)
+ * use the same imports as the built-ins; anything else is a sibling file in the folder.
  */
-export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
-    console.log('compileCustomLayout called');
-    try {
-        const normalizedLayoutCode = normalizeHardcodedBackendUrlsInCode(layoutCode);
+const SHARED_SCHEMAS = { ImageSchema, IconSchema };
+const RUNTIME_MODULES: Record<string, unknown> = {
+    react: React,
+    "react/jsx-runtime": ReactJsxRuntime,
+    zod: { ...z, z, default: z },
+    recharts: Recharts,
+    "lucide-react": LucideReact,
+    d3,
+    "chart.js": ChartJs,
+    "chart.js/auto": { ...ChartJsAuto, default: ChartJsAuto.default },
+    "@/app/hooks/useRemoteSvgIcon": RemoteSvgIcon,
+    "@/app/presentation-templates/defaultSchemes": SHARED_SCHEMAS,
+    "@/utils/api": UtilsApi,
+};
 
-        // Clean up imports that we'll provide ourselves
-        const cleanCode = normalizedLayoutCode
-            // Remove React imports
-            .replace(/import\s+React\s*,?\s*\{?[^}]*\}?\s*from\s+['"]react['"];?/g, "")
-            .replace(/import\s+\*\s+as\s+React\s+from\s+['"]react['"];?/g, "")
-            .replace(/import\s+{\s*[^}]*\s*}\s*from\s+['"]react['"];?/g, "")
-            // Remove zod imports
-            .replace(/import\s+\*\s+as\s+z\s+from\s+['"]zod['"];?/g, "")
-            .replace(/import\s+{\s*z\s*}\s*from\s+['"]zod['"];?/g, "")
-            .replace(/import\s+.*\s+from\s+['"]zod['"];?/g, "")
-            // Remove recharts imports
-            .replace(/import\s+.*\s+from\s+['"]recharts['"];?/g, "")
-            // Remove lucide-react imports (icons are injected into the sandbox below)
-            .replace(/import\s+\{[\s\S]*?\}\s+from\s+['"]lucide-react['"];?\s*/g, "")
-            .replace(/import\s+\*\s+as\s+[\w$]+\s+from\s+['"]lucide-react['"];?\s*/g, "")
-            .replace(/import\s+[\w$]+\s+from\s+['"]lucide-react['"];?\s*/g, "")
-            // Remove other common imports we'll provide
-            .replace(/import\s+.*\s+from\s+['"]@\/[^'"]+['"];?/g, "")
-            // Remove export default at the end (we'll handle it differently)
-            .replace(/export\s+default\s+\w+;?\s*$/g, "");
+export interface CompileOptions {
+    /** Other `.ts`/`.tsx` files of the template folder, by file name, for `./Helper` imports. */
+    modules?: Record<string, string>;
+    /** Template id, for messages. */
+    templateId?: string;
+}
 
+type ModuleExports = Record<string, any>;
 
+const BABEL_OPTIONS = {
+    presets: [
+        ["react", { runtime: "classic" }],
+        ["typescript", { isTSX: true, allExtensions: true }],
+    ],
+    plugins: ["transform-modules-commonjs"],
+    sourceType: "unambiguous" as const,
+};
 
-        const compiled = Babel.transform(cleanCode, {
-            presets: [
-                ["react", { runtime: "classic" }],
-                ["typescript", { isTSX: true, allExtensions: true }],
-            ],
-            sourceType: "script",
-        }).code;
+function resolveSibling(specifier: string, modules: Record<string, string>): string | null {
+    const base = specifier.replace(/^\.\//, "");
+    if (base.includes("/")) return null;
+    for (const candidate of [base, `${base}.tsx`, `${base}.ts`]) {
+        if (candidate in modules) return candidate;
+    }
+    return null;
+}
 
-        // Create a factory function that executes the compiled code
-        const lucideBindings = getLucideBindingLines(normalizedLayoutCode);
+/**
+ * Run one TSX file: ES module (imports/exports, like the built-in layouts) or the plain
+ * script form PPTX import generates (`const layoutId = ...; const dynamicSlideLayout = ...`).
+ * React, zod, Recharts names and Lucide icons are in scope either way.
+ */
+function runModule(
+    code: string,
+    options: CompileOptions,
+    cache: Map<string, ModuleExports>,
+    lucideScope: boolean,
+): { exports: ModuleExports; script: ModuleExports } {
+    const modules = options.modules ?? {};
+    const compiled = Babel.transform(normalizeHardcodedBackendUrlsInCode(code), BABEL_OPTIONS).code ?? "";
 
-        const factory = new Function(
-            "React",
-            "_z",
-            "Recharts",
-            "_d3",
-            "_Lucide",
-            // "_d3Cloud",
-            `
-             const z = _z;
-            // const d3Cloud= _d3Cloud;
-            const d3 = _d3;
-            // Expose React hooks
-            const { useState, useEffect, useRef, useMemo, useCallback, Fragment } = React;
-            
-            // Expose Recharts components
-            const {
-                ResponsiveContainer, LineChart, Line, BarChart, Bar,
-                XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-                PieChart, Pie, Cell, AreaChart, Area,
-                RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-                ComposedChart, ScatterChart, Scatter,
-                RadialBarChart, RadialBar,
-                ReferenceLine, ReferenceDot, ReferenceArea,
-                Brush, LabelList, Label,Text
-            } = Recharts || {};
-
-            // Lucide icons used in generated templates (<Star />, etc.) — skip names that clash with Recharts
-            ${lucideBindings}
-
-            // Execute the compiled code
-            ${compiled}
-
-            // Return the exports
-            return {
-              __esModule: true,   
-                component: typeof dynamicSlideLayout !== 'undefined' 
-                    ? dynamicSlideLayout 
-                    : (typeof DefaultLayout !== 'undefined' ? DefaultLayout : undefined),
-                layoutId: typeof layoutId !== 'undefined' ? layoutId : 'custom-layout',
-                layoutName: typeof layoutName !== 'undefined' ? layoutName : 'Custom Layout',
-                layoutDescription: typeof layoutDescription !== 'undefined' ? layoutDescription : '',
-                Schema: typeof Schema !== 'undefined' ? Schema : null,
-            };
-            `
+    const requireModule = (specifier: string): unknown => {
+        if (specifier in RUNTIME_MODULES) return RUNTIME_MODULES[specifier];
+        if (/(^|\/)defaultSchemes$/.test(specifier)) return SHARED_SCHEMAS;
+        const sibling = resolveSibling(specifier, modules);
+        if (sibling) {
+            const cached = cache.get(sibling);
+            if (cached) return cached;
+            const exports: ModuleExports = {};
+            cache.set(sibling, exports); // cycles see the partial exports, as in CommonJS
+            Object.assign(exports, runModule(modules[sibling], options, cache, false).exports);
+            return exports;
+        }
+        throw new Error(
+            `'${specifier}' cannot be imported by a template layout${options.templateId ? ` (${options.templateId})` : ""}. ` +
+            `Use react, zod, recharts, lucide-react, d3, chart.js, or a file in the template folder.`
         );
+    };
 
-        // Execute the factory
-        const result = factory(React, z, Recharts, d3, LucideReact);
+    const lucideBindings = lucideScope ? getLucideBindingLines(code) : "";
+    const factory = new Function(
+        "React", "_z", "Recharts", "_d3", "_Lucide", "_shared", "require", "module", "exports",
+        `
+        const z = _z;
+        const d3 = _d3;
+        const { useState, useEffect, useRef, useMemo, useCallback, Fragment } = React;
+        const {
+            ResponsiveContainer, LineChart, Line, BarChart, Bar,
+            XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+            PieChart, Pie, Cell, AreaChart, Area,
+            RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+            ComposedChart, ScatterChart, Scatter,
+            RadialBarChart, RadialBar,
+            ReferenceLine, ReferenceDot, ReferenceArea,
+            Brush, LabelList, Label, Text
+        } = Recharts || {};
+        const { ImageSchema, IconSchema } = _shared;
+        ${lucideBindings}
+        return (function () {
+            ${compiled}
+            return {
+                component: typeof dynamicSlideLayout !== 'undefined' ? dynamicSlideLayout
+                    : (typeof DefaultLayout !== 'undefined' ? DefaultLayout : undefined),
+                layoutId: typeof layoutId !== 'undefined' ? layoutId : undefined,
+                layoutName: typeof layoutName !== 'undefined' ? layoutName : undefined,
+                layoutDescription: typeof layoutDescription !== 'undefined' ? layoutDescription : undefined,
+                Schema: typeof Schema !== 'undefined' ? Schema : undefined,
+            };
+        })();
+        `
+    );
+    const module = { exports: {} as ModuleExports };
+    const script = factory(React, z, Recharts, d3, LucideReact, SHARED_SCHEMAS, requireModule, module, module.exports);
+    return { exports: module.exports, script };
+}
 
-        if (!result.component) {
+/**
+ * Compiles a layout (TSX source) into a usable React component. Used for template folders
+ * loaded at runtime and for layouts being edited in the PPTX import flow.
+ */
+export function compileCustomLayout(layoutCode: string, options: CompileOptions = {}): CompiledLayout | null {
+    ensureTemplateCss(layoutCode);
+    Object.values(options.modules ?? {}).forEach(ensureTemplateCss);
+    try {
+        const { exports, script } = runModule(layoutCode, options, new Map(), true);
+        const pick = (...names: string[]) => names.map((n) => exports[n]).find((v) => v !== undefined);
+
+        const component =
+            pick("default", "dynamicSlideLayout", "DefaultLayout") ?? script.component;
+        const layoutId = pick("layoutId", "slideLayoutId") ?? script.layoutId ?? "custom-layout";
+        const layoutName = pick("layoutName", "slideLayoutName") ?? script.layoutName ?? "Custom Layout";
+        const layoutDescription =
+            pick("layoutDescription", "slideLayoutDescription") ?? script.layoutDescription ?? "";
+        const Schema = pick("Schema") ?? script.Schema ?? null;
+
+        if (!component) {
             console.error("No component found in compiled code");
             return null;
         }
 
         const wrappedComponent: React.ComponentType<{ data: any }> = ({ data, ...props }) => {
             const normalizedData = React.useMemo(() => normalizeLayoutAssetUrls(data), [data]);
-            return React.createElement(result.component, { ...(props as any), data: normalizedData });
+            return React.createElement(component, { ...(props as any), data: normalizedData });
         };
-        wrappedComponent.displayName = `CompiledTemplateLayout(${result.layoutName || result.layoutId || "Custom"})`;
+        wrappedComponent.displayName = `CompiledTemplateLayout(${layoutName || layoutId || "Custom"})`;
 
-        // Parse schema to get sample data
         let sampleData: Record<string, any> = {};
-        if (result.Schema) {
+        if (Schema) {
             try {
-                sampleData = normalizeLayoutAssetUrls(result.Schema.parse({}));
+                sampleData = normalizeLayoutAssetUrls(Schema.parse({}));
             } catch (e) {
                 console.warn("Could not parse schema defaults:", e);
             }
         }
-        const schemaJSON = z.toJSONSchema(result.Schema);
+        const schemaJSON = Schema ? z.toJSONSchema(Schema) : {};
 
         return {
             component: wrappedComponent,
-            layoutId: result.layoutId,
-            layoutName: result.layoutName,
-            layoutDescription: result.layoutDescription,
-            schema: result.Schema,
+            layoutId,
+            layoutName,
+            layoutDescription,
+            schema: Schema,
             sampleData,
             schemaJSON,
         };
     } catch (error) {
-        console.error("Error compiling layout:", error);
+        console.error(`Error compiling layout${options.templateId ? ` of ${options.templateId}` : ""}:`, error);
         return null;
     }
 }
-
-

@@ -1,5 +1,8 @@
 {
+  "id": "education",
+  "name": "Education",
   "description": "School and training layouts for outcomes, curriculum maps, lesson plans, rubrics, timelines, statistics, and closing Q&A",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

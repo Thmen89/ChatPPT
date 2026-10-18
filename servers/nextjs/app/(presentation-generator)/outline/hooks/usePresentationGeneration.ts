@@ -115,14 +115,13 @@ export const usePresentationGeneration = (
           duration: 30,
         });
 
+        // Runtime template (a <data>/templates/<id>/ folder): slide ids are `<id>:<layoutId>`.
         layout = {
           name: customTemplateDetail.id,
-          ordered: false,
-          icon_weight: "bold",
+          ordered: Boolean(customTemplateDetail.template?.ordered),
+          icon_weight: customTemplateDetail.template?.icon_weight || "bold",
           slides: customTemplateDetail.layouts.map((compiledLayout) => ({
-            id: customTemplateDetail.id.startsWith("custom-")
-              ? `${customTemplateDetail.id}:${compiledLayout.layoutId}`
-              : `custom-${customTemplateDetail.id}:${compiledLayout.layoutId}`,
+            id: `${customTemplateDetail.id}:${compiledLayout.layoutId}`,
             name: compiledLayout.layoutName,
             description: compiledLayout.layoutDescription,
             templateID: customTemplateDetail.id,

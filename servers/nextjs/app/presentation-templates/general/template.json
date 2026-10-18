@@ -1,5 +1,8 @@
 {
+  "id": "general",
+  "name": "General",
   "description": "General purpose layouts for common presentation elements",
+  "version": 1,
   "ordered": false,
   "default": true,
   "icon_weight": "regular"

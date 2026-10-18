@@ -1,5 +1,8 @@
 {
+  "id": "code",
+  "name": "Code",
   "description": "Developer-focused layouts for code blocks, diffs, terminal commands, file trees, APIs, and technical metrics",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

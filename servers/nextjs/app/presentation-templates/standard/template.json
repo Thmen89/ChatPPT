@@ -1,5 +1,8 @@
 {
+  "id": "standard",
+  "name": "Standard",
   "description": "Standard layouts for presentations",
+  "version": 1,
   "ordered": false,
   "default": false,
   "icon_weight": "regular"
