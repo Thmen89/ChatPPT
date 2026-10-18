@@ -125,7 +125,7 @@ async def get_generated_images(sql_session: AsyncSession = Depends(get_async_ses
     try:
         images_result = await sql_session.scalars(
             select(ImageAsset)
-            .where(ImageAsset.is_uploaded == False)
+            .where(ImageAsset.is_uploaded == False)  # noqa: E712  (SQL expression)
             .order_by(ImageAsset.created_at.desc())
         )
         return [_image_asset_api_dict(a) for a in images_result]
@@ -165,7 +165,7 @@ async def get_uploaded_images(sql_session: AsyncSession = Depends(get_async_sess
     try:
         images_result = await sql_session.scalars(
             select(ImageAsset)
-            .where(ImageAsset.is_uploaded == True)
+            .where(ImageAsset.is_uploaded == True)  # noqa: E712  (SQL expression)
             .order_by(ImageAsset.created_at.desc())
         )
         return [_image_asset_api_dict(a) for a in images_result]

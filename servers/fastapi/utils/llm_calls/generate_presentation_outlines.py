@@ -14,7 +14,6 @@ from models.presentation_outline_model import PresentationOutlineModel
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from chatppt.providers import llm_for_step
-from utils.llm_config import enable_web_grounding
 from utils.llm_utils import (
     get_generate_kwargs,
     serialize_structured_content,

@@ -60,9 +60,7 @@ def test_export_output_path_accepts_file_path_key(tmp_path):
     output_path = tmp_path / "preview.png"
     output_path.write_bytes(b"png")
 
-    assert ExportTaskService._resolve_output_path({"file_path": str(output_path)}) == str(
-        output_path
-    )
+    assert ExportTaskService._resolve_output_path({"file_path": str(output_path)}) == str(output_path)
 
 
 def test_render_html_to_image_sends_html_task_payload(tmp_path):

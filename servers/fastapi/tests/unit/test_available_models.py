@@ -36,7 +36,4 @@ def test_model_ids_from_openai_compatible_payload_top_level_list():
 
 
 def test_normalize_openai_compatible_base_url_appends_v1():
-    assert (
-        normalize_openai_compatible_base_url("https://api.together.ai")
-        == "https://api.together.ai/v1"
-    )
+    assert normalize_openai_compatible_base_url("https://api.together.ai") == "https://api.together.ai/v1"

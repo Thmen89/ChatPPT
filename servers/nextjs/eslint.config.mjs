@@ -31,10 +31,9 @@ const eslintConfig = defineConfig([
     ".next-build/**",
     "out/**",
     "build/**",
-    "cypress/**",
     "next-env.d.ts",
-    "**/*.cy.ts",
-    "**/*.cy.tsx",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

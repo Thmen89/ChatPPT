@@ -1,8 +1,7 @@
 import os
 import shutil
 import tempfile
-import subprocess
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from api.v1.ppt.endpoints.presentation import generate_presentation_sync
 from models.generate_presentation_request import GeneratePresentationRequest
 from models.presentation_and_path import PresentationPathAndEditPath
+from tests.mocks import http_request
 
 
 class FakeAsyncSession:
@@ -44,9 +45,7 @@ class TestPresentationGenerationAPI:
             "api.v1.ppt.endpoints.presentation.generate_presentation_handler",
             new=AsyncMock(return_value=response_payload),
         ) as mock_handler:
-            response = asyncio.run(
-                generate_presentation_sync(request, sql_session=FakeAsyncSession())
-            )
+            response = asyncio.run(generate_presentation_sync(http_request(), request, sql_session=FakeAsyncSession()))
 
         assert response == response_payload
         mock_handler.assert_awaited_once()
@@ -69,9 +68,7 @@ class TestPresentationGenerationAPI:
             "api.v1.ppt.endpoints.presentation.generate_presentation_handler",
             new=AsyncMock(return_value=response_payload),
         ) as mock_handler:
-            response = asyncio.run(
-                generate_presentation_sync(request, sql_session=FakeAsyncSession())
-            )
+            response = asyncio.run(generate_presentation_sync(http_request(), request, sql_session=FakeAsyncSession()))
 
         assert response == response_payload
         mock_handler.assert_awaited_once()
@@ -97,9 +94,7 @@ class TestPresentationGenerationAPI:
         )
 
         with pytest.raises(HTTPException) as exc:
-            asyncio.run(
-                generate_presentation_sync(request, sql_session=FakeAsyncSession())
-            )
+            asyncio.run(generate_presentation_sync(http_request(), request, sql_session=FakeAsyncSession()))
 
         assert exc.value.status_code == 400
         assert exc.value.detail == "Number of slides must be greater than 0"

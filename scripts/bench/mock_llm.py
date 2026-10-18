@@ -7,9 +7,12 @@ Speaks enough of the Chat Completions API for ChatPPT's `custom` provider:
 * ``POST /v1/chat/completions``      — streaming or not; when the request carries
   ``response_format.type == "json_schema"`` the reply is a valid instance of that
   schema, otherwise a short paragraph of text
+* ``POST /v1/images/generations``    — a small solid-colour PNG as ``b64_json``, for the
+  ``openai_compatible`` image provider (``IMAGE_PROVIDER=openai_compatible``,
+  ``OPENAI_COMPAT_IMAGE_BASE_URL=http://127.0.0.1:9900/v1``, any key and model)
 * ``GET  /stats`` / ``POST /stats/reset`` — request count and approximate
   prompt/completion tokens since the last reset (what the bench reports as
-  "tokens per deck")
+  "tokens per deck"), plus images generated
 
 Deterministic (seeded) and dependency-free (stdlib only), so CI needs no keys.
 
@@ -22,12 +25,15 @@ Environment:
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import random
+import struct
 import threading
 import time
 import uuid
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.getenv("MOCK_LLM_PORT", "9900"))
@@ -41,12 +47,30 @@ WORDS = (
 ).split()
 
 _stats_lock = threading.Lock()
-_stats = {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "stream_requests": 0}
+_stats = {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "stream_requests": 0, "images": 0}
 
 
 def approx_tokens(text: str) -> int:
     # Close enough for a scoreboard: ~4 characters per token.
     return max(1, len(text) // 4)
+
+
+def solid_png(width: int = 64, height: int = 36, rgb: tuple[int, int, int] = (82, 65, 229)) -> bytes:
+    """A valid RGB PNG of one colour, built with the stdlib."""
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+    row = b"\x00" + bytes(rgb) * width  # filter byte 0, then pixels
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(row * height))
+        + chunk(b"IEND", b"")
+    )
+
+
+PNG_B64 = base64.b64encode(solid_png()).decode()
 
 
 class SchemaFiller:
@@ -198,6 +222,12 @@ class Handler(BaseHTTPRequestHandler):
                 for k in _stats:
                     _stats[k] = 0
             return self._json(200, {"ok": True})
+        if self.path.rstrip("/").endswith("/images/generations"):
+            if LATENCY_S:
+                time.sleep(LATENCY_S)
+            with _stats_lock:
+                _stats["images"] += 1
+            return self._json(200, {"created": int(time.time()), "data": [{"b64_json": PNG_B64}]})
         if not self.path.rstrip("/").endswith("/chat/completions"):
             return self._json(404, {"error": f"unsupported path {self.path}"})
         try:
