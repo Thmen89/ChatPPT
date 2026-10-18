@@ -486,7 +486,9 @@ async def _install_fonts(fonts: List[UploadFile], temp_dir: str) -> None:
 
     for font_file in fonts:
         # Save font file
-        font_path = os.path.join(fonts_dir, font_file.filename)
+        from chatppt.guards import safe_filename
+
+        font_path = os.path.join(fonts_dir, safe_filename(font_file.filename, "font.ttf"))
         with open(font_path, "wb") as f:
             font_content = await font_file.read()
             f.write(font_content)

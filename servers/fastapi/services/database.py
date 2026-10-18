@@ -20,6 +20,7 @@ from models.sql.template import TemplateModel
 from models.sql.template_create_info import TemplateCreateInfoModel
 from models.sql.slide import SlideModel
 from models.sql.webhook_subscription import WebhookSubscription
+from models.sql.user import ApiTokenModel, UserModel
 from utils.get_env import get_migrate_database_on_startup_env
 from utils.db_utils import get_database_url_and_connect_args, get_pool_kwargs
 
@@ -61,6 +62,8 @@ async def create_db_and_tables():
                         WebhookSubscription.__table__,
                         AsyncPresentationGenerationTaskModel.__table__,
                         OllamaPullStatus.__table__,
+                        UserModel.__table__,
+                        ApiTokenModel.__table__,
                     ],
                 )
             )

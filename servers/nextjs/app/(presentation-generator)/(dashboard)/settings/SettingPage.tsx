@@ -13,7 +13,7 @@ import {
   checkIfSelectedOllamaModelIsPulled,
   pullOllamaModel,
 } from "@/utils/providerUtils";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { isMod } from "@/lib/keys";
 import { LLMConfig } from "@/types/llm_config";
 import SettingSideBar from "./SettingSideBar";
@@ -22,7 +22,9 @@ import ImageProvider from "./ImageProvider";
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { getApiUrl } from "@/utils/api";
-import LogoutButton from "@/components/Auth/LogoutButton";
+import AccountSettings from "@/components/Auth/AccountSettings";
+import UsersAdmin from "@/components/Auth/UsersAdmin";
+import { AuthStatus, authApi } from "@/components/Auth/authApi";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -37,11 +39,15 @@ interface ButtonState {
 }
 
 const SettingsPage = () => {
-  const router = useRouter();
   const isSetup = useSearchParams().get("setup") === "1";
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  useEffect(() => {
+    authApi<AuthStatus>("/status").then(setAuthStatus).catch(() => setAuthStatus(null));
+  }, []);
   const [selectedProvider, setSelectedProvider] = useState<
-    "text-provider" | "image-provider" | "session"
+    "text-provider" | "image-provider" | "session" | "users"
   >("text-provider");
+  const isAccountSection = selectedProvider === "session" || selectedProvider === "users";
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
     userConfigState.llm_config
@@ -269,12 +275,6 @@ const SettingsPage = () => {
     }
   }, [downloadingModel]);
 
-  useEffect(() => {
-    if (!canChangeKeys) {
-      router.push("/dashboard");
-    }
-  }, [canChangeKeys, router]);
-
   const saveRef = React.useRef(handleSaveConfig);
   useEffect(() => {
     saveRef.current = handleSaveConfig;
@@ -290,8 +290,15 @@ const SettingsPage = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Provider keys are locked (CAN_CHANGE_KEYS=false) or you are not an admin: your
+  // account and API tokens are still yours to manage.
   if (!canChangeKeys) {
-    return null;
+    return (
+      <div>
+        <h1 className="mb-5 text-xl font-semibold tracking-tight text-zinc-900">Account</h1>
+        <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
+      </div>
+    );
   }
 
   const textProviderKey = llmConfig.LLM || "openai";
@@ -362,6 +369,7 @@ const SettingsPage = () => {
         <SettingSideBar
           selectedProvider={selectedProvider}
           setSelectedProvider={setSelectedProvider}
+          isAdmin={Boolean(authStatus?.is_admin && !authStatus?.auth_disabled)}
         />
         <div className="min-w-0 flex-1 pb-20">
           {selectedProvider === 'text-provider' && <TextProvider
@@ -375,20 +383,14 @@ const SettingsPage = () => {
           />}
           {selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === "session" && (
-            <div className="max-w-md space-y-3">
-              <p className="text-[13px] text-zinc-600">
-                End your session on this deployment. You will need to sign in again to use the app and the API.
-              </p>
-              <LogoutButton
-                label="Sign out"
-                className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-zinc-900 px-3 text-[13px] font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
+            <AccountSettings authDisabled={Boolean(authStatus?.auth_disabled)} />
           )}
+          {selectedProvider === "users" && <UsersAdmin currentUser={authStatus?.username ?? null} />}
+
         </div>
       </div>
 
-      {selectedProvider !== "session" ? (
+      {!isAccountSection ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1200px] items-center justify-end gap-3 px-6 py-2.5">
             <span className="text-xs text-zinc-500">Saved to chatppt.toml · applies on the next request</span>

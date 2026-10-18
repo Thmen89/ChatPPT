@@ -20,7 +20,6 @@ from typing import Any
 import httpx
 from starlette.types import Receive, Scope, Send
 
-from utils.simple_auth import get_internal_auth_headers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,11 +36,20 @@ def api_base_url() -> str:
 
 
 async def _attach_internal_auth_header(request: httpx.Request) -> None:
+    """Tool calls run as the MCP caller: their ``Authorization`` (an API token) is passed on
+    to the REST API (FastMCP forwards the other headers, cookies included, itself). With no
+    caller credentials the REST call is anonymous and only works when sign-in is off."""
     if "authorization" in request.headers:
         return
-    auth_header = get_internal_auth_headers().get("Authorization")
+    auth_header = caller_authorization()
     if auth_header:
         request.headers["Authorization"] = auth_header
+
+
+def caller_authorization() -> str | None:
+    from fastmcp.server.dependencies import get_http_headers
+
+    return get_http_headers(include={"authorization"}).get("authorization")
 
 
 def build_mcp_app(spec_path: Path = SPEC_PATH, base_url: str | None = None) -> Any:

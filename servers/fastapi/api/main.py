@@ -12,7 +12,7 @@ from starlette.responses import FileResponse
 from api import mcp
 from api.lifespan import app_lifespan
 from api.observability import AccessLogMiddleware, UnbufferedStreamsMiddleware, health_router
-from api.middlewares import SessionAuthMiddleware
+from chatppt.auth.middleware import SecurityMiddleware, cors_origins
 from api.v1.auth.router import API_V1_AUTH_ROUTER
 from api.v1.config.router import API_V1_CONFIG_ROUTER
 from api.v1.hooks.router import API_V1_HOOKS_ROUTER
@@ -96,17 +96,24 @@ static_dir = get_resource_path("static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Middlewares
-origins = ["*"]
+# Middlewares. Sign-in, CSRF, /app_data rules, body cap and security headers (see
+# chatppt/auth/middleware.py); CORS outside it, so its answers carry CORS headers too.
+app.add_middleware(SecurityMiddleware)
+
+
+def _cors_origins() -> list[str]:
+    """ChatPPT's own origin and the exporter's loopback Next.js (see ``cors_origins``).
+    Same-origin browser calls through the public port need no CORS."""
+    return cors_origins(get_settings())
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
-
-app.add_middleware(SessionAuthMiddleware)
 
 
 @app.middleware("http")

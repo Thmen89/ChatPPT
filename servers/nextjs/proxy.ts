@@ -22,12 +22,15 @@ function getFastApiBaseUrl(): string {
 }
 
 type AuthStatus = {
+  exporter?: boolean;
   configured: boolean;
   authenticated: boolean;
 };
 
 const SESSION_COOKIE_NAME = "chatppt_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+/** The exporter's ?exportSession= is a read-only token FastAPI issues for 15 minutes
+ * (POST /api/v1/auth/export-token); the cookie lives no longer than that. */
+const EXPORT_SESSION_TTL_SECONDS = 15 * 60;
 
 async function getAuthStatus(request: NextRequest): Promise<AuthStatus> {
   const cookieHeader = request.headers.get("cookie");
@@ -45,10 +48,17 @@ async function getAuthStatus(request: NextRequest): Promise<AuthStatus> {
     return {
       configured: Boolean(payload.configured),
       authenticated: Boolean(payload.authenticated),
+      exporter: Boolean(payload.exporter),
     };
   } catch {
     return { configured: true, authenticated: false };
   }
+}
+
+/** What the exporter's read-only token may reach here: reads, and compiling the CSS of
+ * folder templates (a POST with no side effects). */
+function isExporterAllowed(request: NextRequest): boolean {
+  return request.method === "GET" || request.nextUrl.pathname === "/api/template/css";
 }
 
 function isApiAuthExempt(pathname: string): boolean {
@@ -73,7 +83,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.set({
         name: SESSION_COOKIE_NAME,
         value: exportSession,
-        maxAge: SESSION_TTL_SECONDS,
+        maxAge: EXPORT_SESSION_TTL_SECONDS,
         httpOnly: true,
         secure:
           request.headers.get("x-forwarded-proto")?.toLowerCase() === "https" ||
@@ -96,7 +106,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const authStatus = await getAuthStatus(request);
-  if (authStatus.authenticated) {
+  if (authStatus.authenticated || (authStatus.exporter && isExporterAllowed(request))) {
     return NextResponse.next();
   }
   if (!authStatus.configured) {

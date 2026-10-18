@@ -15,6 +15,34 @@ const FASTAPI_PATHS = [
   "/openapi.json",
 ];
 
+/** Security headers for the pages Next.js serves itself (FastAPI sets its own on the
+ * paths above). Layouts are compiled in the browser with Babel, hence 'unsafe-eval';
+ * slides show images and Google Fonts from any https host; Electron talks to FastAPI on
+ * a 127.0.0.1 port. The CSP still blocks framing by other sites, plugins, <base> and
+ * cross-site form posts. */
+const PAGE_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+  "style-src 'self' 'unsafe-inline' https:",
+  "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
+  "font-src 'self' data: https:",
+  "media-src 'self' data: blob: https:",
+  "connect-src 'self' https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join("; ");
+
+const PAGE_HEADERS = [
+  { key: "Content-Security-Policy", value: PAGE_CSP },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
@@ -29,6 +57,17 @@ const nextConfig = {
         ],
       }
     : {}),
+
+  async headers() {
+    return [
+      { source: "/", headers: PAGE_HEADERS },
+      {
+        // Everything except the FastAPI paths, which carry FastAPI's own headers.
+        source: "/:path((?!api/v1/|app_data/|static/|mcp|docs|openapi\\.json).*)",
+        headers: PAGE_HEADERS,
+      },
+    ];
+  },
 
   async rewrites() {
     return {
