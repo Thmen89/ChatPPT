@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from llmai.shared import (
     JSONSchemaResponse,
@@ -10,6 +10,10 @@ from llmai.shared import (
     WebSearchTool,
 )
 
+from pydantic import BaseModel, Field
+
+from chatppt.prompts import render_prompt
+from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
 from utils.llm_client_error_handler import handle_llm_client_exceptions
@@ -26,8 +30,9 @@ def get_system_prompt(
     verbosity: Optional[str] = None,
     include_title_slide: bool = True,
     include_table_of_contents: bool = False,
+    layout: Optional[PresentationLayoutModel] = None,
 ):
-    verbosity_instruction = (
+    verbosity_instructions = (
         "Slide content should be around 20 words but detailed enough to generate a good slide."
         if verbosity == "concise"
         else (
@@ -37,57 +42,29 @@ def get_system_prompt(
         )
     )
 
-    title_slide_instruction = (
+    title_slide_instructions = (
         "Include presenter name in first slide."
         if include_title_slide
         else "Do not include presenter name in any slides."
     )
 
-    toc_instruction = (
-        "Include a table of contents slide in the outline sequence."
+    toc_instructions = (
+        "Include a table of contents slide in the outline sequence.\n"
         if include_table_of_contents
         else ""
     )
-    toc_block = f"{toc_instruction}\n" if toc_instruction else ""
 
-    slide_outline_structure = (
-        "Each slide content:\n"
-        "   - Must have a ## title.\n"
-        # "   - Must have content either in multiple bullet points or table or both.\n"
-        "   - Must be in Markdown format.\n"
-        "   - Don't use **bold** and __italic__ text."
-        "   - First slide title must be the same as the presentation title."
+    layout_instructions = (
+        render_prompt("outline.layouts", layouts=layout.to_string()) if layout else ""
     )
 
-    system = (
-        "Generate presentation title and content for slides.\n"
-        "Generate flow based on user **content** and use **context** just for reference.\n"
-        "Presentation title should be plain text, not markdown. It should be a concise title for the presentation.\n"
-        "Each slide content should contain the content for that slide.\n"
-        f"{verbosity_instruction}\n"
-        "Follow user instructions strictly and literally without reinterpretation or generalization.\n"
-        "Apply slide-specific instructions only to the exact slide mentioned and only once. "
-        "Do not apply patterns across multiple slides unless explicitly requested. "
-        "Resolve ambiguous instructions using the most direct interpretation.\n"
-        "Follow the user's specified tone across all slides. "
-        "Maintain clarity, readability, and factual accuracy. "
-        "If no tone is provided, use a clear and professional style. "
-        "Ensure logical flow between slides and avoid repetition or generic filler content.\n"
-        "Include numerical data, tables or code if required or asked by the user.\n"
-        "If 'auto-detect' is used, figure it out from the content/context.\n"
-        f"{title_slide_instruction}\n"
-        f"{toc_block}"
-        f"{slide_outline_structure}\n"
-        "Slide content must not contain any presentation branding/styling information.\n"
-        "Title slide must only contain title, presenter name, date and overview.\n"
-        "Only include URLs if they appear in the provided content/context.\n"
-        "Make sure data used is strictly from the provided content/context.\n"
-        "Make sure data is consistent across all slides."
-        "Use the web search tool when the user request requires current, factual, or external information.\n"
-        "If the answer may be outdated or uncertain, prefer using the web search tool.\n"
+    return render_prompt(
+        "outline.system",
+        verbosity_instructions=verbosity_instructions,
+        title_slide_instructions=title_slide_instructions,
+        toc_instructions=toc_instructions,
+        layout_instructions=layout_instructions,
     )
-
-    return system
 
 
 def _resolve_prompt_language(language: Optional[str]) -> str:
@@ -117,19 +94,21 @@ def get_user_prompt(
     include_title_slide: bool = True,
     include_table_of_contents: bool = False,
 ):
-    display_language = _resolve_prompt_language(language)
-    display_slides = _resolve_prompt_n_slides(n_slides)
-    toc_text = f"Include Table Of Contents: {str(include_table_of_contents).lower()}\n"
-    return (
-        f"Content: {content or ''}\n"
-        f"Number of Slides: {display_slides}\n"
-        f"Language: {display_language}\n"
-        f"Tone: {tone or ''}\n"
-        f"Today's Date: {datetime.now().strftime('%Y-%m-%d')}\n"
-        f"Include Title Slide: {include_title_slide}\n"
-        f"{toc_text if include_table_of_contents else ''}"
-        f"Instructions: {instructions or ''}\n"
-        f"Context: {additional_context or 'None'}\n"
+    return render_prompt(
+        "outline.user",
+        content=content or "",
+        n_slides=_resolve_prompt_n_slides(n_slides),
+        language=_resolve_prompt_language(language),
+        tone=tone or "",
+        date=datetime.now().strftime("%Y-%m-%d"),
+        include_title_slide=include_title_slide,
+        toc_line=(
+            f"Include Table Of Contents: {str(include_table_of_contents).lower()}\n"
+            if include_table_of_contents
+            else ""
+        ),
+        instructions=instructions or "",
+        context=additional_context or "None",
     )
 
 
@@ -143,6 +122,7 @@ def get_messages(
     instructions: Optional[str] = None,
     include_title_slide: bool = True,
     include_table_of_contents: bool = False,
+    layout: Optional[PresentationLayoutModel] = None,
 ) -> list[Message]:
     return [
         SystemMessage(
@@ -150,6 +130,7 @@ def get_messages(
                 verbosity,
                 include_title_slide,
                 include_table_of_contents,
+                layout,
             ),
         ),
         UserMessage(
@@ -167,6 +148,29 @@ def get_messages(
     ]
 
 
+def _outline_with_layouts_model(n_slides: Optional[int], n_layouts: int) -> type[BaseModel]:
+    """Outline schema whose slides also carry the index of the layout to use."""
+
+    class SlideOutlineWithLayout(BaseModel):
+        content: str = Field(
+            description="Markdown content for each slide",
+            min_length=100 if n_slides is not None else None,
+            max_length=1200 if n_slides is not None else None,
+        )
+        layout: int = Field(
+            description="Index of the layout for this slide", ge=0, le=n_layouts - 1
+        )
+
+    class PresentationOutlineWithLayouts(BaseModel):
+        slides: List[SlideOutlineWithLayout] = Field(
+            description="List of slide outlines",
+            min_length=n_slides,
+            max_length=n_slides,
+        )
+
+    return PresentationOutlineWithLayouts
+
+
 async def generate_ppt_outline(
     content: str,
     n_slides: Optional[int],
@@ -178,13 +182,20 @@ async def generate_ppt_outline(
     include_title_slide: bool = True,
     web_search: bool = False,
     include_table_of_contents: bool = False,
+    layout: Optional[PresentationLayoutModel] = None,
 ):
+    """Stream the outline JSON. With ``layout`` (an unordered template), each slide also
+    gets a ``layout`` index, so the separate structure call can be skipped."""
     client, model = llm_for_step("outline")
-    response_model = (
-        get_presentation_outline_model_with_n_slides(n_slides)
-        if n_slides is not None
-        else PresentationOutlineModel
-    )
+    if layout is not None and layout.slides:
+        response_model = _outline_with_layouts_model(n_slides, len(layout.slides))
+    else:
+        layout = None
+        response_model = (
+            get_presentation_outline_model_with_n_slides(n_slides)
+            if n_slides is not None
+            else PresentationOutlineModel
+        )
 
     use_search_tool = web_search
 
@@ -213,6 +224,7 @@ async def generate_ppt_outline(
                     instructions,
                     include_title_slide,
                     include_table_of_contents,
+                    layout,
                 ),
                 response_format=response_format,
                 tools=([WebSearchTool()] if use_search_tool else None),

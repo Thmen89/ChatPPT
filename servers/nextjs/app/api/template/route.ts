@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * Server-only layout + JSON Schema for built-in templates (no import of
  * `presentation-templates/index.tsx`, which would pull Recharts into RSC).
  *
- * Used by FastAPI when `extract-schema` (Puppeteer) fails — e.g. `next dev`
- * + `networkidle0`.
+ * FastAPI calls this directly (`CHATPPT_NEXTJS_URL`) and caches the result per
+ * template fingerprint, so it runs once per template version.
  */
 export async function GET(request: Request) {
   const group = new URL(request.url).searchParams.get("group");
