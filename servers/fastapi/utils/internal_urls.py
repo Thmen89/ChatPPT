@@ -1,12 +1,14 @@
-"""Where the backend reaches the Next.js server from inside the container.
+"""Where the backend reaches the other in-container processes.
 
-Stand-in with the same name and behaviour as the speed workstream's helper, so the
-single-port layout (no nginx on :80) works on its own; whichever lands second keeps one copy.
+Loopback calls go straight to the process that answers them, never through a reverse
+proxy, so they keep working when nothing listens on port 80.
 """
 
 import os
 
+DEFAULT_NEXTJS_URL = "http://127.0.0.1:3000"
+
 
 def nextjs_base_url() -> str:
-    """``CHATPPT_NEXTJS_URL`` (start.js sets it to the loopback public port), no trailing slash."""
-    return (os.getenv("CHATPPT_NEXTJS_URL") or "http://127.0.0.1:3000").strip().rstrip("/")
+    """Base URL of the Next.js server (``CHATPPT_NEXTJS_URL``, default ``http://127.0.0.1:3000``)."""
+    return (os.getenv("CHATPPT_NEXTJS_URL") or "").strip().rstrip("/") or DEFAULT_NEXTJS_URL

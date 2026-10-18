@@ -2,6 +2,7 @@ from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 from models.slide_layout_index import SlideLayoutIndex
 from models.sql.slide import SlideModel
+from chatppt.prompts import render_prompt
 from chatppt.providers import llm_for_step
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import generate_structured_with_schema_retries
@@ -15,32 +16,25 @@ def get_messages(
     current_slide_layout: int,
     memory_context: str = "",
 ) -> list[Message]:
-    memory_block = (
-        f"\n                # Retrieved Presentation Memory Context\n                {memory_context}\n"
-        if memory_context
-        else ""
-    )
-
     return [
         SystemMessage(
-            content=f"""
-                Select a Slide Layout index based on provided user prompt and current slide data.
-                {layout.to_string()}
-                {memory_block}
-
-                # Notes
-                - Do not select different slide layout than current unless absolutely necessary as per user prompt. 
-                - If user prompt is not clear, select the layout that is most relevant to the slide data.
-                - If user prompt is not clear, select the layout that is most relevant to the slide data.
-                **Go through all notes and steps and make sure they are followed, including mentioned constraints**
-            """,
+            content=render_prompt(
+                "select_slide_layout.system",
+                layouts=layout.to_string(),
+                memory_context=(
+                    f"\n# Retrieved Presentation Memory Context\n{memory_context}\n"
+                    if memory_context
+                    else ""
+                ),
+            ),
         ),
         UserMessage(
-            content=f"""
-                - User Prompt: {prompt}
-                - Current Slide Data: {slide_data}
-                - Current Slide Layout: {current_slide_layout}
-            """,
+            content=render_prompt(
+                "select_slide_layout.user",
+                prompt=prompt,
+                slide_data=slide_data,
+                current_layout=current_slide_layout,
+            ),
         ),
     ]
 

@@ -1,22 +1,30 @@
+"""Resolve a template id to its layouts and JSON schemas, once per template version.
+
+Layouts are TSX files with zod schemas, so only Next.js can compile them
+(``/api/template?group=<id>``, ``lib/server-template-layouts.ts``). The result is cached
+in-process by ``TemplateInfo.fingerprint()``, which changes whenever a layout file or the
+manifest changes; custom (database) templates are cached by a hash of their layout code.
+Nothing here launches a browser.
+"""
+
+import asyncio
 import logging
-import json
-import os
-import aiohttp
-from urllib.parse import urlencode
 from typing import Any
 
+import aiohttp
 from fastapi import HTTPException
 
-from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.custom_layout_from_db import load_custom_presentation_layout
 from templates.presentation_layout import PresentationLayoutModel
-from utils.icon_weights import extract_icon_weight_from_settings
 from utils.internal_http import internal_request_headers
 from utils.internal_urls import nextjs_base_url
 
 LOGGER = logging.getLogger(__name__)
 
 _MAX_LOG_DETAIL = 600
+
+_cache: dict[str, PresentationLayoutModel] = {}
+_locks: dict[str, asyncio.Lock] = {}
 
 
 def _preview_detail(text: str, limit: int = _MAX_LOG_DETAIL) -> str:
@@ -26,207 +34,93 @@ def _preview_detail(text: str, limit: int = _MAX_LOG_DETAIL) -> str:
     return text[: limit - 3] + "..."
 
 
-def _read_builtin_template_settings(layout_name: str) -> dict[str, Any] | None:
-    if not layout_name or layout_name.startswith("custom-"):
+def _template_fingerprint(layout_name: str) -> str | None:
+    """Cache key for a folder template, or None when the id is not a known folder."""
+    try:
+        from chatppt.templates import discover_templates
+
+        info = discover_templates().get(layout_name)
+    except Exception as exc:  # noqa: BLE001 - discovery problems must not block generation
+        LOGGER.warning("[template_layout] template discovery failed: %s", exc)
         return None
-    if "/" in layout_name or "\\" in layout_name or layout_name in {".", ".."}:
-        return None
-
-    service_dir = os.path.dirname(__file__)
-    candidates = [
-        os.path.abspath(
-            os.path.join(
-                service_dir,
-                "..",
-                "..",
-                "nextjs",
-                "app",
-                "presentation-templates",
-                layout_name,
-                "settings.json",
-            )
-        ),
-        os.path.abspath(
-            os.path.join(
-                os.getcwd(),
-                "..",
-                "nextjs",
-                "app",
-                "presentation-templates",
-                layout_name,
-                "settings.json",
-            )
-        ),
-    ]
-
-    for settings_path in candidates:
-        if not os.path.isfile(settings_path):
-            continue
-        try:
-            with open(settings_path, "r", encoding="utf-8") as settings_file:
-                settings = json.load(settings_file)
-            return settings if isinstance(settings, dict) else None
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.warning(
-                "[template_layout] failed reading local template settings template=%r path=%s error=%s",
-                layout_name,
-                settings_path,
-                _preview_detail(str(exc)),
-            )
-            return None
-
-    return None
+    return info.fingerprint() if info else None
 
 
-async def _fetch_template_fallback_payload(
-    layout_name: str,
-) -> tuple[dict[str, Any] | None, str | None]:
-    fallback_url = f"{nextjs_base_url()}/api/template?group={layout_name}"
-    LOGGER.info(
-        "[template_layout] trying HTTP fallback template=%r url=%s",
-        layout_name,
-        fallback_url,
-    )
+async def _fetch_template_payload(layout_name: str) -> dict[str, Any]:
+    url = f"{nextjs_base_url()}/api/template"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                fallback_url, headers=internal_request_headers()
+                url, params={"group": layout_name}, headers=internal_request_headers()
             ) as response:
                 if response.status == 200:
                     payload = await response.json()
-                    LOGGER.info(
-                        "[template_layout] fallback OK template=%r slide_count=%d",
+                    if isinstance(payload, dict):
+                        return payload
+                    error = "invalid payload"
+                else:
+                    error = await response.text()
+                    LOGGER.warning(
+                        "[template_layout] %s HTTP %s template=%r body=%s",
+                        url,
+                        response.status,
                         layout_name,
-                        len(payload.get("slides") or []),
+                        _preview_detail(error or ""),
                     )
-                    return payload, None
-
-                error = await response.text()
-                LOGGER.warning(
-                    "[template_layout] fallback HTTP %s template=%r body=%s",
-                    response.status,
-                    layout_name,
-                    _preview_detail(error or ""),
-                )
-                return None, error
     except aiohttp.ClientError as exc:
         error = str(exc)
         LOGGER.warning(
-            "[template_layout] fallback request failed template=%r error=%s",
-            layout_name,
-            error,
+            "[template_layout] %s failed template=%r error=%s", url, layout_name, error
         )
-        return None, error
-    except Exception as exc:  # noqa: BLE001
-        error = str(exc)
-        LOGGER.warning(
-            "[template_layout] fallback unexpected error template=%r error=%s",
-            layout_name,
-            _preview_detail(error),
+    raise HTTPException(
+        status_code=404,
+        detail=f"Template '{layout_name}' not found: {_preview_detail(error or 'unknown error')}",
+    )
+
+
+async def _load_layout(layout_name: str) -> PresentationLayoutModel:
+    if layout_name.startswith("custom-"):
+        return await load_custom_presentation_layout(layout_name)
+    payload = await _fetch_template_payload(layout_name)
+    if not payload.get("slides"):
+        raise HTTPException(
+            status_code=404, detail=f"Template '{layout_name}' not found"
         )
-        return None, error
+    return PresentationLayoutModel(**payload)
 
 
 async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
+    """Layouts for ``layout_name``; compiled once per template fingerprint."""
     if layout_name.startswith("custom-"):
-        return await load_custom_presentation_layout(layout_name)
+        # Custom templates cache inside the loader, keyed by their layout code.
+        return await _load_layout(layout_name)
 
-    query = urlencode({"group": layout_name})
-    url = f"{nextjs_base_url()}/schema?{query}"
+    fingerprint = _template_fingerprint(layout_name)
+    if fingerprint is None:
+        # Not a folder we can fingerprint (e.g. a template only Next.js knows about).
+        return await _load_layout(layout_name)
 
-    LOGGER.info(
-        "[template_layout] resolving template=%r primary_schema_url=%s",
-        layout_name,
-        url,
-    )
+    cached = _cache.get(fingerprint)
+    if cached is not None:
+        return cached.model_copy(deep=True)
 
-    schema_payload: dict[str, Any] | None = None
-    runtime_error: str | None = None
-
-    try:
-        schema = await EXPORT_TASK_SERVICE.extract_schema(url)
-        schema_payload = schema.model_dump()
-        slide_ids = [s.get("id") for s in schema_payload.get("slides") or []][:12]
-        LOGGER.info(
-            "[template_layout] extract-schema succeeded template=%r "
-            "payload_name=%r ordered=%s icon_weight=%s slide_count=%d slide_ids(sample)=%s",
-            layout_name,
-            schema_payload.get("name"),
-            schema_payload.get("ordered"),
-            schema_payload.get("icon_weight"),
-            len(schema_payload.get("slides") or []),
-            slide_ids,
-        )
-    except HTTPException as exc:
-        # Backward compatibility: older export runtimes do not implement
-        # extract-schema and return "Invalid task type".
-        runtime_error = str(exc.detail)
-    except Exception as exc:  # noqa: BLE001
-        runtime_error = str(exc)
-
-    if schema_payload is None:
-        schema_payload, fallback_error = await _fetch_template_fallback_payload(
-            layout_name
-        )
-        if schema_payload and runtime_error:
+    lock = _locks.setdefault(layout_name, asyncio.Lock())
+    async with lock:
+        cached = _cache.get(fingerprint)
+        if cached is None:
+            cached = await _load_layout(layout_name)
+            # Drop stale versions of this template before storing the new one.
+            for key in [k for k in _cache if k.split(":", 1)[0] == layout_name]:
+                del _cache[key]
+            _cache[fingerprint] = cached
             LOGGER.info(
-                "[template_layout] primary extract-schema failed template=%r detail=%s",
+                "[template_layout] cached template=%r slides=%d fingerprint=%s",
                 layout_name,
-                _preview_detail(runtime_error),
+                len(cached.slides),
+                fingerprint,
             )
+    return cached.model_copy(deep=True)
 
-        if schema_payload is None:
-            error_detail = runtime_error or fallback_error or "unknown error"
-            if runtime_error:
-                LOGGER.warning(
-                    "[template_layout] extract-schema HTTP error template=%r detail=%s",
-                    layout_name,
-                    _preview_detail(runtime_error),
-                )
-            LOGGER.error(
-                "[template_layout] no schema payload template=%r combined_detail=%s",
-                layout_name,
-                _preview_detail(error_detail),
-            )
-            raise HTTPException(
-                status_code=404,
-                detail=f"Template '{layout_name}' not found: {error_detail}",
-            )
-    elif not layout_name.startswith("custom-"):
-        # The bundled export runtime can read the schema page but currently keeps
-        # only name/order/slides from settings. The JSON fallback is cheaper and
-        # preserves template-level settings such as icon weight.
-        fallback_payload, _ = await _fetch_template_fallback_payload(layout_name)
-        if fallback_payload:
-            fallback_icon_weight = extract_icon_weight_from_settings(fallback_payload)
-            schema_payload["icon_weight"] = fallback_icon_weight
 
-    local_settings = _read_builtin_template_settings(layout_name)
-    if local_settings:
-        local_icon_weight = extract_icon_weight_from_settings(local_settings)
-        schema_payload["icon_weight"] = local_icon_weight
-        LOGGER.info(
-            "[template_layout] local settings applied template=%r icon_weight=%s",
-            layout_name,
-            local_icon_weight,
-        )
-
-    slides = schema_payload.get("slides") or []
-    if not slides:
-        LOGGER.error(
-            "[template_layout] slides empty after resolve template=%r keys=%s",
-            layout_name,
-            list(schema_payload.keys()),
-        )
-        raise HTTPException(
-            status_code=404,
-            detail=f"Template '{layout_name}' not found",
-        )
-
-    LOGGER.info(
-        "[template_layout] building PresentationLayoutModel template=%r slides=%d icon_weight=%s",
-        layout_name,
-        len(slides),
-        schema_payload.get("icon_weight"),
-    )
-    return PresentationLayoutModel(**schema_payload)
+def clear_layout_cache() -> None:
+    _cache.clear()
