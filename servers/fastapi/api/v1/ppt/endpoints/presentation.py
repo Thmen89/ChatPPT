@@ -11,6 +11,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from chatppt.hooks import run_hook
+from chatppt.themes import default_presentation_theme
 from constants.presentation import DEFAULT_TEMPLATES, MAX_NUMBER_OF_SLIDES
 from enums.webhook_event import WebhookEvent
 from models.api_error_model import APIErrorModel
@@ -326,6 +328,7 @@ async def create_presentation(
         include_table_of_contents=include_table_of_contents,
         include_title_slide=include_title_slide,
         web_search=web_search,
+        theme=default_presentation_theme(),
     )
 
     sql_session.add(presentation)
@@ -501,6 +504,7 @@ async def stream_presentation(
                         speaker_note=payload.get("__speaker_note__", ""),
                         content=payload,
                     )
+                    slide = await run_hook("after_slide", slide)
                     slides[index] = slide
                     # Placeholders first, so the editor can draw the slide right away.
                     process_slide_add_placeholder_assets(slide)
@@ -929,6 +933,7 @@ async def generate_presentation_handler(
             tone=request.tone.value,
             verbosity=request.verbosity.value,
             instructions=request.instructions,
+            theme=default_presentation_theme(),
         )
 
         # Updating async status
@@ -976,6 +981,7 @@ async def generate_presentation_handler(
                     speaker_note=payload.get("__speaker_note__"),
                     content=payload,
                 )
+                slide = await run_hook("after_slide", slide)
                 built_slides[i] = slide
                 async_assets_generation_tasks.append(
                     asyncio.create_task(

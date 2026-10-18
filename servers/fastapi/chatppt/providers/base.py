@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -28,6 +28,10 @@ class LLMProviderSpec:
     """Runs on the user's machine or network (Ollama, LM Studio): no key, no outbound call."""
 
 
+ImageGenerate = Callable[[str, str], Awaitable[str] | str]
+"""``generate(prompt, output_dir)`` -> a file path under ``output_dir`` or an http(s) URL."""
+
+
 @dataclass(frozen=True)
 class ImageProviderSpec:
     id: str
@@ -35,3 +39,6 @@ class ImageProviderSpec:
     kind: Literal["stock", "generative"]
     needs: tuple[str, ...] = ("api_key",)
     default_model: str | None = None
+    generate: ImageGenerate | None = None
+    """Set by providers added in ``<data>/providers/``; the built-ins are still dispatched by
+    ``services/image_generation_service.py``."""

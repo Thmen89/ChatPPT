@@ -62,6 +62,10 @@ from utils.image_provider import (
 
 
 def _check_image_provider_configuration() -> None:
+    from chatppt.providers.plugins import selected_image_plugin
+
+    if selected_image_plugin() is not None:  # a provider file in <data>/providers/
+        return
     selected_image_provider = get_selected_image_provider()
     if not selected_image_provider:
         raise Exception("IMAGE_PROVIDER must be provided")
@@ -104,6 +108,14 @@ def _check_image_provider_configuration() -> None:
 async def check_llm_and_image_provider_api_or_model_availability():
     can_change_keys = get_can_change_keys_env() != "false"
     skip_image_validation = is_image_generation_disabled()
+    from chatppt.providers.plugins import plugin_llm_selected
+
+    if not can_change_keys and plugin_llm_selected():
+        # The LLM comes from a provider file in <data>/providers/; the checks below only
+        # know upstream's providers.
+        if not skip_image_validation:
+            _check_image_provider_configuration()
+        return
     if not can_change_keys:
         if get_llm_provider() == LLMProvider.OPENAI:
             openai_api_key = get_openai_api_key_env()

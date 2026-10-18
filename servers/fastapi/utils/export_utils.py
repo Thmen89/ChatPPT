@@ -6,6 +6,8 @@ import uuid
 
 from pathvalidate import sanitize_filename
 
+from chatppt.hooks import run_hook
+
 from models.presentation_and_path import PresentationAndPath
 from utils.filename_utils import safe_export_basename
 from utils.internal_urls import nextjs_base_url
@@ -65,6 +67,7 @@ async def export_presentation(
         presentation_id=str(presentation_id),
         export_as=export_as,
     )
+    await run_hook("after_export", export_result.path)
     return PresentationAndPath(
         presentation_id=presentation_id,
         path=export_result.path,

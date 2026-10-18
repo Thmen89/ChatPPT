@@ -53,6 +53,13 @@ class ImageGenerationService:
         if self.is_image_generation_disabled:
             return None
 
+        # An image provider added as a file in <data>/providers/ (chatppt/providers/plugins.py).
+        from chatppt.providers.plugins import selected_image_plugin
+
+        plugin = selected_image_plugin()
+        if plugin is not None:
+            return plugin
+
         if is_pixabay_selected():
             return self.get_image_from_pixabay
         elif is_pixels_selected():

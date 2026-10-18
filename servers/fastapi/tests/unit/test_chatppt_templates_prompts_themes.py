@@ -111,23 +111,30 @@ def test_prompt_override_and_render(tmp_path):
         prompts.load_prompt("does-not-exist", tmp_path)
 
 
-def test_default_theme_and_user_theme(tmp_path):
-    default = themes.load_theme("default", tmp_path)
-    assert default.colors.accent == "#2563eb"
-    assert default.css_variables()["--chatppt-color-accent"] == "#2563eb"
+def test_shipped_and_user_themes(tmp_path):
+    graphite = themes.load_theme("graphite", tmp_path)
+    assert graphite.colors.primary == "#f5b301"
+    assert graphite.css_variables()["--primary-color"] == "#f5b301"
 
     (tmp_path / "house.json").write_text(
         json.dumps(
             {
                 "name": "House",
-                "colors": {"primary": "#000", "accent": "#FF0000"},
-                "fonts": {"heading": "Georgia"},
-                "footer": "Confidential",
+                "colors": {"primary": "#000", "background_text": "#FF0000", "graph": ["#111111", "#222222"]},
+                "font": {"name": "Georgia"},
             }
         )
     )
     house = themes.load_theme("house", tmp_path)
-    assert house.id == "house" and house.colors.accent == "#ff0000" and house.fonts.body == "Inter"
-    assert set(themes.list_themes(tmp_path)) == {"default", "house"}
+    assert house.id == "house" and house.colors.background_text == "#ff0000" and house.colors.card == "#f3f4f6"
+    variables = house.css_variables()
+    assert variables["--graph-0"] == "#111111" and variables["--graph-9"] == "#222222"  # cycles to ten slots
+    assert variables["--heading-font-family"] == '"Georgia"'
+    data = house.presentation_theme()["data"]
+    assert data["colors"]["graph_2"] == "#111111" and data["fonts"]["textFont"] == {"name": "Georgia", "url": ""}
+
+    assert set(themes.list_themes(tmp_path)) == {"graphite", "house"}
     (tmp_path / "broken.json").write_text(json.dumps({"name": "b", "colors": {"primary": "red"}}))
     assert "broken" not in themes.list_themes(tmp_path)
+    with pytest.raises(KeyError):
+        themes.load_theme("../house", tmp_path)

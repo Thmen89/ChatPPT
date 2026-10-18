@@ -8,14 +8,13 @@ the built-in one. Both servers discover templates with the same rules (see
 
 Layout files keep the format upstream already uses: each exports ``layoutId``,
 ``layoutName``, ``layoutDescription``, a zod ``Schema`` and a default React component.
-Until a built-in folder gains ``template.json`` its legacy ``settings.json`` is read.
+A folder without ``template.json`` falls back to a legacy ``settings.json``.
 
 Folder layout::
 
     <id>/
       template.json      manifest (below)
       *.tsx              layouts, one per slide type
-      theme.json         optional theme tokens (chatppt/themes.py)
       fonts/  assets/    optional files the layouts reference by relative URL
 """
 
@@ -53,7 +52,6 @@ class TemplateManifest(BaseModel):
     layouts: list[str] | None = Field(
         default=None, description="Layout file names in order; default is every .tsx sorted by name."
     )
-    theme: str | None = Field(default=None, description="theme.json in the folder, or a theme id from <data>/themes.")
     fonts: dict[str, str] = Field(
         default_factory=dict,
         description="Font family -> URL or a file under fonts/ (a list of files under fonts/ also works).",

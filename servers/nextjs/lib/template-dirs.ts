@@ -21,7 +21,6 @@ export type TemplateManifest = {
   default: boolean;
   icon_weight: string;
   layouts?: string[];
-  theme?: string;
   fonts: Record<string, string>;
 };
 
@@ -121,7 +120,6 @@ export async function readTemplateManifest(dir: string): Promise<TemplateManifes
       default: Boolean(raw.default),
       icon_weight: normalizeIconWeight(raw.icon_weight),
       layouts: Array.isArray(raw.layouts) ? raw.layouts : undefined,
-      theme: typeof raw.theme === "string" ? raw.theme : undefined,
       fonts: normalizeFonts(raw.fonts),
     };
   } catch {

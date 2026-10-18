@@ -113,8 +113,8 @@ const PresentationHeader = ({
   useEffect(() => {
     const load = async () => {
       try {
-        const [customThemes] = await Promise.all([ThemeApi.getThemes()]);
-        setThemes([...customThemes, ...DEFAULT_THEMES]);
+        const [customThemes, fileThemes] = await Promise.all([ThemeApi.getThemes(), ThemeApi.getFileThemes()]);
+        setThemes([...customThemes, ...fileThemes, ...DEFAULT_THEMES]);
       } catch (e: any) {
         notify.error("Could not load themes", e?.message || "Failed to load themes.");
       }

@@ -6,6 +6,7 @@ import {
   bundledExportPackageAvailable,
   runBundledPresentationExport,
 } from "@/lib/run-bundled-presentation-export";
+import { runAfterExportHook } from "@/lib/export-hooks";
 
 function isValidFormat(value: unknown): value is BundledPresentationExportFormat {
   return value === "pdf" || value === "pptx";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
       title,
       cookieHeader,
     });
+    await runAfterExportHook(outPath, cookieHeader);
 
     return NextResponse.json({
       success: true,

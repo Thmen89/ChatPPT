@@ -141,7 +141,10 @@ class PathSettings(BaseModel):
 
 class GenerationDefaults(BaseModel):
     template: str = Field(default="general", description="Template used when a request names none.")
-    theme: str | None = Field(default=None, description="Theme id applied when a request names none.")
+    theme: str | None = Field(
+        default=None,
+        description="Theme applied to new decks (<data>/themes/<id>.json); unset keeps each template's colours.",
+    )
     n_slides: int = Field(default=10, ge=1, le=50)
     language: str | None = Field(default=None, description="Default output language; unset lets the model detect it.")
     tone: str = Field(default="default")
@@ -498,6 +501,12 @@ def apply_to_environ(settings: Settings, environ: Any = os.environ) -> list[str]
     written = []
     legacy = to_legacy_env(settings)
     values = {e.env: legacy[e.env] for e in LEGACY_ENV if e.path in settings.explicit and e.env in legacy}
+    # Upstream code cannot parse a provider id it does not know (toml-only or a plugin in
+    # <data>/providers): keep it out of LLM / IMAGE_PROVIDER; the aliases below cover base_url.
+    if settings.llm.provider not in LEGACY_LLM_IDS:
+        values.pop("LLM", None)
+    if settings.images.provider not in LEGACY_IMAGE_IDS:
+        values.pop("IMAGE_PROVIDER", None)
     values.update(_openai_compatible_aliases(settings))
     if environ is os.environ:
         _bridge["active"] = True
