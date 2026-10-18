@@ -163,6 +163,16 @@ if (["1", "true", "yes", "on"].includes(String(process.env.START_OLLAMA).toLower
 
 /** Baked into the image at build time; this only reports, it never downloads. */
 const checkExportRuntime = () => {
+  if (String(process.env.CHATPPT_EXPORT_ENGINE || "").trim().toLowerCase() !== "bundle") {
+    // The built-in exporter needs only a Chromium (the Next.js server drives it).
+    const chromium = process.env.CHATPPT_CHROMIUM_PATH?.trim() || process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+    if (!chromium || !existsSync(chromium)) {
+      warn(
+        `PPTX/PDF export is unavailable: no Chromium at PUPPETEER_EXECUTABLE_PATH (${chromium || "unset"}).`
+      );
+    }
+    return;
+  }
   const root =
     process.env.EXPORT_RUNTIME_DIR?.trim() ||
     process.env.EXPORT_PACKAGE_ROOT?.trim() ||

@@ -55,10 +55,11 @@ async function getAuthStatus(request: NextRequest): Promise<AuthStatus> {
   }
 }
 
-/** What the exporter's read-only token may reach here: reads, and compiling the CSS of
- * folder templates (a POST with no side effects). */
+/** What the exporter's read-only token may reach here: reads, and two POSTs with no side
+ * effects: compiling the CSS of folder templates, and rendering a deck for FastAPI's export. */
 function isExporterAllowed(request: NextRequest): boolean {
-  return request.method === "GET" || request.nextUrl.pathname === "/api/template/css";
+  const { pathname } = request.nextUrl;
+  return request.method === "GET" || pathname === "/api/template/css" || pathname === "/api/export-presentation/render";
 }
 
 function isApiAuthExempt(pathname: string): boolean {

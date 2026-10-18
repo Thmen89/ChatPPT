@@ -210,8 +210,11 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
   const slides = presentationData?.slides ?? [];
   const isLoading = contentLoading || slides.length === 0;
 
+  // The exporter waits for this instead of guessing with timeouts.
+  const exportState = error ? "error" : contentLoading ? "loading" : "ready";
+
   return (
-    <div className="m-0 flex flex-col overflow-visible p-0">
+    <div className="m-0 flex flex-col overflow-visible p-0" data-export-state={exportState}>
       {error ? (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
           <div

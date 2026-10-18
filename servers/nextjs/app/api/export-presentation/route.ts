@@ -8,6 +8,8 @@ import {
 } from "@/lib/run-bundled-presentation-export";
 import { runAfterExportHook } from "@/lib/export-hooks";
 import { exporterCookieHeader } from "@/lib/export-auth";
+import { exportEngine, exportPresentationFile } from "@/lib/export/export-file";
+import { sanitizeFilename } from "@/app/(presentation-generator)/utils/others";
 
 function isValidFormat(value: unknown): value is BundledPresentationExportFormat {
   return value === "pdf" || value === "pptx";
@@ -32,6 +34,15 @@ function buildExportDownloadUrl(outPath: string): string {
   return `/api/export-presentation/file?name=${encodeURIComponent(relativePath)}`;
 }
 
+function callerCredentials(req: NextRequest): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const name of ["cookie", "authorization"]) {
+    const value = req.headers.get(name);
+    if (value) headers[name] = value;
+  }
+  return headers;
+}
+
 export async function POST(req: NextRequest) {
   const { format, id, title } = await req.json();
   const cookieHeader = req.headers.get("cookie") ?? "";
@@ -51,19 +62,30 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (!(await bundledExportPackageAvailable())) {
-      throw new Error(
-        "presentation-export runtime is not available. Run scripts/sync-presentation-export.cjs to install it."
-      );
+    // A short-lived read-only token, never the user's own session.
+    const exporterCookie = await exporterCookieHeader(cookieHeader);
+    let outPath: string;
+    if (exportEngine() === "bundle") {
+      if (!(await bundledExportPackageAvailable())) {
+        throw new Error(
+          "presentation-export runtime is not available. Run scripts/sync-presentation-export.cjs to install it."
+        );
+      }
+      ({ path: outPath } = await runBundledPresentationExport({
+        format,
+        presentationId: id,
+        title,
+        cookieHeader: exporterCookie,
+      }));
+    } else {
+      outPath = await exportPresentationFile({
+        format,
+        presentationId: id,
+        title: sanitizeFilename(title ?? "presentation"),
+        exporterCookie,
+        callerHeaders: callerCredentials(req),
+      });
     }
-
-    const { path: outPath } = await runBundledPresentationExport({
-      format,
-      presentationId: id,
-      title,
-      // A short-lived read-only token, never the user's own session.
-      cookieHeader: await exporterCookieHeader(cookieHeader),
-    });
     await runAfterExportHook(outPath, cookieHeader);
 
     return NextResponse.json({
