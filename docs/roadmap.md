@@ -61,6 +61,13 @@ export match it, which means sign-in, users, tokens and the hardening cost nothi
 measurable. Export on that host breaks down as page load 3.2 s, fixed waits 4 s, attribute
 reads 5.4 s, screenshots 3.2 s, converter 4 s; same bound as above.
 
+New exporter (`claude/j-exporter`): a warm Chromium in the Next.js server, one DOM walk,
+ready signals instead of fixed sleeps and the PPTX written inside FastAPI. On the same host,
+PPTX export goes from 17.8 s to 4.2–4.3 s and the API deck incl. PPTX from 18.2 s to 5.2 s
+(6.9 s at 800 ms); PDF is about twice as fast. Output matches the old exporter shape for
+shape on the three decks compared. What remains is mostly the pdf-maker page loading a
+4.3 MB chunk with every template (~1.2 s).
+
 Reading the baseline:
 
 - **Export dominates.** 17–18 s of a 27 s API deck is the Puppeteer/PPTX export, with
