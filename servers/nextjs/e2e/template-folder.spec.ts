@@ -14,22 +14,15 @@ test("a dropped-in template folder generates, renders and exports", async ({ pag
   expect(listed.map((t: { id: string }) => t.id)).toContain("desk");
 
   await page.goto("/upload");
+  // The template is picked with the prompt, so the outline call also picks each slide's layout.
+  await page.getByTestId("template-select").selectOption("desk");
+  await page.getByTestId("slides-select").selectOption("3");
   await page.getByTestId("prompt-input").fill("Three slides on a trading desk's weekly review");
-  await page.getByTestId("slides-select").click();
-  const customCount = page.getByPlaceholder("--");
-  await customCount.fill("3");
-  await customCount.blur();
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("slides-select")).toHaveText(/3 slides/);
-  await page.getByRole("button", { name: "Get Started" }).click();
+  await page.getByTestId("prompt-input").press("Enter");
 
   await page.waitForURL("**/outline");
-  await expect(page.getByRole("button", { name: "Select a Template" })).toBeVisible();
-  const templateTab = page.getByRole("tab", { name: "Select Template" });
-  await templateTab.click();
-  await expect(templateTab).toHaveAttribute("aria-selected", "true");
-  await page.locator("h3", { hasText: /^Desk$/ }).first().click();
-  await page.getByRole("button", { name: /Generate Presentation/ }).click();
+  await expect(page.getByTestId("generate-deck")).toBeEnabled();
+  await page.getByTestId("generate-deck").click();
 
   await page.waitForURL(/\/presentation\?id=/);
   const id = new URL(page.url()).searchParams.get("id");

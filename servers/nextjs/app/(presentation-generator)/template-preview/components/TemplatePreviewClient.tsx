@@ -7,7 +7,7 @@ import { ArrowLeft, Home, Loader2, Trash2 } from "lucide-react";
 import "../../utils/prism-languages";
 
 import TemplateService from "../../services/api/template";
-import Header from "../../(dashboard)/dashboard/components/Header";
+import AppNav from "@/components/AppNav";
 import { notify } from "@/components/ui/sonner";
 import {
   CustomTemplateLayout,
@@ -67,7 +67,7 @@ const GroupLayoutPreview = () => {
   if (isCustom && customLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
+        <AppNav />
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <span className="ml-3 text-gray-600">Compiling templates...</span>
@@ -79,7 +79,7 @@ const GroupLayoutPreview = () => {
   if (isCustom && customError) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
+        <AppNav />
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
           <p className="text-gray-600 mb-4">{customError}</p>
@@ -98,7 +98,7 @@ const GroupLayoutPreview = () => {
   ) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
+        <AppNav />
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Template not found
@@ -122,7 +122,7 @@ const GroupLayoutPreview = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <AppNav />
 
       <header className=" z-30">
         <div className=" mx-auto px-6 pb-[30px]">

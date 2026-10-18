@@ -90,7 +90,7 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
 
         /* Typography — slight scale-up from original 12px, capped modestly */
         [data-sonner-toast][data-styled="true"] [data-title] {
-          font-family: var(--font-syne), ui-sans-serif, system-ui, -apple-system,
+          font-family: var(--), ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
             "Noto Sans", sans-serif !important;
           font-size: clamp(0.8125rem, 0.8rem + 0.12vw, 0.9375rem) !important;
@@ -102,7 +102,7 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
         }
 
         [data-sonner-toast][data-styled="true"] [data-description] {
-          font-family: var(--font-syne), ui-sans-serif, system-ui, -apple-system,
+          font-family: var(--), ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
             "Noto Sans", sans-serif !important;
           font-size: clamp(0.6875rem, 0.67rem + 0.1vw, 0.8125rem) !important;
@@ -162,7 +162,7 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
           padding: clamp(4px, 0.3rem + 0.2vw, 7px)
             clamp(7px, 0.5rem + 0.25vw, 10px) !important;
           border-radius: 6px !important;
-          font-family: var(--font-syne), ui-sans-serif, system-ui, -apple-system,
+          font-family: var(--), ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
             "Noto Sans", sans-serif !important;
           font-size: clamp(0.625rem, 0.62rem + 0.08vw, 0.75rem) !important;
@@ -194,7 +194,7 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
           color: #3f3f3f !important;
           border: 1px solid #edeeef !important;
           box-shadow: none !important;
-          font-family: var(--font-syne), ui-sans-serif, system-ui, -apple-system,
+          font-family: var(--), ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
             "Noto Sans", sans-serif !important;
           font-size: clamp(0.625rem, 0.62rem + 0.08vw, 0.75rem) !important;

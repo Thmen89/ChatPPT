@@ -16,11 +16,14 @@ export interface PresentationData {
   theme: Theme | null;
 }
 
+/** One outline slide; `layout` is the template layout index the outline call picked. */
+export type OutlineSlide = { content: string; layout?: number };
+
 interface PresentationGenerationState {
   presentation_id: string | null;
   isLoading: boolean;
   isStreaming: boolean | null;
-  outlines: { content: string }[];
+  outlines: OutlineSlide[];
   error: string | null;
   presentationData: PresentationData | null;
   isSlidesRendered: boolean;
@@ -74,7 +77,7 @@ const presentationGenerationSlice = createSlice({
       state.outlines = [];
     },
     // Set outlines
-    setOutlines: (state, action: PayloadAction<{ content: string }[]>) => {
+    setOutlines: (state, action: PayloadAction<OutlineSlide[]>) => {
       state.outlines = action.payload;
     },
     // Set presentation data

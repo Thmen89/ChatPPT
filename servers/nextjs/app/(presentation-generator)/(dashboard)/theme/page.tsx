@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ThemePanel from './components/ThemePanel'
 const page = () => {
     return (
-        <ThemePanel />
+        <Suspense>
+            <ThemePanel />
+        </Suspense>
     )
 }
 

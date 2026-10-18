@@ -1,16 +1,11 @@
-import React from 'react'
-import DashboardSidebar from './Components/DashboardSidebar'
+import React from "react";
+import AppNav from "@/components/AppNav";
 
-const layout = ({ children }: { children: React.ReactNode }) => {
-    return (
-        <div className='flex pr-4 bg-white'>
-            <DashboardSidebar />
-            <div className='w-full'>
-
-                {children}
-            </div>
-        </div>
-    )
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-white">
+      <AppNav />
+      <main className="mx-auto w-full max-w-[1200px] px-6 py-6">{children}</main>
+    </div>
+  );
 }
-
-export default layout

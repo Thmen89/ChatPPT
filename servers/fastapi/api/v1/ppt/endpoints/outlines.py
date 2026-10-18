@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.presentation_outline_model import PresentationOutlineModel
+from models.presentation_structure_model import PresentationStructureModel
 from models.sql.presentation import PresentationModel
 from models.sse_response import (
     SSECompleteResponse,
@@ -72,6 +73,12 @@ async def stream_outlines(
         else:
             n_slides_to_generate = None
 
+        # Template chosen up front (/create with `template`): the outline call also picks
+        # each slide's layout, so /prepare can skip the structure call.
+        layout = presentation.get_layout() if presentation.layout else None
+        if layout is not None and (layout.ordered or not layout.slides):
+            layout = None
+
         outline_messages = get_outline_messages(
             presentation.content,
             n_slides_to_generate,
@@ -82,6 +89,7 @@ async def stream_outlines(
             presentation.instructions,
             presentation.include_title_slide,
             presentation.include_table_of_contents,
+            layout,
         )
         await MEM0_PRESENTATION_MEMORY_SERVICE.store_generation_context(
             presentation_id=presentation.id,
@@ -111,6 +119,7 @@ async def stream_outlines(
             presentation.include_title_slide,
             presentation.web_search,
             presentation.include_table_of_contents,
+            layout,
         ):
             # Give control to the event loop
             await asyncio.sleep(0)
@@ -160,6 +169,16 @@ async def stream_outlines(
             presentation.n_slides = len(presentation_outlines.slides)
 
         presentation.outlines = presentation_outlines.model_dump()
+        if layout is not None:
+            picked = [
+                slide.get("layout") if isinstance(slide, dict) else None
+                for slide in presentation_outlines_json.get("slides") or []
+            ][: len(presentation_outlines.slides)]
+            if len(picked) == len(presentation_outlines.slides) and all(
+                isinstance(index, int) and 0 <= index < len(layout.slides)
+                for index in picked
+            ):
+                presentation.set_structure(PresentationStructureModel(slides=picked))
         presentation.title = get_presentation_title_from_presentation_outline(
             presentation_outlines
         )

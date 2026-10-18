@@ -1,17 +1,3 @@
-export interface UploadedFile {
-  id: string;
-  file: File;
-  size: string;
-}
-export enum ThemeType {
-  Light = "light",
-  Dark = "dark",
-  Custom = "custom",
-  Faint_Yellow = "faint_yellow",
-  Royal_Blue = "royal_blue",
-  Light_Red = "light_red",
-  Dark_Pink = "dark_pink",
-}
 
 export enum LanguageType {
   // Major World Languages
@@ -120,6 +106,8 @@ export enum LanguageType {
 }
 
 export interface PresentationConfig {
+  /** Template id, chosen before the outline (the outline call then picks the layouts). */
+  template: string;
   slides: string | null;
   language: LanguageType | null;
   prompt: string;

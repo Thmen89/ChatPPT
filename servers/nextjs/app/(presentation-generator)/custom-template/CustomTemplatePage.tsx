@@ -23,7 +23,7 @@ import { SaveLayoutModal } from "./components/SaveLayoutModal";
 import { FileUploadSection } from "./components/FileUploadSection";
 
 import { useFontLoader } from "../hooks/useFontLoad";
-import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
+import AppNav from "@/components/AppNav";
 
 type LibreOfficeGateState = "checking" | "ready" | "missing" | "installing" | "error";
 
@@ -419,7 +419,7 @@ const CustomTemplatePage = () => {
         <div className="relative min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
 
             <div className={libreStatus === "ready" ? "" : "pointer-events-none select-none blur-[3px]"}>
-                <Header />
+                <AppNav />
                 <TemplateStudioHeader />
                 {showFileUpload ? (
                     <div className="pb-24">

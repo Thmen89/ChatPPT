@@ -158,7 +158,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                   ) : (
                     <div className="flex items-center justify-end gap-2.5">
 
-                      <button className="px-4 py-2.5 text-xs font-semibold text-[#101323] font-syne tracking-[-0.12px] flex gap-1"
+                      <button className="px-4 py-2.5 text-xs font-semibold text-[#101323] tracking-[-0.12px] flex gap-1"
                         style={{
                           borderRadius: '48px',
                           background: 'linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)',

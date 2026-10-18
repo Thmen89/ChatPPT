@@ -312,14 +312,15 @@ def mock_stats(reset: bool = False) -> dict:
 
 
 def ui_flow(base: str, n_slides: int, template: str, export: bool, want_tokens: bool) -> dict:
-    """The clicks a user makes: create → outline → prepare → stream → export."""
+    """The calls the UI makes: create (with the template, picked next to the prompt) →
+    outline (also picks each slide's layout) → prepare (no structure call) → stream → export."""
     r: dict = {}
     if want_tokens:
         mock_stats(reset=True)
 
     t0 = time.monotonic()
     created = http("POST", f"{base}/api/v1/ppt/presentation/create",
-                   {"content": PROMPT, "n_slides": n_slides, "language": "English"})
+                   {"content": PROMPT, "n_slides": n_slides, "language": "English", "template": template})
     pid = created["id"]
     outline: dict = {}
 
@@ -332,14 +333,12 @@ def ui_flow(base: str, n_slides: int, template: str, export: bool, want_tokens: 
     sse(f"{base}/api/v1/ppt/outlines/stream/{pid}", on_outline)
     r["outline_s"] = round(time.monotonic() - t0, 2)
 
-    t1 = time.monotonic()
-    layout = http("GET", f"{base}/api/template?group={template}")
-    r["layout_fetch_s"] = round(time.monotonic() - t1, 2)
-
+    # The layout was resolved once by /create (cached server-side); nothing to fetch here.
+    layouts = (outline.get("structure") or {}).get("slides")
     t2 = time.monotonic()
     http("POST", f"{base}/api/v1/ppt/presentation/prepare", {
         "presentation_id": pid, "outlines": outline["outlines"]["slides"],
-        "layout": layout, "title": outline.get("title")})
+        "layouts": layouts, "title": outline.get("title")})
     r["prepare_s"] = round(time.monotonic() - t2, 2)
 
     first = {"t": None, "n": 0}
