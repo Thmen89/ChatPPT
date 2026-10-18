@@ -1,6 +1,7 @@
 import aiohttp
-from openai import AsyncOpenAI
-from google import genai
+
+# Provider SDKs are imported where they are used: google-genai alone adds about a second
+# and 50 MB to every server start, and most installs never list models from it.
 
 
 def normalize_openai_compatible_base_url(url: str) -> str:
@@ -68,6 +69,8 @@ async def list_available_openai_compatible_models(url: str, api_key: str) -> lis
 
     # Local LiteLLM / OpenAI-compatible proxies often omit auth; SDK rejects a blank key.
     effective_key = (api_key or "").strip() or "EMPTY"
+    from openai import AsyncOpenAI
+
     client = AsyncOpenAI(api_key=effective_key, base_url=url)
     models = (await client.models.list()).data
     if models:
@@ -94,5 +97,7 @@ async def list_available_anthropic_models(api_key: str) -> list[str]:
 
 
 async def list_available_google_models(api_key: str) -> list[str]:
+    from google import genai
+
     client = genai.Client(api_key=api_key)
     return [x.name for x in client.models.list(config={"page_size": 50}) if x.name]

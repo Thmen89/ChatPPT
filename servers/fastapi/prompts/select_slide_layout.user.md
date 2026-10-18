@@ -1,0 +1,3 @@
+- User Prompt: {prompt}
+- Current Slide Data: {slide_data}
+- Current Slide Layout: {current_layout}
