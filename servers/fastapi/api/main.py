@@ -1,5 +1,7 @@
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+from api import mcp
 from api.lifespan import app_lifespan
+from api.observability import AccessLogMiddleware, UnbufferedStreamsMiddleware, health_router
 from api.middlewares import SessionAuthMiddleware
 from api.v1.auth.router import API_V1_AUTH_ROUTER
 from api.v1.config.router import API_V1_CONFIG_ROUTER
@@ -56,9 +60,21 @@ def _maybe_init_sentry() -> None:
 
 _maybe_init_sentry()
 
-app = FastAPI(lifespan=app_lifespan)
+_mcp: mcp.LazyMCP | None = None
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async with app_lifespan(app):
+        yield
+        if _mcp is not None:
+            await _mcp.aclose()
+
+
+app = FastAPI(lifespan=_lifespan)
 
 # Routers
+app.include_router(health_router)
 app.include_router(API_V1_PPT_ROUTER)
 app.include_router(API_V1_WEBHOOK_ROUTER)
 app.include_router(API_V1_MOCK_ROUTER)
@@ -66,7 +82,11 @@ app.include_router(API_V1_AUTH_ROUTER)
 app.include_router(API_V1_CONFIG_ROUTER)
 app.include_router(API_V1_HOOKS_ROUTER)
 
-# Mount app_data and static assets (direct FastAPI access; nginx also serves /static in Docker).
+# MCP at /mcp, in this process (built on first use; see api/mcp.py).
+_mcp = mcp.mount(app)
+
+# Mount app_data and static assets. The public port (Next.js) forwards /app_data and /static
+# here, so these follow APP_DATA_DIRECTORY / server.data_dir wherever it points.
 app_data_dir = get_app_data_directory_env()
 if app_data_dir:
     os.makedirs(app_data_dir, exist_ok=True)
@@ -102,3 +122,8 @@ async def static_icon_fallback_middleware(request: Request, call_next):
     if not os.path.isfile(placeholder):
         return response
     return FileResponse(placeholder, media_type="image/svg+xml")
+
+
+# Added last, so outermost: unbuffered event streams, one log line per request.
+app.add_middleware(UnbufferedStreamsMiddleware)
+app.add_middleware(AccessLogMiddleware)

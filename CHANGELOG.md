@@ -20,7 +20,7 @@ The lean rebuild.
     `CHATPPT_CHROMIUM_CACHE_RECOVERY` and the Electron build `CHATPPT_*` variables replace
     their `PRESENTON_*` names; the old names are still read for one release.
   - Default temp directory is `/tmp/chatppt`.
-- Zero telemetry and offline start: Mixpanel and the built-in Sentry DSN are removed; error
+- Zero telemetry and offline start: the bundled product analytics and the built-in Sentry DSN are removed; error
   reporting is opt-in via `server.error_reporting_dsn`; the desktop update check is off by
   default; chat memory (mem0) is off by default; nothing is downloaded at runtime (icon and
   memory models are baked in at build time); `docs/telemetry.md` says what is sent. (#4)

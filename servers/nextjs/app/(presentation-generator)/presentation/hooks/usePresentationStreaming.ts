@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import {
   clearPresentationData,
@@ -7,7 +7,6 @@ import {
   updateSlide,
   type PresentationData,
 } from "@/store/slices/presentationGeneration";
-import { jsonrepair } from "jsonrepair";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl, normalizeBackendAssetUrls } from "@/utils/api";
 import { store } from "@/store/store";
@@ -88,22 +87,40 @@ function mergeContentPreservingResolvedAssets(prev: any, incoming: any): any {
   return result;
 }
 
-function mergeSlidesPreservingResolvedAssets(
-  prevSlides: any[] | undefined,
-  incomingSlides: any[]
-): any[] {
-  if (!prevSlides?.length) return incomingSlides;
-  return incomingSlides.map((incoming, idx) => {
-    const prev = prevSlides[idx];
-    if (!prev) return incoming;
-    return {
-      ...incoming,
-      content: mergeContentPreservingResolvedAssets(
-        prev.content,
-        incoming.content
-      ),
-    };
-  });
+/**
+ * Slides are generated in parallel, so each `chunk` event carries one whole slide (with its
+ * `index`) and they can arrive out of order. The opening `{ "slides": [` and closing `] }`
+ * chunks keep the concatenated stream valid JSON and are ignored here.
+ */
+function parseStreamedSlide(chunk: unknown): any | null {
+  if (typeof chunk !== "string") return null;
+  const text = chunk.trim().replace(/^,\s*/, "");
+  if (!text.startsWith("{")) return null;
+  try {
+    const slide = JSON.parse(text);
+    return slide && typeof slide === "object" && typeof slide.index === "number"
+      ? slide
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Insert or replace `incoming` by its slide index, keeping slides sorted by index. */
+function upsertSlideByIndex(prevSlides: any[] | undefined, incoming: any): any[] {
+  const slides = (prevSlides ?? []).filter((s) => s?.index !== incoming.index);
+  const existing = (prevSlides ?? []).find((s) => s?.index === incoming.index);
+  const merged = existing
+    ? {
+        ...incoming,
+        content: mergeContentPreservingResolvedAssets(
+          existing.content,
+          incoming.content
+        ),
+      }
+    : incoming;
+  slides.push(merged);
+  return slides.sort((a, b) => a.index - b.index);
 }
 
 export const usePresentationStreaming = (
@@ -114,7 +131,6 @@ export const usePresentationStreaming = (
   fetchUserSlides: () => void
 ) => {
   const dispatch = useDispatch();
-  const previousSlidesLength = useRef(0);
 
   useEffect(() => {
     if (!stream) {
@@ -123,7 +139,6 @@ export const usePresentationStreaming = (
     }
 
     let eventSource: EventSource | null = null;
-    let accumulatedChunks = "";
     let retryCount = 0;
     let isClosed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -164,8 +179,6 @@ export const usePresentationStreaming = (
 
       closeEventSource();
       clearRetryTimer();
-      accumulatedChunks = "";
-      previousSlidesLength.current = 0;
 
       retryTimer = setTimeout(() => {
         if (!isClosed) {
@@ -194,38 +207,22 @@ export const usePresentationStreaming = (
         }
 
         switch (data.type) {
-          case "chunk":
-            accumulatedChunks += data.chunk;
-            try {
-              const repairedJson = jsonrepair(accumulatedChunks);
-              const partialData = JSON.parse(repairedJson);
-              const normalizedPartialData = normalizeBackendAssetUrls(partialData);
-
-              if (
-                normalizedPartialData.slides &&
-                normalizedPartialData.slides.length > 0
-              ) {
-                const prev =
-                  store.getState().presentationGeneration.presentationData;
-                const mergedSlides = mergeSlidesPreservingResolvedAssets(
+          case "chunk": {
+            const streamed = parseStreamedSlide(data.chunk);
+            if (!streamed) break;
+            const prev = store.getState().presentationGeneration.presentationData;
+            dispatch(
+              setPresentationData({
+                ...(prev ?? {}),
+                slides: upsertSlideByIndex(
                   prev?.slides,
-                  normalizedPartialData.slides
-                );
-                dispatch(
-                  setPresentationData({
-                    ...(prev ?? {}),
-                    ...normalizedPartialData,
-                    slides: mergedSlides,
-                  } as PresentationData)
-                );
-                previousSlidesLength.current =
-                  normalizedPartialData.slides.length;
-                setLoading(false);
-              }
-            } catch (error) {
-              // JSON isn't complete yet, continue accumulating
-            }
+                  normalizeBackendAssetUrls(streamed)
+                ),
+              } as PresentationData)
+            );
+            setLoading(false);
             break;
+          }
 
           case "slide_assets": {
             const idx = data.slide_index;
@@ -235,12 +232,19 @@ export const usePresentationStreaming = (
               data.slide &&
               typeof data.slide === "object"
             ) {
-              dispatch(
-                updateSlide({
-                  index: idx,
-                  slide: normalizeBackendAssetUrls(data.slide),
-                })
-              );
+              // Slides land out of order, so find the slide by its index, not by position.
+              const current =
+                store.getState().presentationGeneration.presentationData?.slides ??
+                [];
+              const position = current.findIndex((s: any) => s?.index === idx);
+              if (position >= 0) {
+                dispatch(
+                  updateSlide({
+                    index: position,
+                    slide: normalizeBackendAssetUrls(data.slide),
+                  })
+                );
+              }
             }
             break;
           }
@@ -264,7 +268,6 @@ export const usePresentationStreaming = (
                 finalizeFailure("Failed to parse final presentation payload.");
               }
             }
-            accumulatedChunks = "";
             break;
 
           case "closing":

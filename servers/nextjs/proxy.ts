@@ -112,5 +112,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/pdf-maker"],
+  // /api/v1/* is FastAPI's (forwarded by next.config.mjs rewrites) and FastAPI checks the
+  // session itself; running this proxy there too would add a round trip per request and
+  // buffer upload bodies.
+  matcher: ["/api/((?!v1/).*)", "/pdf-maker"],
 };

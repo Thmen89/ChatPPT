@@ -18,11 +18,9 @@ from models.sql.template import TemplateModel
 from services.database import async_session_maker
 from templates.presentation_layout import PresentationLayoutModel
 from utils.internal_http import internal_request_headers
+from utils.internal_urls import nextjs_base_url
 
 LOGGER = logging.getLogger(__name__)
-
-_TEMPLATE_SCHEMA_URL = "http://localhost/api/template"
-
 
 async def load_custom_presentation_layout(layout_name: str) -> PresentationLayoutModel:
     """Layouts and schemas of a template folder, compiled by Next.js (no Puppeteer)."""
@@ -32,7 +30,7 @@ async def load_custom_presentation_layout(layout_name: str) -> PresentationLayou
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                _TEMPLATE_SCHEMA_URL,
+                f"{nextjs_base_url()}/api/template",
                 params={"group": layout_name},
                 headers=internal_request_headers(),
             ) as response:

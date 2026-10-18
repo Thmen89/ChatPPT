@@ -1,7 +1,8 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import dirtyjson
@@ -19,6 +20,16 @@ from utils.schema_utils import get_schema_validation_errors
 
 
 LOGGER = logging.getLogger(__name__)
+
+# Provider SDK calls block, so they run in threads. A pool of their own keeps parallel
+# slide calls from queueing behind icon search and file work in asyncio's default pool
+# (which has only cpu_count + 4 threads). Threads start lazily.
+_LLM_EXECUTOR = ThreadPoolExecutor(max_workers=32, thread_name_prefix="llm")
+
+
+async def run_llm_call(func: Callable[..., Any], /, **kwargs: Any) -> Any:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_LLM_EXECUTOR, lambda: func(**kwargs))
 
 
 def get_generate_kwargs(
@@ -51,6 +62,7 @@ def get_generate_kwargs(
 def structured_validation_feedback_user_message(
     content: dict,
     validation_errors: list[str],
+    extra: Optional[str] = None,
 ) -> UserMessage:
     max_error_count = 10
     max_json_chars = 6000
@@ -78,6 +90,7 @@ def structured_validation_feedback_user_message(
             + "\n\nPrevious invalid JSON:\n"
             + f"```json\n{previous_response}\n```\n\n"
             + "Return corrected JSON only. Make sure it fully matches the required schema."
+            + (f"\n\n{extra}" if extra else "")
         )
     )
 
@@ -92,10 +105,14 @@ async def generate_structured_with_schema_retries(
     strict: bool = False,
     validate_schema: bool = False,
     validate_schema_max_loop_count: int = 4,
+    feedback_extra: Optional[Callable[[dict], Optional[str]]] = None,
 ) -> dict:
     """
     Parse retries (inner loop) plus optional JSON Schema validation feedback loops (outer loop),
     matching the overflow-mitigation behavior from structured generation with validate_schema.
+
+    ``feedback_extra(invalid_content)`` may return text appended to the correction message
+    (e.g. the schema itself, for a provider that ignored ``response_format``).
     """
     max_validation_loops = max(1, validate_schema_max_loop_count)
     working_messages: list[Message] = list(messages)
@@ -103,7 +120,7 @@ async def generate_structured_with_schema_retries(
     for validation_attempt in range(max_validation_loops):
         content: Optional[dict] = None
         for attempt in range(3):
-            response = await asyncio.to_thread(
+            response = await run_llm_call(
                 client.generate,
                 **get_generate_kwargs(
                     model=model,
@@ -150,7 +167,11 @@ async def generate_structured_with_schema_retries(
             formatted_validation_errors,
         )
         working_messages.append(
-            structured_validation_feedback_user_message(content, validation_errors)
+            structured_validation_feedback_user_message(
+                content,
+                validation_errors,
+                feedback_extra(content) if feedback_extra else None,
+            )
         )
 
     raise HTTPException(status_code=400, detail="LLM did not return any content")

@@ -79,11 +79,11 @@ extend-immutable-calls = [
 [tool.ruff.lint.per-file-ignores]
 # UPSTREAM: Presenton code, style rules off.
 "{api,constants,enums,models,services,templates,utils,scripts,alembic}/**" = ["I", "UP", "B904", "B905"]
-"{server,mcp_server,migrations}.py" = ["I", "UP", "B904", "B905"]
+"{server,migrations}.py" = ["I", "UP", "B904", "B905"]
 
 [tool.ruff.format]
 # Formatting is enforced on new code only; reformatting upstream would conflict with every open branch.
-exclude = ["{api,constants,enums,models,services,templates,utils,scripts,alembic}/**", "server.py", "mcp_server.py", "migrations.py"]
+exclude = ["{api,constants,enums,models,services,templates,utils,scripts,alembic}/**", "server.py", "migrations.py"]
 
 # Types: mypy's default level everywhere, strict on chatppt/. Modules in the LEGACY list
 # below had errors when CI started; take one out when you fix it, never add one.

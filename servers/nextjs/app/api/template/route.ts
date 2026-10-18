@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
  * `<data>/templates/<id>/`, or imported from a PPTX (`custom-<uuid>`). FastAPI resolves
  * template names through this route; it never imports `presentation-templates/index.tsx`
  * (which would pull Recharts into RSC).
+ *
+ * FastAPI calls this directly (`CHATPPT_NEXTJS_URL`) and caches the result per
+ * template fingerprint, so it runs once per template version.
  */
 export async function GET(request: Request) {
   const group = new URL(request.url).searchParams.get("group");
