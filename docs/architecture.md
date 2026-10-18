@@ -91,18 +91,18 @@ Auth is a single username + bcrypt-style hash + session secret stored in **`user
 (`utils/simple_auth.py`), checked by `SessionAuthMiddleware` on `/api/*` and `/app_data/*`
 except `/app_data/images/`, which is public so the exporter can fetch images without a cookie.
 
-## Optional subsystems that are on by default
+## Optional subsystems (upstream defaults; see roadmap for what changed)
 
 | Subsystem | Cost | Default |
 |---|---|---|
-| mem0 chat memory (`services/mem0_*`, `services/chat/`, ~3.4k lines) | spaCy `en_core_web_sm`, NLTK data, on-disk Qdrant, extra LLM calls | `MEM0_ENABLED=true` (self-disables if spaCy model is missing) |
-| Icon search (`services/icon_finder_service.py`) | fastembed MiniLM ONNX (87 MB, committed to git) + 21 MB JSON vectorstore | always |
+| mem0 chat memory (`services/mem0_*`, `services/chat/`, ~3.4k lines) | spaCy `en_core_web_sm`, NLTK data, on-disk Qdrant, extra LLM calls | upstream: on. ChatPPT: off (`features.memory`) since #4 |
+| Icon search (`services/icon_finder_service.py`) | fastembed MiniLM ONNX (baked at image build; untracked since #3) + 21 MB JSON vectorstore | always; never downloads at runtime since #4 |
 | OCR | Tesseract + traineddata | installed in image |
 | LibreOffice | ~400 MB in image | installed in image |
 | Chromium + ImageMagick | required by export | installed in image |
-| Ollama | `curl \| sh` install at container start when `START_OLLAMA=true` | off |
-| Mixpanel (UI) | hard-coded token in `utils/mixpanel.ts` | on unless `DISABLE_ANONYMOUS_TRACKING` |
-| Sentry | backend opt-in by DSN; Electron has a hard-coded DSN | on in Electron |
+| Ollama | upstream: `curl \| sh` at container start. Removed in #4 | off |
+| Mixpanel (UI) | upstream hard-coded token. Removed in #4 | gone |
+| Sentry | backend opt-in via `server.error_reporting_dsn`; Electron DSN removed in #4 | off |
 
 ## Desktop app
 

@@ -13,7 +13,7 @@ NODE_USE_ENV_PROXY=1 node scripts/sync-presentation-export.cjs   # export runtim
 python scripts/bench/run.py                       # mock LLM, instant answers
 python scripts/bench/run.py --latency-ms 800      # mock paced like a fast hosted model
 python scripts/bench/run.py --real                # provider from your environment (LLM=..., keys)
-python scripts/bench/run.py --repeat 3 --image ghcr.io/presenton/presenton:v0.8.7-beta
+python scripts/bench/run.py --repeat 3 --image <image>
 ```
 
 Needs `nginx` on `$PATH` and a Chromium at `PUPPETEER_EXECUTABLE_PATH` (default

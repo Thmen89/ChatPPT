@@ -19,7 +19,7 @@ Usage:
   python scripts/bench/run.py                       # mock LLM, 10 slides
   python scripts/bench/run.py --latency-ms 800      # mock paced like a fast hosted model
   python scripts/bench/run.py --real                # provider from your environment
-  python scripts/bench/run.py --image ghcr.io/presenton/presenton:v0.8.7-beta
+  python scripts/bench/run.py --image <image>  # e.g. the upstream ghcr.io/presenton/presenton:v0.8.7-beta for comparison
 
 Requires: the Next.js build (``npm run build`` in servers/nextjs), the FastAPI
 venv (``uv sync``), the presentation-export runtime, nginx and a Chromium at
@@ -186,7 +186,6 @@ class Stack:
             "CAN_CHANGE_KEYS": "false",
             "DISABLE_AUTH": "true",
             "DISABLE_IMAGE_GENERATION": env.get("DISABLE_IMAGE_GENERATION", "true"),
-            "DISABLE_ANONYMOUS_TRACKING": "true",
             "NEXT_TELEMETRY_DISABLED": "1",
             "NODE_ENV": "production",
             "FAST_API_INTERNAL_URL": f"http://127.0.0.1:{FASTAPI_PORT}",
@@ -194,7 +193,7 @@ class Stack:
             "EXPORT_RUNTIME_DIR": str(EXPORT_DIR),
             "EXPORT_PACKAGE_ROOT": str(EXPORT_DIR),
             "BUILT_PYTHON_MODULE_PATH": str(EXPORT_DIR / "py" / "convert-linux-x64"),
-            "PRESENTON_APP_ROOT": str(REPO),
+            "CHATPPT_APP_ROOT": str(REPO),
             "PUPPETEER_EXECUTABLE_PATH": env.get("PUPPETEER_EXECUTABLE_PATH", "/usr/bin/chromium"),
         })
         if not self.args.real:

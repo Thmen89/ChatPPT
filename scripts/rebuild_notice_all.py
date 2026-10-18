@@ -11,6 +11,20 @@ FASTAPI_DIR = REPO_ROOT / "servers" / "fastapi"
 NEXT_DIR = REPO_ROOT / "servers" / "nextjs"
 NOTICE_PATH = REPO_ROOT / "NOTICE"
 
+# Attribution kept at the top of NOTICE on every rebuild (Apache-2.0 section 4).
+NOTICE_HEADER = """ChatPPT
+https://github.com/Thmen89/ChatPPT
+
+ChatPPT is derived from Presenton (https://github.com/presenton/presenton),
+copyright the Presenton authors, licensed under the Apache License, Version 2.0.
+ChatPPT is distributed under the same license; see LICENSE.
+
+The third-party notices below are carried over unchanged from Presenton.
+
+=====================================================================
+
+"""
+
 PY_LICENSE_CANDIDATES = [
     "LICENSE",
     "LICENSE.txt",
@@ -322,7 +336,7 @@ def main():
         print("Error: No sections generated. Ensure .venv and node_modules exist.", file=sys.stderr)
         sys.exit(1)
 
-    content = "\n".join(parts)
+    content = NOTICE_HEADER + "\n".join(parts)
     NOTICE_PATH.write_text(content, encoding="utf-8")
     print("NOTICE rebuilt from installed packages")
 

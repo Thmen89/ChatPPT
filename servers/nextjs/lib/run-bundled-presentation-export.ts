@@ -18,6 +18,7 @@ export function getExportPackageRoot(): string {
 
 export function getChatPPTAppRoot(): string {
   return (
+    process.env.CHATPPT_APP_ROOT?.trim() ||
     process.env.PRESENTON_APP_ROOT?.trim() ||
     path.join(process.cwd(), "..", "..")
   );
