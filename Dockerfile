@@ -1,132 +1,165 @@
 # syntax=docker/dockerfile:1.7
+#
+# ChatPPT: one image, one port, one data folder.
+#
+#   docker build -t chatppt .                              # slim (default)
+#   docker build --build-arg VARIANT=full -t chatppt:full .
+#   docker run -p 5000:5000 -v ./chatppt:/data chatppt
+#
+# slim  UI, generation, icon search, PPTX/PDF export, PDF/text uploads.
+# full  slim + LibreOffice (PPTX template import, DOCX/PPTX uploads), Tesseract OCR,
+#       ImageMagick, mem0 chat memory (spaCy + embedder), Noto fonts.
+#
+# Everything the app needs is baked in here; nothing is downloaded when it starts.
 
-FROM python:3.11-slim-trixie AS fastapi-builder
+ARG VARIANT=slim
+ARG PYTHON_IMAGE=python:3.11-slim-trixie
+ARG NODE_IMAGE=node:22-trixie-slim
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.32
 
+FROM ${UV_IMAGE} AS uv
+
+# --------------------------------------------------------------------------- Python
+FROM ${PYTHON_IMAGE} AS python-build
+ARG VARIANT
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    VIRTUAL_ENV=/opt/venv
 WORKDIR /app/servers/fastapi
-
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
-
-RUN python -m venv --without-pip /opt/venv \
-    && pip install --no-cache-dir uv
 
 COPY servers/fastapi/pyproject.toml servers/fastapi/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt \
-    && uv pip install --python /opt/venv/bin/python -r /tmp/requirements.txt
+    set -eu; \
+    extras=""; [ "$VARIANT" = "full" ] && extras="--extra memory"; \
+    uv venv /opt/venv; \
+    uv export --frozen --no-dev --no-emit-project $extras -o /tmp/requirements.txt; \
+    uv pip install --python /opt/venv/bin/python -r /tmp/requirements.txt; \
+    if [ "$VARIANT" = "full" ]; then \
+      uv pip install --python /opt/venv/bin/python \
+        "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"; \
+    fi
 
-COPY servers/fastapi /app/servers/fastapi
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python /opt/venv/bin/python --no-deps .
-# mem0/spaCy BM25 lemmatization loads en_core_web_sm at runtime; spaCy tries pip to
-# download it otherwise. Runtime image has no pip in PATH (--without-pip venv).
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python /opt/venv/bin/python \
-    "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
-ENV HF_HOME=/root/.cache/huggingface \
-    PRESENTON_FASTEMBED_ICON_CACHE_DIR=/root/.cache/presenton/fastembed-icons
-# Warm FastEmbed caches into the image (not a BuildKit cache mount, or HF weights would be missing).
-RUN /opt/venv/bin/python scripts/warm_fastembed_cache.py
+COPY servers/fastapi ./
+# Editable install: the code lives once, in /app/servers/fastapi; this adds the `chatppt` command.
+RUN uv pip install --python /opt/venv/bin/python --no-deps -e .
 
+# Model weights for icon search (and, in full, mem0's embedder), fetched now, never at runtime.
+ENV CHATPPT_FASTEMBED_ICON_CACHE_DIR=/opt/chatppt/fastembed-icons \
+    HF_HOME=/opt/chatppt/hf
+RUN set -eu; \
+    if [ "$VARIANT" = "full" ]; then /opt/venv/bin/python scripts/warm_fastembed_cache.py --memory; \
+    else /opt/venv/bin/python scripts/warm_fastembed_cache.py; fi
 
-FROM node:20-bookworm-slim AS nextjs-builder
+# Byte-code for what the server imports (start-up, first icon search, MCP) and for our
+# own code, so a cold start never compiles; the rest of site-packages stays source-only
+# (compiling all of it would add ~170 MB for modules that are never imported).
+RUN set -eu; \
+    APP_DATA_DIRECTORY=/tmp/warm-data TEMP_DIRECTORY=/tmp/warm-tmp /opt/venv/bin/python -c \
+      "import api.main, chatppt.cli, fastmcp, fastembed_vectorstore, onnxruntime, services.icon_finder_service"; \
+    /opt/venv/bin/python -m compileall -q -j 0 /app/servers/fastapi; \
+    rm -rf /tmp/warm-data /tmp/warm-tmp
 
+# --------------------------------------------------------------------------- Next.js
+FROM ${NODE_IMAGE} AS nextjs-build
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    CYPRESS_INSTALL_BINARY=0 \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 WORKDIR /app/servers/nextjs
-
-ENV NEXT_TELEMETRY_DISABLED=1
-
 COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY servers/nextjs ./
+RUN npm run build && rm -rf .next-build/cache
 
-COPY servers/nextjs /app/servers/nextjs
-RUN npm run build \
-    && rm -rf .next-build/cache
-
-
-FROM node:20-bookworm-slim AS assets-builder
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates unzip \
+# --------------------------------------------------------------------------- Node runtimes
+# PPTX/PDF export (Puppeteer bundle + converter, Linux x64 only upstream) and LiteParse.
+FROM ${NODE_IMAGE} AS node-runtimes
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*
-
-COPY package.json /app/
-
-RUN mkdir -p /app/document-extraction-liteparse \
-    && npm --prefix /app/document-extraction-liteparse init -y \
-    && npm --prefix /app/document-extraction-liteparse install @llamaindex/liteparse@1.4.0 --omit=dev
-
-COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
-COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
-# Bundled export still loads @img/sharp-* native addons from node_modules (not inlined).
-RUN rm -rf /app/presentation-export \
-    && node /app/scripts/sync-presentation-export.cjs --force \
-    && chmod +x /app/presentation-export/py/convert-linux-x64 \
-    && cd /app/presentation-export \
-    && npm init -y \
-    && npm install "sharp@^0.34.5" --include=optional --omit=dev --no-fund --no-audit --no-package-lock
-
-
-FROM python:3.11-slim-trixie AS runtime
-
 WORKDIR /app
+COPY package.json ./
+COPY scripts/sync-presentation-export.cjs scripts/
+RUN --mount=type=cache,target=/root/.npm \
+    set -eu; \
+    if [ "$TARGETARCH" = "amd64" ] || [ -z "$TARGETARCH" ]; then \
+      node scripts/sync-presentation-export.cjs --force; \
+      chmod +x presentation-export/py/convert-linux-x64; \
+      cd presentation-export; \
+      npm init -y >/dev/null; \
+      npm install "sharp@^0.34.5" --include=optional --omit=dev --no-fund --no-audit --no-package-lock; \
+      rm -rf /app/.cache; \
+    else \
+      # TODO(owner): no arm64 build of the export runtime exists upstream; arm64 images
+      # run everything except PPTX/PDF export until one does (`chatppt doctor` says so).
+      mkdir -p presentation-export; \
+    fi
+RUN --mount=type=cache,target=/root/.npm \
+    mkdir -p document-extraction-liteparse \
+    && cd document-extraction-liteparse \
+    && npm init -y >/dev/null \
+    && npm install @llamaindex/liteparse@1.4.0 --omit=dev --no-fund --no-audit --no-package-lock
+COPY electron/resources/document-extraction/liteparse_runner.mjs document-extraction-liteparse/
 
-ARG INSTALL_TESSERACT=true
-ARG INSTALL_LIBREOFFICE=true
+# --------------------------------------------------------------------------- runtime
+FROM ${PYTHON_IMAGE} AS runtime
+ARG VARIANT
 
-# LiteParse uses Node + @llamaindex/liteparse (same runner as Electron); OCR uses Tesseract.
-ENV APP_DATA_DIRECTORY=/app_data \
-    TEMP_DIRECTORY=/tmp/presenton \
+# Chromium for the exporter: the headless shell where Debian packages it, else chromium.
+# full adds the heavy optional tools; slim stays without them.
+RUN set -eu; \
+    apt-get update; \
+    common="ca-certificates fonts-liberation fonts-dejavu-core"; \
+    full=""; \
+    if [ "$VARIANT" = "full" ]; then \
+      full="libreoffice-impress libreoffice-writer tesseract-ocr tesseract-ocr-eng imagemagick fonts-noto-core"; \
+    fi; \
+    apt-get install -y --no-install-recommends $common $full chromium-headless-shell \
+      || apt-get install -y --no-install-recommends $common $full chromium; \
+    for b in /usr/bin/chromium-headless-shell /usr/lib/chromium/headless_shell /usr/bin/chromium; do \
+      if [ -x "$b" ]; then ln -s "$b" /usr/local/bin/chromium-for-export; break; fi; \
+    done; \
+    test -x /usr/local/bin/chromium-for-export; \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /usr/share/doc/* /usr/share/man/*; \
+    groupadd --gid 1000 chatppt; \
+    useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin chatppt; \
+    mkdir -p /data /tmp/chatppt; \
+    chown chatppt:chatppt /data /tmp/chatppt
+
+COPY --from=nextjs-build /usr/local/bin/node /usr/local/bin/node
+COPY --from=python-build /opt/venv /opt/venv
+# Writable by the app user: the model loader may create lock files next to the weights.
+COPY --from=python-build --chown=1000:1000 /opt/chatppt /opt/chatppt
+COPY --from=python-build /app/servers/fastapi /app/servers/fastapi
+COPY --from=nextjs-build /app/servers/nextjs/.next-build/standalone/ /app/servers/nextjs/
+COPY --from=nextjs-build /app/servers/nextjs/.next-build/static /app/servers/nextjs/.next-build/static
+COPY --from=nextjs-build /app/servers/nextjs/public /app/servers/nextjs/public
+COPY --from=node-runtimes /app/presentation-export /app/presentation-export
+COPY --from=node-runtimes /app/document-extraction-liteparse /app/document-extraction-liteparse
+COPY package.json start.js LICENSE NOTICE /app/
+COPY scripts/chatppt-banner.mjs scripts/chatppt-ascii.txt /app/scripts/
+
+ENV PATH=/opt/venv/bin:$PATH \
+    NODE_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CHATPPT_APP_ROOT=/app \
+    CHATPPT_FASTEMBED_ICON_CACHE_DIR=/opt/chatppt/fastembed-icons \
+    HF_HOME=/opt/chatppt/hf \
+    HF_HUB_OFFLINE=1 \
     EXPORT_PACKAGE_ROOT=/app/presentation-export \
     EXPORT_RUNTIME_DIR=/app/presentation-export \
     BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-x64 \
-    PRESENTON_APP_ROOT=/app \
-    HF_HOME=/root/.cache/huggingface \
-    PRESENTON_FASTEMBED_ICON_CACHE_DIR=/root/.cache/presenton/fastembed-icons \
-    PATH="/opt/venv/bin:${PATH}" \
-    NODE_ENV=production \
-    START_OLLAMA=false \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/local/bin/chromium-for-export \
+    TEMP_DIRECTORY=/tmp/chatppt
 
-RUN set -eux; \
-    packages="ca-certificates curl nginx fontconfig imagemagick zstd chromium \
-      fonts-liberation fonts-noto-core xdg-utils \
-      libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 \
-      libcairo2 libcups2t64 libdbus-1-3 libdrm2 libexpat1 libgbm1 \
-      libglib2.0-0t64 libgtk-3-0t64 libnspr4 libnss3 libpango-1.0-0 \
-      libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 \
-      libxkbcommon0 libxrandr2 libxshmfence1 libxss1 libxtst6"; \
-    if [ "$INSTALL_LIBREOFFICE" = "true" ]; then packages="$packages libreoffice"; fi; \
-    if [ "$INSTALL_TESSERACT" = "true" ]; then packages="$packages tesseract-ocr tesseract-ocr-eng"; fi; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends $packages; \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -; \
-    apt-get install -y --no-install-recommends nodejs; \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+VOLUME ["/data"]
+EXPOSE 5000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||5000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
-RUN mkdir -p /app/scripts /app/servers/fastapi /app/servers/nextjs
-RUN mkdir -p /app_data/exports /app_data/images /app_data/uploads /app_data/fonts /app_data/pptx-to-html \
-    && chmod -R a+rX /app_data
-
-COPY --from=fastapi-builder /opt/venv /opt/venv
-COPY --from=fastapi-builder /app/servers/fastapi /app/servers/fastapi
-COPY --from=fastapi-builder /root/.cache/huggingface /root/.cache/huggingface
-COPY --from=fastapi-builder /root/.cache/presenton/fastembed-icons /root/.cache/presenton/fastembed-icons
-
-COPY --from=assets-builder /app/package.json /app/package.json
-COPY --from=assets-builder /app/document-extraction-liteparse /app/document-extraction-liteparse
-COPY --from=assets-builder /app/presentation-export /app/presentation-export
-COPY --from=assets-builder /app/scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
-
-COPY --from=nextjs-builder /app/servers/nextjs/.next-build/standalone/ /app/servers/nextjs/
-COPY --from=nextjs-builder /app/servers/nextjs/public /app/servers/nextjs/public
-COPY --from=nextjs-builder /app/servers/nextjs/.next-build/static /app/servers/nextjs/.next-build/static
-
-COPY start.js LICENSE NOTICE ./
-COPY scripts/presenton-terminal-banner.mjs /app/scripts/presenton-terminal-banner.mjs
-COPY nginx.conf /etc/nginx/nginx.conf
-
-EXPOSE 80
-CMD ["node", "/app/start.js"]
+# Starts as root only to hand /data to the `chatppt` user (bind mounts arrive root-owned),
+# then start.js drops to uid 1000 before any server runs. `--user 1000:1000` skips that.
+# --max-semi-space-size=1: ~20 MB less idle RAM for the Next.js server.
+CMD ["node", "--max-semi-space-size=1", "/app/start.js"]

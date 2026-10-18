@@ -1,41 +1,252 @@
-# Container image build + scan. Not part of the PR gate: the current Dockerfile takes
-# ~15 min to build. Runs nightly and on demand.
-# TODO(agent F, packaging): when the slim/full Dockerfile lands, build both targets here,
-# record compressed sizes against the roadmap targets, and consider moving the slim
-# build into the PR gate once it builds in a few minutes.
+# Container images: slim (default) and full, linux/amd64 and linux/arm64, built natively
+# on one runner per architecture (no QEMU). Every build is smoke-tested (it starts, /healthz
+# answers, `chatppt doctor` passes) and its compressed size is checked against the roadmap
+# targets. main and v* tags push to ghcr.io/thmen89/chatppt; pull requests build only.
+#
+#   slim: :latest  :<version>       :sha-<short>
+#   full: :full    :<version>-full  :sha-<short>-full
+# Nightly and manual runs build and test without pushing.
 name: Image
 
 on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - start.js
+      - package.json
+      - scripts/chatppt-banner.mjs
+      - scripts/sync-presentation-export.cjs
+      - servers/fastapi/pyproject.toml
+      - servers/fastapi/uv.lock
+      - servers/nextjs/package-lock.json
+      - servers/nextjs/next.config.mjs
+      - .github/workflows/image.yml
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/thmen89/chatppt
+  PUSH: ${{ github.event_name == 'push' }}
+  TRIVY_VERSION: "0.75.0"
+  TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+
 jobs:
-  build-and-scan:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      TRIVY_VERSION: "0.75.0"
-      TRIVY_SHA256: c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+  build:
+    name: ${{ matrix.variant }} ${{ matrix.arch }}
+    # TODO(owner): ubuntu-24.04-arm is free for public repositories; for a private one,
+    # use a paid arm64 runner or build arm64 under QEMU (docker/setup-qemu-action).
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [slim, full]
+        arch: [amd64, arm64]
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+          - { variant: slim, target_mb: 450 }
+          - { variant: full, target_mb: 900 }
     steps:
       - uses: actions/checkout@v6
-      - name: docker build
-        run: docker build -t chatppt:ci .
-      - name: image size
+      - uses: docker/setup-buildx-action@v3
+
+      - name: build (load for testing)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: VARIANT=${{ matrix.variant }}
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: chatppt:test
+          cache-from: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}-${{ matrix.arch }}
+
+      - name: smoke test (starts, /healthz, doctor, one data folder)
         run: |
-          size=$(docker image inspect chatppt:ci --format '{{.Size}}')
-          echo "### Image chatppt:ci: $((size / 1000000)) MB uncompressed" >> "$GITHUB_STEP_SUMMARY"
+          data="$RUNNER_TEMP/data"; mkdir -p "$data"
+          docker run -d --name chatppt -p 5000:5000 -v "$data:/data" chatppt:test
+          for i in $(seq 1 90); do
+            curl -fsS http://127.0.0.1:5000/healthz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5000/healthz
+          curl -fsS -o /dev/null -w "home page %{http_code}\n" http://127.0.0.1:5000/
+          test "$(docker inspect -f '{{.State.Health.Status}}' chatppt)" != unhealthy
+          docker exec chatppt chatppt doctor | tee "$RUNNER_TEMP/doctor.txt" || true
+          # Export must work on amd64; arm64 has no upstream export runtime yet (see Dockerfile).
+          if [ "${{ matrix.arch }}" = amd64 ]; then grep -q "^OK    export" "$RUNNER_TEMP/doctor.txt"; fi
+          docker exec chatppt chatppt backup
+          ls -l "$data/backups"
+          # The server runs as uid 1000, never root.
+          docker exec chatppt sh -c 'for p in /proc/[0-9]*; do case "$(cat $p/comm 2>/dev/null)" in python*|node|next-server*) stat -c %u $p;; esac; done' | sort -u | tee "$RUNNER_TEMP/uids.txt"
+          test "$(cat "$RUNNER_TEMP/uids.txt")" = 1000
+          docker logs chatppt | tail -40
+          docker rm -f chatppt
+
+      - name: compressed size
+        run: |
+          bytes=$(docker save chatppt:test | gzip -6 | wc -c)
+          mb=$((bytes / 1000000))
+          echo "### ${{ matrix.variant }} ${{ matrix.arch }}: ~${mb} MB compressed (target ≤ ${{ matrix.target_mb }} MB)" >> "$GITHUB_STEP_SUMMARY"
+          docker history --format '{{.Size}}\t{{.CreatedBy}}' chatppt:test | head -25 >> "$GITHUB_STEP_SUMMARY"
+          if [ "$mb" -gt "${{ matrix.target_mb }}" ]; then
+            echo "::warning title=image size::${{ matrix.variant }} ${{ matrix.arch }} is ~${mb} MB compressed, over the ${{ matrix.target_mb }} MB target"
+          fi
+
       - name: install trivy (pinned binary, checksum verified)
+        if: matrix.arch == 'amd64'
         run: |
           curl -sSLf -o "$RUNNER_TEMP/trivy.tgz" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - name: trivy image (HIGH and CRITICAL, report only)
-        run: trivy image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 0 chatppt:ci
-      - name: trivy image (fixable CRITICAL, blocking)
-        run: trivy image --skip-db-update --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 chatppt:ci
+      - name: trivy (HIGH and CRITICAL, report only)
+        if: matrix.arch == 'amd64'
+        run: trivy image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 0 chatppt:test
+      - name: trivy (fixable CRITICAL, blocking)
+        if: matrix.arch == 'amd64'
+        run: trivy image --skip-db-update --scanners vuln,secret --severity CRITICAL --ignore-unfixed --exit-code 1 chatppt:test
+
+      - name: log in to GHCR
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: push by digest
+        id: push
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: VARIANT=${{ matrix.variant }}
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }}
+      - name: keep digest
+        if: env.PUSH == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+      - uses: actions/upload-artifact@v6
+        if: env.PUSH == 'true'
+        with:
+          name: digest-${{ matrix.variant }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          retention-days: 1
+
+  # A data folder written by the previous release must come up under the new image, both
+  # at the old mount point (/app_data) and at /data.
+  # TODO(owner): "previous" is upstream Presenton v0.8.7-beta until ChatPPT has a release;
+  # then point PREVIOUS at ghcr.io/thmen89/chatppt:<last release>.
+  upgrade:
+    name: upgrade from previous release
+    needs: build  # reuses its build cache
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PREVIOUS: ghcr.io/presenton/presenton:v0.8.7-beta
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: chatppt:test
+          cache-from: type=gha,scope=slim-amd64
+      - name: previous release writes a data folder
+        run: |
+          data="$RUNNER_TEMP/old"; mkdir -p "$data"
+          docker run -d --name previous -p 5001:80 -v "$data:/app_data" \
+            -e AUTH_USERNAME=admin -e AUTH_PASSWORD=upgrade-test "$PREVIOUS"
+          for i in $(seq 1 120); do curl -fsS -o /dev/null http://127.0.0.1:5001/api/v1/auth/status && break; sleep 2; done
+          curl -fsS -u admin:upgrade-test -H 'Content-Type: application/json' \
+            -d '{"content":"upgrade test deck","n_slides":3,"language":"English"}' \
+            http://127.0.0.1:5001/api/v1/ppt/presentation/create | tee "$RUNNER_TEMP/created.json"
+          docker rm -f previous
+          sudo ls -la "$data"
+      - name: new image reads it at /app_data and at /data
+        run: |
+          id=$(python3 -c "import json;print(json.load(open('$RUNNER_TEMP/created.json'))['id'])")
+          for mount in /app_data /data; do
+            docker run -d --name new -p 5000:5000 -v "$RUNNER_TEMP/old:$mount" chatppt:test
+            for i in $(seq 1 90); do curl -fsS -o /dev/null http://127.0.0.1:5000/healthz && break; sleep 1; done
+            # /all lists only decks with slides; this one has none yet, so fetch it by id.
+            curl -fsS -u admin:upgrade-test "http://127.0.0.1:5000/api/v1/ppt/presentation/$id" | grep -q "$id"
+            docker exec new chatppt doctor || true
+            docker logs new 2>&1 | tail -20
+            docker rm -f new
+            echo "upgrade via $mount: ok"
+          done
+
+  publish:
+    name: publish multi-arch tags
+    if: github.event_name == 'push'
+    needs: [build, upgrade]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        variant: [slim, full]
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: digest-${{ matrix.variant }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.variant == 'full' && '-full' || '' }},onlatest=false
+          tags: |
+            type=raw,value=latest,enable=${{ matrix.variant == 'slim' && github.ref == 'refs/heads/main' }}
+            type=raw,value=full,suffix=,enable=${{ matrix.variant == 'full' && github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+      - name: create manifest list
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+      - name: compressed size from the registry
+        run: |
+          tag=$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          docker buildx imagetools inspect "$tag"
+          for arch in amd64 arm64; do
+            digest=$(docker buildx imagetools inspect "$tag" --raw | jq -r ".manifests[] | select(.platform.architecture==\"$arch\") | .digest")
+            bytes=$(docker buildx imagetools inspect "${IMAGE}@${digest}" --raw | jq '[.layers[].size] | add')
+            echo "### ${{ matrix.variant }} $arch: $((bytes / 1000000)) MB compressed in the registry" >> "$GITHUB_STEP_SUMMARY"
+          done

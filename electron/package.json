@@ -29,7 +29,7 @@
     "dist": "electron-builder",
     "postinstall": "electron-builder install-app-deps",
     "dev": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc && electron . --no-sandbox",
-    "setup:env": "npm install && cd ../servers/fastapi && uv sync && cd ../nextjs && npm install && cd ../../electron && npm run setup:export-runtime && npm run prepare:imagemagick",
+    "setup:env": "npm install && cd ../servers/fastapi && uv sync --extra memory && cd ../nextjs && npm install && cd ../../electron && npm run setup:export-runtime && npm run prepare:imagemagick",
     "install:pyinstaller": "cd ../servers/fastapi && echo 'pyinstaller will be installed via uv run --with when building'",
     "typecheck": "tsc --noEmit",
     "build:ts": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc",
