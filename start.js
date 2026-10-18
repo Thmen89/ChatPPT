@@ -1,90 +1,195 @@
-/* This script starts the FastAPI and Next.js servers, setting up user configuration if necessary. It reads environment variables to configure API keys and other settings, ensuring that the user configuration file is created if it doesn't exist. The script also handles the starting of both servers and keeps the Node.js process alive until one of the servers exits. */
+/* ChatPPT container entrypoint (PID 1).
+ *
+ * One public port, two runtimes, no reverse proxy:
+ *
+ *   :5000 (PORT)  Next.js, served from this very process. It renders the UI and forwards
+ *                 /api/v1, /app_data, /static, /mcp and /docs to FastAPI (next.config.mjs).
+ *   127.0.0.1:8000 FastAPI (uvicorn), a child process. MCP is mounted inside it at /mcp.
+ *
+ * Nothing is downloaded or installed here. When started as root (the image default) it
+ * makes the data folder writable for the `chatppt` user and drops to that user before
+ * anything else runs.
+ */
 
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { spawn } from "child_process";
-import { randomUUID } from "crypto";
+import { join, dirname } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
+  accessSync,
   chmodSync,
+  chownSync,
   closeSync,
+  constants as fsConstants,
   copyFileSync,
   existsSync,
   fsyncSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
-} from "fs";
-import { printPresentonStartupBanner } from "./scripts/presenton-terminal-banner.mjs";
+} from "node:fs";
+import { printStartupBanner } from "./scripts/chatppt-banner.mjs";
 
+const startedAt = Date.now();
 process.umask(0o022);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const fastapiDir = join(__dirname, "servers/fastapi");
 const nextjsDir = join(__dirname, "servers/nextjs");
 const nextjsStandaloneServer = join(nextjsDir, "server.js");
-const exportSyncScript = join(__dirname, "scripts/sync-presentation-export.cjs");
 
 const args = process.argv.slice(2);
-const hasDevArg = args.includes("--dev") || args.includes("-d");
-const isDev = hasDevArg;
+const isDev = args.includes("--dev") || args.includes("-d");
 const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
 
+const publicPort = Number.parseInt(process.env.PORT || "5000", 10);
+/** Fixed: next.config.mjs rewrites point here at build time. */
 const fastapiPort = 8000;
-const nextjsPort = 3000;
-const appmcpPort = 8001;
-/** Must match `listen` in nginx.conf (public HTTP inside the container). */
-const nginxListenPort = 80;
+const APP_USER = "chatppt";
 
-const appDataDirectory = process.env.APP_DATA_DIRECTORY;
-if (!appDataDirectory) {
-  throw new Error("APP_DATA_DIRECTORY is required");
+const log = (msg) => console.log(`[chatppt] ${msg}`);
+const warn = (msg) => console.warn(`[chatppt] ${msg}`);
+const fail = (msg) => {
+  console.error(`[chatppt] ${msg}`);
+  process.exit(1);
+};
+
+const hasEntries = (dir) => {
+  try {
+    return readdirSync(dir).some((name) => name !== "lost+found");
+  } catch {
+    return false;
+  }
+};
+
+/** /data by default. A volume still mounted at the old Presenton path /app_data keeps working. */
+const resolveDataDir = () => {
+  const configured =
+    process.env.CHATPPT_SERVER__DATA_DIR?.trim() || process.env.APP_DATA_DIRECTORY?.trim();
+  if (configured) {
+    return configured;
+  }
+  if (hasEntries("/app_data") && !hasEntries("/data")) {
+    warn(
+      "Using data found in /app_data (the old Presenton path). It keeps working; to switch, " +
+        "mount the same folder at /data instead (-v ./chatppt:/data)."
+    );
+    return "/app_data";
+  }
+  return "/data";
+};
+
+// --------------------------------------------------------------------------- user
+
+const lookupUser = (name) => {
+  try {
+    const line = readFileSync("/etc/passwd", "utf8")
+      .split("\n")
+      .find((l) => l.startsWith(`${name}:`));
+    if (!line) return undefined;
+    const [, , uid, gid, , home] = line.split(":");
+    return { uid: Number(uid), gid: Number(gid), home };
+  } catch {
+    return undefined;
+  }
+};
+
+const chownTree = (path, uid, gid) => {
+  const st = lstatSync(path);
+  if (st.isSymbolicLink()) return;
+  if (st.uid !== uid || st.gid !== gid) chownSync(path, uid, gid);
+  if (st.isDirectory()) {
+    for (const name of readdirSync(path)) chownTree(join(path, name), uid, gid);
+  }
+};
+
+/** Root in the image: hand the data folder to the app user, then become that user. */
+const dropPrivileges = (dataDir) => {
+  if (typeof process.getuid !== "function" || process.getuid() !== 0) return;
+  if (process.env.CHATPPT_RUN_AS_ROOT === "true") return;
+  const user = lookupUser(APP_USER);
+  if (!user) return; // not the container image (no such user): run as is
+  mkdirSync(dataDir, { recursive: true });
+  if (statSync(dataDir).uid !== user.uid) {
+    log(`Giving ${dataDir} to user ${APP_USER} (uid ${user.uid}); this happens once.`);
+    chownTree(dataDir, user.uid, user.gid);
+  }
+  process.initgroups(APP_USER, user.gid);
+  process.setgid(user.gid);
+  process.setuid(user.uid);
+  process.env.HOME = user.home;
+  process.env.USER = APP_USER;
+};
+
+const ensureWritable = (dir) => {
+  try {
+    mkdirSync(dir, { recursive: true });
+    accessSync(dir, fsConstants.W_OK);
+  } catch (err) {
+    const uid = typeof process.getuid === "function" ? process.getuid() : "?";
+    fail(
+      `The data folder ${dir} is not writable by uid ${uid} (${err.code || err.message}). ` +
+        `Fix the host folder's owner (e.g. sudo chown -R ${uid} ./chatppt) or run the container ` +
+        "without --user so it can fix it itself."
+    );
+  }
+};
+
+// --------------------------------------------------------------------------- environment
+
+const dataDir = resolveDataDir();
+dropPrivileges(dataDir);
+ensureWritable(dataDir);
+for (const name of ["exports", "images", "uploads", "fonts", "pptx-to-html"]) {
+  mkdirSync(join(dataDir, name), { recursive: true });
 }
 
-const appDataDirectoryMode = 0o755;
-const userConfigPath = join(appDataDirectory, "userConfig.json");
+const userConfigPath = join(dataDir, "userConfig.json");
 const userConfigBackupPath = `${userConfigPath}.bak`;
-const userDataDir = dirname(userConfigPath);
-const appDataStaticDirectories = [
-  "exports",
-  "images",
-  "uploads",
-  "fonts",
-  "pptx-to-html",
-].map((name) => join(appDataDirectory, name));
 
-const ensureReadableDirectory = (dirPath) => {
-  mkdirSync(dirPath, { recursive: true, mode: appDataDirectoryMode });
-  chmodSync(dirPath, appDataDirectoryMode);
-};
+// Upstream code reads these names; setting the CHATPPT_ one too keeps settings explicit
+// (no "legacy variable" warning) and every process on the same folder.
+process.env.CHATPPT_SERVER__DATA_DIR = dataDir;
+process.env.APP_DATA_DIRECTORY = dataDir;
+process.env.USER_CONFIG_PATH = userConfigPath;
+process.env.TEMP_DIRECTORY ||= "/tmp/chatppt";
+// Next.js → FastAPI over loopback, and FastAPI / the exporter → Next.js the same way.
+process.env.FAST_API_INTERNAL_URL ||= `http://127.0.0.1:${fastapiPort}`;
+process.env.CHATPPT_NEXTJS_URL ||= `http://127.0.0.1:${publicPort}`;
+process.env.NEXT_MANUAL_SIG_HANDLE = "true"; // this file handles SIGTERM for both servers
+process.env.NEXT_TELEMETRY_DISABLED = "1";
 
-const ensureReadableExportFiles = (dirPath) => {
-  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    const entryPath = join(dirPath, entry.name);
+if (["1", "true", "yes", "on"].includes(String(process.env.START_OLLAMA).toLowerCase())) {
+  warn("START_OLLAMA is not supported (nothing is installed at runtime). Run Ollama separately and set OLLAMA_URL.");
+}
 
-    if (entry.isDirectory()) {
-      chmodSync(entryPath, appDataDirectoryMode);
-      ensureReadableExportFiles(entryPath);
-    } else if (entry.isFile()) {
-      chmodSync(entryPath, 0o644);
-    }
+// --------------------------------------------------------------------------- export runtime
+
+/** Baked into the image at build time; this only reports, it never downloads. */
+const checkExportRuntime = () => {
+  const root =
+    process.env.EXPORT_RUNTIME_DIR?.trim() ||
+    process.env.EXPORT_PACKAGE_ROOT?.trim() ||
+    join(__dirname, "presentation-export");
+  const hasEntry = existsSync(join(root, "index.cjs")) || existsSync(join(root, "index.js"));
+  const converter = process.env.BUILT_PYTHON_MODULE_PATH?.trim() || join(root, "py", "convert-linux-x64");
+  if (!hasEntry || !existsSync(converter)) {
+    warn(
+      `PPTX/PDF export is unavailable: no export runtime at ${root}. ` +
+        (isDev
+          ? "Run `npm run sync:presentation-export` once."
+          : "This image was built without it (e.g. arm64); `chatppt doctor` explains.")
+    );
   }
 };
 
-const ensureAppDataDirectories = () => {
-  ensureReadableDirectory(userDataDir);
-  for (const dirPath of appDataStaticDirectories) {
-    ensureReadableDirectory(dirPath);
-  }
-  ensureReadableExportFiles(join(appDataDirectory, "exports"));
-};
-
-ensureAppDataDirectories();
+// --------------------------------------------------------------------------- userConfig.json (legacy)
 
 const readJsonConfig = (filePath) => {
   try {
@@ -111,29 +216,25 @@ const copyUserConfigBackup = () => {
   try {
     if (readJsonConfig(userConfigPath)) {
       copyFileSync(userConfigPath, userConfigBackupPath);
-      chmodSync(userConfigBackupPath, 0o644);
+      chmodSync(userConfigBackupPath, 0o600);
     }
   } catch (error) {
-    console.warn("Failed to update user config backup:", error);
+    warn(`Failed to update user config backup: ${error}`);
   }
 };
 
 const writeUserConfig = (config) => {
-  ensureReadableDirectory(userDataDir);
   copyUserConfigBackup();
-
   const tempPath = `${userConfigPath}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
-  const fd = openSync(tempPath, "w");
+  const fd = openSync(tempPath, "w", 0o600);
   try {
     writeFileSync(fd, JSON.stringify(config), "utf8");
     fsyncSync(fd);
   } finally {
     closeSync(fd);
   }
-
   try {
     renameSync(tempPath, userConfigPath);
-    chmodSync(userConfigPath, 0o644);
     if (!existsSync(userConfigBackupPath)) {
       copyUserConfigBackup();
     }
@@ -147,157 +248,8 @@ const writeUserConfig = (config) => {
   }
 };
 
-// Setup node_modules for development
-const setupNodeModules = () => {
-  return new Promise((resolve, reject) => {
-    console.log("Setting up node_modules for Next.js...");
-    const npmProcess = spawn("npm", ["install"], {
-      cwd: nextjsDir,
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    npmProcess.on("error", (err) => {
-      console.error("npm install failed:", err);
-      reject(err);
-    });
-
-    npmProcess.on("exit", (code) => {
-      if (code === 0) {
-        console.log("npm install completed successfully");
-        resolve();
-      } else {
-        console.error(`npm install failed with exit code: ${code}`);
-        reject(new Error(`npm install failed with exit code: ${code}`));
-      }
-    });
-  });
-};
-
-const runCommand = (command, commandArgs, options = {}) => {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, {
-      cwd: options.cwd || __dirname,
-      stdio: options.stdio || "inherit",
-      env: options.env || process.env,
-    });
-
-    child.on("error", (err) => {
-      reject(err);
-    });
-
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`${command} exited with code: ${code}`));
-      }
-    });
-  });
-};
-
-const runNodeScript = (scriptPath, scriptArgs) => {
-  return runCommand(process.execPath, [scriptPath, ...scriptArgs], {
-    cwd: __dirname,
-  });
-};
-
-const forwardProcessOutput = (stream, target, onChunk) => {
-  if (!stream) {
-    return;
-  }
-  stream.on("data", (chunk) => {
-    const text = chunk.toString();
-    target.write(text);
-    onChunk?.(text);
-  });
-};
-
-const waitForProcessReady = (processName, childProcess, readinessRegexes = []) => {
-  if (readinessRegexes.length === 0) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    let isReady = false;
-
-    const markReady = (text) => {
-      if (isReady) {
-        return;
-      }
-      if (readinessRegexes.some((regex) => regex.test(text))) {
-        isReady = true;
-        resolve();
-      }
-    };
-
-    forwardProcessOutput(childProcess.stdout, process.stdout, markReady);
-    forwardProcessOutput(childProcess.stderr, process.stderr, markReady);
-
-    childProcess.on("exit", (code) => {
-      if (!isReady) {
-        reject(
-          new Error(`${processName} exited before reporting ready (exit code: ${code})`)
-        );
-      }
-    });
-
-    childProcess.on("error", (err) => {
-      if (!isReady) {
-        reject(err);
-      }
-    });
-  });
-};
-
-const isTruthyEnv = (value) => {
-  if (value == null) {
-    return false;
-  }
-
-  return !["", "0", "false", "no", "off"].includes(
-    String(value).trim().toLowerCase()
-  );
-};
-
-const isOllamaInstalled = () =>
-  existsSync("/usr/bin/ollama") || existsSync("/usr/local/bin/ollama");
-
-const shouldStartOllama = () => isTruthyEnv(process.env.START_OLLAMA);
-
-const ensurePresentationExportRuntime = async () => {
-  if (process.env.ENSURE_PRESENTATION_EXPORT_RUNTIME === "false") {
-    return;
-  }
-
-  if (!existsSync(exportSyncScript)) {
-    console.warn("presentation-export sync script not found; skipping runtime check");
-    return;
-  }
-
-  try {
-    await runNodeScript(exportSyncScript, ["--check-only"]);
-  } catch (err) {
-    if (!isDev) {
-      throw new Error(
-        "presentation-export runtime is missing in this container image. Rebuild the image so the runtime package is installed."
-      );
-    }
-
-    console.warn("presentation-export runtime missing in dev mount. Syncing runtime package...");
-    await runNodeScript(exportSyncScript, ["--force"]);
-  }
-};
-
-process.env.USER_CONFIG_PATH = userConfigPath;
-// Let Next.js middleware reach FastAPI over the loopback interface inside the
-// container without having to bounce through nginx (the host-facing port is
-// not reachable from inside the Next.js process).
-if (!process.env.FAST_API_INTERNAL_URL) {
-  process.env.FAST_API_INTERNAL_URL = `http://127.0.0.1:${fastapiPort}`;
-}
-
-//? UserConfig is only setup if API Keys can be changed
+// Mirrors provider env vars into userConfig.json, which the settings screen edits.
+// TODO(customisation workstream): delete once settings live in chatppt.toml only.
 const setupUserConfigFromEnv = () => {
   let existingConfig = readUserConfig();
 
@@ -453,170 +405,112 @@ const setupUserConfigFromEnv = () => {
     AUTH_SECRET_KEY: existingConfig.AUTH_SECRET_KEY,
   };
 
-  writeFileSync(userConfigPath, JSON.stringify(normalizeImageConfig(userConfig)));
+  writeUserConfig(normalizeImageConfig(userConfig));
 };
 
-const startServers = async (nginxReadyPromise) => {
-  const fastApiProcess = spawn(
-    "python",
-    [
-      "server.py",
-      "--port",
-      fastapiPort.toString(),
-      "--reload",
-      isDev ? "true" : "false",
-    ],
-    {
-      cwd: fastapiDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    }
-  );
+// --------------------------------------------------------------------------- processes
 
-  fastApiProcess.on("error", (err) => {
-    console.error("FastAPI process failed to start:", err);
-  });
+const children = new Set();
 
-  const appmcpProcess = spawn(
-    "python",
-    ["mcp_server.py", "--port", appmcpPort.toString()],
-    {
-      cwd: fastapiDir,
-      stdio: "ignore",
-      env: process.env,
-    }
-  );
-
-  appmcpProcess.on("error", (err) => {
-    console.error("App MCP process failed to start:", err);
-  });
-
-  const useStandaloneNextjs = !isDev && existsSync(nextjsStandaloneServer);
-
-  const nextjsProcess = spawn(
-    useStandaloneNextjs ? process.execPath : "npm",
-    useStandaloneNextjs
-      ? [nextjsStandaloneServer]
-      : [
-          "run",
-          isDev ? "dev" : "start",
-          "--",
-          "-H",
-          "127.0.0.1",
-          "-p",
-          nextjsPort.toString(),
-        ],
-    {
-      cwd: nextjsDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env:
-        useStandaloneNextjs
-          ? {
-              ...process.env,
-              HOSTNAME: "127.0.0.1",
-              PORT: nextjsPort.toString(),
-            }
-          : process.env,
-    }
-  );
-
-  nextjsProcess.on("error", (err) => {
-    console.error("Next.js process failed to start:", err);
-  });
-
-  const shouldStartOllamaRuntime = shouldStartOllama();
-  const ollamaInstalled = isOllamaInstalled();
-
-  const fastApiReadyPromise = waitForProcessReady("FastAPI", fastApiProcess, [
-    /Application startup complete\./i,
-  ]);
-  const nextjsReadyPromise = waitForProcessReady("Next.js", nextjsProcess, [
-    /Ready in\s+\d+/i,
-    /started server on/i,
-  ]);
-
-  const exitPromises = [
-    new Promise((resolve) => fastApiProcess.on("exit", resolve)),
-    new Promise((resolve) => nextjsProcess.on("exit", resolve)),
-  ];
-
-  if (shouldStartOllamaRuntime && ollamaInstalled) {
-    const ollamaProcess = spawn("ollama", ["serve"], {
-      cwd: "/",
-      stdio: "inherit",
-      env: process.env,
-    });
-    ollamaProcess.on("error", (err) => {
-      console.error("Ollama process failed to start:", err);
-    });
-    exitPromises.push(new Promise((resolve) => ollamaProcess.on("exit", resolve)));
-  } else if (shouldStartOllamaRuntime) {
-    console.log(
-      "START_OLLAMA=true but no ollama binary is installed (nothing is downloaded at runtime). Install Ollama in the image or set OLLAMA_URL to a remote daemon."
-    );
-  } else {
-    console.log(
-      "Ollama disabled (START_OLLAMA=false); use OLLAMA_URL for a remote daemon if needed."
-    );
+const stopChildren = (signal = "SIGTERM") => {
+  for (const child of children) {
+    if (child.exitCode === null && child.signalCode === null) child.kill(signal);
   }
+};
 
-  try {
-    await Promise.all([fastApiReadyPromise, nextjsReadyPromise, nginxReadyPromise]);
-    printPresentonStartupBanner({
-      nextPort: nextjsPort,
-      fastapiPort,
-      nginxInternalPort: nginxListenPort,
-    });
-  } catch (err) {
-    console.warn(`Skipping startup banner: ${err.message}`);
+const waitForHttp = async (url, timeoutMs = 120_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(1000) });
+      if (res.ok) return true;
+    } catch {
+      // not up yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
-
-  // Keep the Node process alive until one of the servers exits
-  const exitCode = await Promise.race(exitPromises);
-
-  console.log(`One of the processes exited. Exit code: ${exitCode}`);
-  process.exit(exitCode);
+  return false;
 };
 
-// Start nginx service (reverse proxy: see nginx.conf listen + upstream ports)
-const startNginx = () => {
-  return new Promise((resolve) => {
-    const nginxProcess = spawn("service", ["nginx", "start"], {
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    nginxProcess.on("error", (err) => {
-      console.error("Nginx process failed to start:", err);
-      resolve(false);
-    });
-
-    nginxProcess.on("exit", (code) => {
-      if (code === 0) {
-        console.log("Nginx started successfully");
-        resolve(true);
-      } else {
-        console.error(`Nginx failed to start with exit code: ${code}`);
-        resolve(false);
-      }
-    });
+const startFastApi = () => {
+  const child = spawn(
+    process.env.CHATPPT_PYTHON || "python",
+    ["server.py", "--port", String(fastapiPort), "--reload", isDev ? "true" : "false"],
+    { cwd: fastapiDir, stdio: "inherit", env: process.env }
+  );
+  children.add(child);
+  child.on("error", (err) => fail(`FastAPI could not start: ${err.message}`));
+  child.on("exit", (code, signal) => {
+    children.delete(child);
+    if (!shuttingDown) {
+      console.error(`[chatppt] FastAPI exited (${signal || code}); stopping.`);
+      shutdown(typeof code === "number" && code !== 0 ? code : 1);
+    }
   });
+  return child;
 };
+
+/** Production: the standalone Next.js server runs inside this process (one Node runtime). */
+const startNextJs = async () => {
+  if (isDev || !existsSync(nextjsStandaloneServer)) {
+    const child = spawn(
+      "npm",
+      ["run", isDev ? "dev" : "start", "--", "-H", "0.0.0.0", "-p", String(publicPort)],
+      { cwd: nextjsDir, stdio: "inherit", env: process.env }
+    );
+    children.add(child);
+    child.on("exit", (code) => {
+      children.delete(child);
+      if (!shuttingDown) shutdown(typeof code === "number" && code !== 0 ? code : 1);
+    });
+    return;
+  }
+  process.env.PORT = String(publicPort);
+  // Docker sets HOSTNAME to the container id; Next.js would bind to that, not all interfaces.
+  process.env.HOSTNAME = "0.0.0.0";
+  await import(pathToFileURL(nextjsStandaloneServer).href);
+};
+
+let shuttingDown = false;
+const shutdown = (code = 0) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  stopChildren("SIGTERM");
+  const timer = setTimeout(() => {
+    stopChildren("SIGKILL");
+    process.exit(code);
+  }, 5000);
+  timer.unref();
+  const check = setInterval(() => {
+    if (children.size === 0) {
+      clearInterval(check);
+      process.exit(code);
+    }
+  }, 50);
+};
+
+process.on("SIGTERM", () => shutdown(0));
+process.on("SIGINT", () => shutdown(0));
+process.on("exit", () => stopChildren("SIGKILL"));
 
 const main = async () => {
-  await ensurePresentationExportRuntime();
-
-  if (isDev) {
-    await setupNodeModules();
-  }
-
+  checkExportRuntime();
   if (canChangeKeys) {
     setupUserConfigFromEnv();
   }
 
-  const nginxReadyPromise = startNginx();
-  startServers(nginxReadyPromise);
-  await nginxReadyPromise;
+  // FastAPI (Python imports) is the slow one: start it first, then Next.js alongside.
+  startFastApi();
+  await startNextJs();
+
+  const ready = await waitForHttp(`http://127.0.0.1:${publicPort}/healthz`);
+  if (!ready) {
+    fail("ChatPPT did not become ready within 120 s; see the log lines above.");
+  }
+  printStartupBanner({ port: publicPort, dataDir, startupMs: Date.now() - startedAt });
 };
 
-main();
+main().catch((err) => {
+  console.error(err);
+  shutdown(1);
+});

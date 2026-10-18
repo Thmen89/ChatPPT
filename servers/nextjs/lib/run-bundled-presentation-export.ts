@@ -167,8 +167,11 @@ async function runBundledPresentationExportLocked(params: {
 
   await fs.access(converter);
 
+  // CHATPPT_NEXTJS_URL: this server on loopback (start.js sets it to the public port).
   const nextjsUrl =
-    process.env.NEXT_PUBLIC_URL?.trim() || "http://127.0.0.1";
+    process.env.CHATPPT_NEXTJS_URL?.trim() ||
+    process.env.NEXT_PUBLIC_URL?.trim() ||
+    "http://127.0.0.1";
   const q = new URLSearchParams({ id: presentationId });
   const sessionToken = extractSessionTokenFromCookieHeader(cookieHeader);
   if (sessionToken) {

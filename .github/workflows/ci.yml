@@ -85,7 +85,8 @@ jobs:
       - name: tsc
         run: npm run typecheck
 
-  # One-time: build as above, uv sync, the export runtime (scripts/bench/README.md), nginx.
+  # One-time: build as above, uv sync, the export runtime (scripts/bench/README.md).
+  # The stack starts through start.js, as in the container (one port, :5000).
   # cd servers/nextjs && npm run test:e2e
   e2e:
     name: e2e (prompt to PPTX, Playwright)
@@ -131,13 +132,6 @@ jobs:
       - name: Playwright Chromium
         working-directory: servers/nextjs
         run: npx playwright install --with-deps chromium
-      - name: nginx on :80, unprivileged
-        # FastAPI reaches Next.js through http://localhost (nginx on :80); see docs/architecture.md.
-        run: |
-          command -v nginx || { sudo apt-get update && sudo apt-get install -y nginx; }
-          sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
-          sudo mkdir -p /var/lib/nginx /var/log/nginx
-          sudo chown -R "$USER" /var/lib/nginx /var/log/nginx
       - name: playwright test
         working-directory: servers/nextjs
         env:
