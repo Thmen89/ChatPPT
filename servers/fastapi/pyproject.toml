@@ -27,7 +27,7 @@ dependencies = [
     "openai>=1.98.0",
     "pathvalidate>=3.3.1",
     "pdfplumber>=0.11.7",
-    "pillow>=12.2.0",
+    "pillow>=13.0.0",
     "psycopg[binary]>=3.2.0",
     "sqlmodel>=0.0.24",
     "llmai==0.2.5",
@@ -48,6 +48,9 @@ chatppt = "chatppt.cli:main"
 
 [tool.uv]
 index-strategy = "unsafe-best-match"
+# fastembed caps pillow below 13, but 13.0.0 carries a critical JPEG-decoder fix
+# (CVE-2026-112403). fastembed only needs PIL for image models, which ChatPPT does not use.
+override-dependencies = ["pillow>=13.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
